@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "tier": "tier1",
+  "description": "Deterministic finite-state defaults mirrored by the shell entrypoints.",
+  "common": {
+    "world_suites": ["email", "files", "calendar", "payments"],
+    "runtimes": [
+      "detailed_refusal",
+      "binary_denial",
+      "generic_failure",
+      "visible_settlement",
+      "opaque_termination",
+      "randomized_feedback",
+      "arm_style",
+      "silenttwin"
+    ],
+    "attackers": ["bayesian", "black_box", "mock_llm"],
+    "query_budgets": [0, 4, 16, 32],
+    "seeds": [42],
+    "num_samples": -1,
+    "out_root": "outputs/silenttwin"
+  },
+  "experiments": {
+    "e1": {
+      "name": "feedback_leakage"
+    },
+    "e2": {
+      "name": "feedback_assisted_bypass",
+      "conditions": ["adaptive", "random", "oracle", "shuffled"],
+      "final_exploit_attempts": 1
+    },
+    "e3": {
+      "name": "channel_closure",
+      "additional_runtimes": [
+        "silenttwin_timing_leak",
+        "silenttwin_identifier_leak",
+        "silenttwin_decision_dependent_twin_mismatch"
+      ]
+    },
+    "e4": {
+      "name": "useful_work",
+      "runtimes": ["opaque_termination", "visible_settlement", "silenttwin"],
+      "attackers": ["mock_llm"],
+      "query_budgets": [0],
+      "workflows": ["independent", "rejection_dependent", "atomic"]
+    },
+    "e5": {
+      "name": "assumption_ablations",
+      "runtimes": ["silenttwin"],
+      "ablations": [
+        "none",
+        "visible_settlement",
+        "timing_leak",
+        "identifier_leak",
+        "error_schema_leak",
+        "verdict_dependent_termination",
+        "callback_leak",
+        "later_world_read",
+        "retained_memory",
+        "retained_kv_cache",
+        "incomplete_data_dependencies",
+        "incomplete_control_dependencies",
+        "missing_atomic_group",
+        "public_fidelity_degradation",
+        "decision_dependent_twin_mismatch"
+      ]
+    }
+  }
+}
