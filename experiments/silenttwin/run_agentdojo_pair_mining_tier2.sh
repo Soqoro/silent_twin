@@ -1,7 +1,11 @@
 #!/bin/bash
 # Train/development-only guard-pair mining. Test observations are never accepted.
 set -euo pipefail
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ -n "${AGENTDOJO_REPO_ROOT:-}" ]]; then
+    script_dir="$AGENTDOJO_REPO_ROOT/experiments/silenttwin"
+else
+    script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+fi
 # shellcheck source=_agentdojo_common.sh
 source "$script_dir/_agentdojo_common.sh"
 agentdojo_init pair_mining PAIR_MINING controlled
@@ -36,8 +40,7 @@ case "$AGENTDOJO_STAGE" in
         printf '%s\n' 'reduce_inputs=TRAIN_OBSERVATIONS TRAIN_OBSERVATION_MANIFEST DEVELOPMENT_OBSERVATIONS DEVELOPMENT_OBSERVATION_MANIFEST'
         ;;
     run)
-        [[ -n "${SLURM_JOB_ID:-}" ]] || \
-            agentdojo_die "pair-mining run is forbidden outside an authorized SLURM job"
+        agentdojo_require_scheduler_job "pair-mining run"
         agentdojo_reject_ephemeral_runtime_paths
         requires_gpu="${AGENTDOJO_REQUIRES_GPU:-}"
         if [[ -z "$requires_gpu" ]]; then

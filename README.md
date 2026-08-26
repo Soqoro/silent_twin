@@ -10,8 +10,10 @@ The checked-in implementation includes a deterministic Tier-1 finite-state
 testbed, the legacy synthetic Tier-2 model adapter, and a separate AgentDojo
 Tier-2 benchmark over all four pinned suites. Tier 1 and AgentDojo's model-free
 catalog, grid, aggregate, and deterministic engineering-smoke paths need no
-GPU. Real local-model runs use the dedicated SLURM launchers; they never
-download a checkpoint or fall back to a provider API or mock model.
+GPU. Real local-model runs use dedicated scheduler-authorized launchers;
+AgentDojo accepts PBS Professional or Slurm, while the legacy synthetic Tier-2
+wrappers remain Slurm-specific. Runs never download a checkpoint or fall back
+to a provider API or mock model.
 
 ## Core separation
 

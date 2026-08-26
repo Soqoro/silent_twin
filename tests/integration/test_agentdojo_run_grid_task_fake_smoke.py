@@ -155,6 +155,8 @@ def _offline_fake_environment(
         "TRANSFORMERS_CACHE",
         "CUDA_VISIBLE_DEVICES",
         "SLURM_TMPDIR",
+        "PBS_JOBID",
+        "PBS_JOBDIR",
     ):
         monkeypatch.delenv(name, raising=False)
     for name in (

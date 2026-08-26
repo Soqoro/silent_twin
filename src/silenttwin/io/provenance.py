@@ -68,21 +68,73 @@ def source_tree_hash() -> str:
     return digest.hexdigest()
 
 
+def _scheduler_metadata() -> dict[str, str | None]:
+    """Normalize Slurm or PBS allocation metadata without guessing a site."""
+
+    slurm_job_id = os.environ.get("SLURM_JOB_ID")
+    pbs_job_id = os.environ.get("PBS_JOBID")
+    if slurm_job_id and pbs_job_id:
+        kind = "ambiguous"
+    elif slurm_job_id:
+        kind = "slurm"
+    elif pbs_job_id:
+        kind = "pbs"
+    else:
+        kind = None
+
+    if kind == "slurm":
+        job_id = slurm_job_id
+        array_job_id = os.environ.get("SLURM_ARRAY_JOB_ID")
+        array_task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
+        partition = os.environ.get("SLURM_JOB_PARTITION")
+        queue = None
+        node_list = os.environ.get("SLURM_JOB_NODELIST")
+        node_file = None
+        cpus_per_task = os.environ.get("SLURM_CPUS_PER_TASK")
+        job_gpus = os.environ.get("SLURM_JOB_GPUS")
+    elif kind == "pbs":
+        job_id = pbs_job_id
+        array_job_id = os.environ.get("PBS_ARRAY_ID")
+        array_task_id = os.environ.get("PBS_ARRAY_INDEX")
+        partition = None
+        queue = os.environ.get("PBS_QUEUE")
+        node_list = None
+        node_file = os.environ.get("PBS_NODEFILE")
+        cpus_per_task = os.environ.get("NCPUS")
+        job_gpus = None
+    else:
+        job_id = None
+        array_job_id = None
+        array_task_id = None
+        partition = None
+        queue = None
+        node_list = None
+        node_file = None
+        cpus_per_task = None
+        job_gpus = None
+
+    return {
+        "kind": kind,
+        "job_id": job_id,
+        "array_job_id": array_job_id,
+        "array_task_id": array_task_id,
+        "partition": partition,
+        "queue": queue,
+        "node_list": node_list,
+        "node_file": node_file,
+        "cpus_per_task": cpus_per_task,
+        "job_gpus": job_gpus,
+        "slurm_job_id": slurm_job_id,
+        "pbs_job_id": pbs_job_id,
+    }
+
+
 def collect_provenance() -> dict[str, Any]:
     try:
         package_version = version("silenttwin")
     except PackageNotFoundError:
         package_version = "0.1.0+source"
     status = _git_output("status", "--porcelain", "--untracked-files=all")
-    scheduler = {
-        "job_id": os.environ.get("SLURM_JOB_ID"),
-        "array_job_id": os.environ.get("SLURM_ARRAY_JOB_ID"),
-        "array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
-        "partition": os.environ.get("SLURM_JOB_PARTITION"),
-        "node_list": os.environ.get("SLURM_JOB_NODELIST"),
-        "cpus_per_task": os.environ.get("SLURM_CPUS_PER_TASK"),
-        "job_gpus": os.environ.get("SLURM_JOB_GPUS"),
-    }
     return {
         "code_revision": _git_output("rev-parse", "HEAD") or "unknown",
         "code_dirty": bool(status),
@@ -91,7 +143,7 @@ def collect_provenance() -> dict[str, Any]:
         "python_implementation": platform.python_implementation(),
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "platform": platform.platform(),
-        "scheduler": scheduler,
+        "scheduler": _scheduler_metadata(),
         "gpu_environment": {
             "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
             "nvidia_visible_devices": os.environ.get("NVIDIA_VISIBLE_DEVICES"),

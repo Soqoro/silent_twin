@@ -101,9 +101,15 @@ def validate_persistent_runtime_paths(
     run it before constructing a Transformers client.
     """
 
-    scratch_value = os.environ.get("SLURM_TMPDIR")
-    scratch = (
-        Path(scratch_value).expanduser().resolve() if scratch_value else None
+    scratch_variables = ["SLURM_TMPDIR"]
+    if os.environ.get("PBS_JOBID"):
+        # PBS_JOBDIR is the staging/execution directory; TMPDIR is PBS-assigned
+        # job scratch when present.  Both are non-authoritative runtime paths.
+        scratch_variables.extend(("PBS_JOBDIR", "TMPDIR"))
+    scratch_roots = tuple(
+        (variable, Path(value).expanduser().resolve())
+        for variable in scratch_variables
+        if (value := os.environ.get(variable))
     )
     required = set(required_directory_variables)
     for variable in sorted(set(path_variables) | required):
@@ -113,14 +119,17 @@ def validate_persistent_runtime_paths(
             raise RuntimeArtifactError(
                 f"{variable} must identify a persistent local checkpoint directory"
             )
-        if path is not None and scratch is not None:
+        for scratch_variable, scratch in scratch_roots:
+            if path is None:
+                break
             try:
                 path.resolve().relative_to(scratch)
             except ValueError:
                 pass
             else:
                 raise RuntimeArtifactError(
-                    f"{variable} cannot point inside ephemeral SLURM_TMPDIR"
+                    f"{variable} cannot point inside ephemeral scheduler scratch "
+                    f"{scratch_variable}"
                 )
 
 

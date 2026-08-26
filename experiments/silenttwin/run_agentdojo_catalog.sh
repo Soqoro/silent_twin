@@ -1,7 +1,11 @@
 #!/bin/bash
 # Freeze the pinned AgentDojo catalog and structural split registry on CPU.
 set -euo pipefail
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+if [[ -n "${AGENTDOJO_REPO_ROOT:-}" ]]; then
+    script_dir="$AGENTDOJO_REPO_ROOT/experiments/silenttwin"
+else
+    script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+fi
 # shellcheck source=_agentdojo_common.sh
 source "$script_dir/_agentdojo_common.sh"
 agentdojo_init catalog CATALOG controlled

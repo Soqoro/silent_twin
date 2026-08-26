@@ -121,26 +121,81 @@ agentdojo_path_is_within() {
     [[ "$candidate" == "$root" || "$candidate" == "$root/"* ]]
 }
 
+agentdojo_require_scheduler_job() {
+    # Scheduler variables are an explicit authorization assertion, not a
+    # substitute for model/runtime identity checks.  Reject ambiguous mixed
+    # contexts instead of guessing which scheduler supplied the allocation.
+    local operation="${1:-run stage}"
+    local slurm_present=0 pbs_present=0
+    [[ -n "${SLURM_JOB_ID:-}" ]] && slurm_present=1
+    [[ -n "${PBS_JOBID:-}" ]] && pbs_present=1
+    if ((slurm_present + pbs_present == 0)); then
+        agentdojo_die "$operation is forbidden outside an authorized Slurm or PBS job"
+    fi
+    if ((slurm_present + pbs_present > 1)); then
+        agentdojo_die "ambiguous scheduler context exposes both SLURM_JOB_ID and PBS_JOBID"
+    fi
+    if ((slurm_present == 1)); then
+        AGENTDOJO_SCHEDULER_KIND=slurm
+        AGENTDOJO_SCHEDULER_JOB_ID="$SLURM_JOB_ID"
+    else
+        [[ "${PBS_ENVIRONMENT:-}" == PBS_BATCH ]] || \
+            agentdojo_die "$operation requires PBS_ENVIRONMENT=PBS_BATCH"
+        AGENTDOJO_SCHEDULER_KIND=pbs
+        AGENTDOJO_SCHEDULER_JOB_ID="$PBS_JOBID"
+    fi
+    export AGENTDOJO_SCHEDULER_KIND AGENTDOJO_SCHEDULER_JOB_ID
+}
+
+agentdojo_scheduler_array_index() {
+    local variable raw_index
+    case "$AGENTDOJO_SCHEDULER_KIND" in
+        slurm) variable=SLURM_ARRAY_TASK_ID ;;
+        pbs) variable=PBS_ARRAY_INDEX ;;
+        *) agentdojo_die "scheduler authorization was not initialized" ;;
+    esac
+    raw_index="${!variable:-}"
+    [[ -n "$raw_index" ]] || \
+        agentdojo_die "$variable is required; inspect STAGE=grid first"
+    [[ "$raw_index" =~ ^(0|[1-9][0-9]*)$ ]] || \
+        agentdojo_die "$variable must be a non-negative base-10 integer"
+    AGENTDOJO_SCHEDULER_ARRAY_VARIABLE="$variable"
+    AGENTDOJO_SCHEDULER_ARRAY_TASK_ID="$raw_index"
+    AGENTDOJO_TASK_ID=$((10#$raw_index))
+    export AGENTDOJO_SCHEDULER_ARRAY_VARIABLE
+    export AGENTDOJO_SCHEDULER_ARRAY_TASK_ID AGENTDOJO_TASK_ID
+}
+
 agentdojo_reject_ephemeral_runtime_paths() {
-    [[ -n "${SLURM_TMPDIR:-}" ]] || return 0
-    local name value
-    for name in AGENTDOJO_MODEL_CACHE HF_HOME HF_HUB_CACHE TRANSFORMERS_CACHE \
-        AGENTDOJO_ATTACKER_CHECKPOINT AGENTDOJO_VICTIM_CHECKPOINT \
-        AGENTDOJO_MONITOR_CHECKPOINT OUT_ROOT; do
-        value="${!name:-}"
-        if [[ -n "$value" ]] && agentdojo_path_is_within "$value" "$SLURM_TMPDIR"; then
-            agentdojo_die "$name must be persistent, not inside SLURM_TMPDIR"
-        fi
+    local -a scratch_variables=(SLURM_TMPDIR)
+    if [[ -n "${PBS_JOBID:-}" ]]; then
+        # PBS_JOBDIR is the job staging/execution directory.  TMPDIR is the
+        # job scratch directory when PBS assigns one.  Neither may hold an
+        # authoritative cache, checkpoint, output, or evidence artifact.
+        scratch_variables+=(PBS_JOBDIR TMPDIR)
+    fi
+    local scratch_variable scratch_root name value
+    for scratch_variable in "${scratch_variables[@]}"; do
+        scratch_root="${!scratch_variable:-}"
+        [[ -n "$scratch_root" ]] || continue
+        for name in AGENTDOJO_MODEL_CACHE HF_HOME HF_HUB_CACHE TRANSFORMERS_CACHE \
+            AGENTDOJO_ATTACKER_CHECKPOINT AGENTDOJO_VICTIM_CHECKPOINT \
+            AGENTDOJO_MONITOR_CHECKPOINT OUT_ROOT; do
+            value="${!name:-}"
+            if [[ -n "$value" ]] && agentdojo_path_is_within "$value" "$scratch_root"; then
+                agentdojo_die "$name must be persistent, not inside scheduler scratch $scratch_variable"
+            fi
+        done
+        # Pair-observation generation may select a checkpoint per frozen
+        # monitor profile.  Reject every configured override before Python or
+        # a model client is reached, not just the generic fallback above.
+        while IFS= read -r name; do
+            value="${!name:-}"
+            if [[ -n "$value" ]] && agentdojo_path_is_within "$value" "$scratch_root"; then
+                agentdojo_die "$name must be persistent, not inside scheduler scratch $scratch_variable"
+            fi
+        done < <(compgen -A variable AGENTDOJO_MONITOR_CHECKPOINT_)
     done
-    # Pair-observation generation may select a checkpoint per frozen monitor
-    # profile.  Reject every configured override before Python or a model client
-    # is reached, not just the generic fallback above.
-    while IFS= read -r name; do
-        value="${!name:-}"
-        if [[ -n "$value" ]] && agentdojo_path_is_within "$value" "$SLURM_TMPDIR"; then
-            agentdojo_die "$name must be persistent, not inside SLURM_TMPDIR"
-        fi
-    done < <(compgen -A variable AGENTDOJO_MONITOR_CHECKPOINT_)
 }
 
 agentdojo_manifest_total_tasks() {
@@ -200,16 +255,11 @@ agentdojo_selected_task_runtime_requirements() {
 agentdojo_run_preflight_before_python() {
     # This function deliberately uses no Python.  Authorization and array
     # bounds must fail before imports, environment activation, or model checks.
-    [[ -n "${SLURM_JOB_ID:-}" ]] || \
-        agentdojo_die "run stage is forbidden outside an authorized SLURM job"
-    [[ -n "${SLURM_ARRAY_TASK_ID:-}" ]] || \
-        agentdojo_die "SLURM_ARRAY_TASK_ID is required; inspect STAGE=grid first"
-    [[ "$SLURM_ARRAY_TASK_ID" =~ ^(0|[1-9][0-9]*)$ ]] || \
-        agentdojo_die "SLURM_ARRAY_TASK_ID must be a non-negative base-10 integer"
+    agentdojo_require_scheduler_job "run stage"
+    agentdojo_scheduler_array_index
     agentdojo_manifest_total_tasks
-    AGENTDOJO_TASK_ID=$((10#$SLURM_ARRAY_TASK_ID))
     ((AGENTDOJO_TASK_ID < AGENTDOJO_TOTAL_TASKS)) || \
-        agentdojo_die "SLURM_ARRAY_TASK_ID=$SLURM_ARRAY_TASK_ID is out of range; valid range is 0-$((AGENTDOJO_TOTAL_TASKS - 1))"
+        agentdojo_die "$AGENTDOJO_SCHEDULER_ARRAY_VARIABLE=$AGENTDOJO_SCHEDULER_ARRAY_TASK_ID is out of range; valid range is 0-$((AGENTDOJO_TOTAL_TASKS - 1))"
 
     agentdojo_reject_ephemeral_runtime_paths
     agentdojo_selected_task_runtime_requirements
@@ -249,9 +299,9 @@ agentdojo_run_preflight_before_python() {
     done
     if [[ "$requires_gpu" == 1 ]]; then
         command -v nvidia-smi >/dev/null 2>&1 || \
-            agentdojo_die "the SLURM allocation exposes no nvidia-smi"
+            agentdojo_die "the scheduler allocation exposes no nvidia-smi"
         nvidia-smi -L >/dev/null 2>&1 || \
-            agentdojo_die "the SLURM allocation exposes no visible GPU"
+            agentdojo_die "the scheduler allocation exposes no visible GPU"
     fi
 }
 

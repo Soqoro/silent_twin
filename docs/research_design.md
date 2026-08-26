@@ -213,4 +213,6 @@ local-files-only `transformers` adapter. It records model/tokenizer revisions,
 chat-template/prompt/response hashes, decoding settings, token counts, latency,
 failures, software, CUDA, and GPU metadata. It never downloads a checkpoint or
 falls back to a provider/mock; missing packages, CUDA, or local model files fail
-explicitly. Tier-2 inference is permitted only through the GPU SLURM wrappers.
+explicitly. Legacy synthetic Tier-2 inference is permitted only through its GPU
+Slurm wrappers. The separate AgentDojo Tier-2 entrypoints accept authorized PBS
+Professional or Slurm jobs as documented in `docs/agentdojo_tier2.md`.

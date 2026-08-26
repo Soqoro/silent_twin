@@ -1,4 +1,4 @@
-"""Local-files-only Hugging Face model adapter for GPU SLURM jobs.
+"""Local-files-only Hugging Face model adapter for scheduled GPU jobs.
 
 Imports and model loading are lazy.  This module never downloads a checkpoint,
 contacts an API, or makes CPU-only CI depend on heavyweight GPU packages.
@@ -320,7 +320,8 @@ class LocalTransformersModelClient:
 
         if self.config.device.startswith("cuda") and not torch.cuda.is_available():
             raise LocalModelUnavailableError(
-                "CUDA was requested but is unavailable; run Tier-2 inference in a GPU SLURM job"
+                "CUDA was requested but is unavailable; run Tier-2 inference in an "
+                "authorized GPU scheduler job"
             )
         cache_dir = str(self.config.model_cache_dir) if self.config.model_cache_dir else None
         tokenizer_revision = self.config.tokenizer_revision or self.config.model_revision

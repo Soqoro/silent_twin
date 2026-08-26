@@ -88,7 +88,7 @@ DEVELOPMENT_OBSERVATION_MANIFEST=/persistent/evidence/development.manifest.json 
 bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 ```
 
-All pair-mining run phases need an authorized SLURM allocation. Observation
+All pair-mining run phases need an authorized Slurm or PBS batch allocation. Observation
 generation defaults to GPU; the hash-verifying reducer defaults to CPU and
 never constructs a model. The reducer rejects test rows, invalid row hashes,
 unbound materializations/executions, row/manifest generator-source drift,
@@ -96,7 +96,8 @@ non-pinned compatibility reports, or missing/mismatched set manifests. The
 pair registry retains both complete self-hashed observation manifests, then
 freezes every held-out scenario as unobserved. Pair-observation checkpoint and
 cache paths, including profile-specific monitor checkpoint overrides, must be
-persistent and cannot resolve inside `SLURM_TMPDIR`.
+persistent and cannot resolve inside Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or
+PBS-assigned `TMPDIR`.
 Pair mining always defaults to the operator-owned production paths
 `candidate-strategies-v1.json` and `pair-registry-v1.json`; it never overwrites
 the checked engineering-smoke fixtures.
@@ -182,12 +183,38 @@ bash experiments/silenttwin/run_experiment_2_feedback_assisted_bypass_agentdojo_
 
 ## Site-agnostic array execution
 
-Run stages require `SLURM_JOB_ID` and a canonical non-negative
-`SLURM_ARRAY_TASK_ID`. Authorization and bounds are checked from the frozen
-manifest entirely in shell before environment activation, Python import, model
+Run stages accept either an unambiguous Slurm allocation (`SLURM_JOB_ID` plus
+canonical `SLURM_ARRAY_TASK_ID`) or a PBS batch allocation (`PBS_JOBID`,
+`PBS_ENVIRONMENT=PBS_BATCH`, and canonical `PBS_ARRAY_INDEX`). A mixed context
+is rejected. Authorization and bounds are checked from the frozen manifest
+entirely in shell before environment activation, Python import, model
 validation, or GPU inspection. The operator supplies all site flags; the
-repository scripts contain no account, partition, or GPU request guesses and
-never submit another job.
+repository scripts contain no account, project, queue, partition, or GPU
+request guesses and never submit another job.
+
+For PBS Professional, `qsub -J X-Y%N` defines the array and concurrency limit.
+Export only the required variables with `-v`; avoid `-V`, which can copy
+unrelated login-state variables into the job. `AGENTDOJO_REPO_ROOT` lets an
+entrypoint copied into PBS's spool locate the authoritative checkout. Passing a
+directory ending in `/` to `-o` and `-e` lets PBS create its job-ID-based,
+per-subjob filenames there. A production template is:
+
+```bash
+export REPO_ROOT=/persistent/src/silent_twin
+export PBS_RUN_VARIABLES="AGENTDOJO_REPO_ROOT=$REPO_ROOT,PYTHON_BIN=/persistent/venvs/agentdojo/bin/python3.11,OUT_ROOT=/persistent/results/silenttwin-agentdojo-production,STAGE=run,GRID_MANIFEST=/persistent/results/silenttwin-agentdojo-production/e1/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=/persistent/plans/controlled-local-v1.json,AGENTDOJO_MODEL_CACHE=/persistent/model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/persistent/checkpoints/attacker,AGENTDOJO_MONITOR_CHECKPOINT=/persistent/checkpoints/action-monitor,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:<FROZEN_RUNTIME_SHA>,AGENTDOJO_FAKE_MODEL=0,AGENTDOJO_REQUIRES_GPU=1"
+
+qsub <ACCOUNT_OR_PROJECT_FLAG> <GPU_QUEUE_AND_RESOURCE_FLAGS> \
+  -N st-e1 \
+  -J 0-<LAST_TASK_ID>%1 \
+  -o /persistent/logs/e1/ \
+  -e /persistent/logs/e1/ \
+  -v "$PBS_RUN_VARIABLES" \
+  "$REPO_ROOT/experiments/silenttwin/run_experiment_1_feedback_leakage_agentdojo_tier2.sh"
+```
+
+Start PBS arrays at `%1`. Replace every placeholder only with an
+operator-approved value and show the resolved command before submission.
+Slurm remains supported for portable execution on other platforms:
 
 ```bash
 sbatch <ACCOUNT_FLAG> <GPU_PARTITION_FLAG> <ONE_GPU_FLAG> \
@@ -209,10 +236,11 @@ and `AGENTDOJO_REQUIRES_GPU=0`. A persistent model cache is required only when
 the selected task contains a learned local model or detector. `OUT_ROOT`,
 `AGENTDOJO_MODEL_CACHE`, `HF_HOME`,
 `HF_HUB_CACHE`, and `TRANSFORMERS_CACHE` must not resolve inside
-`SLURM_TMPDIR`. Each array task receives distinct output and checkpoint
-directories. Supply the `%A_%a` scheduler log paths shown above (or the site's
-equivalent) so stdout/stderr are unique as well. Resume and reuse are accepted
-only when the runner's scientific manifest and grid identity match.
+Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or PBS-assigned `TMPDIR`. Each array
+task receives distinct output and checkpoint directories. Supply distinct
+scheduler log paths (PBS job-ID filenames or Slurm `%A_%a`) so stdout/stderr are
+unique as well. Resume and reuse are accepted only when the runner's scientific
+manifest and grid identity match.
 
 Use `AGENTDOJO_VICTIM_CHECKPOINT` for ecological victim cells and
 `AGENTDOJO_MONITOR_CHECKPOINT` for learned action monitors or the transformer

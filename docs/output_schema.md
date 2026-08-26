@@ -119,7 +119,9 @@ generation_provenance and evaluation_provenance
 
 Code provenance records the Git revision when available, dirty-tree flag,
 source-tree content hash, package version, Python implementation/version, and
-platform. The source-tree hash covers package Python, experiment launchers,
+platform. Scheduler provenance normalizes PBS or Slurm job and array identity,
+while retaining scheduler-specific queue/partition and node metadata. The
+source-tree hash covers package Python, experiment launchers,
 Tier-1 JSON configuration, and packaging metadata, including uncommitted files,
 so two dirty scientific source states are not assumed compatible merely because
 they share a Git revision.

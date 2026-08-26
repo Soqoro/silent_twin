@@ -18,6 +18,24 @@ ENTRYPOINTS = (
     "run_experiment_5_assumption_ablations_agentdojo_tier2.sh",
     "run_agentdojo_ecological_tier2.sh",
 )
+SCHEDULER_ENVIRONMENT_VARIABLES = (
+    "SLURM_JOB_ID",
+    "SLURM_ARRAY_JOB_ID",
+    "SLURM_ARRAY_TASK_ID",
+    "SLURM_TMPDIR",
+    "PBS_JOBID",
+    "PBS_ARRAY_ID",
+    "PBS_ARRAY_INDEX",
+    "PBS_ENVIRONMENT",
+    "PBS_JOBDIR",
+)
+
+
+def _clean_scheduler_environment() -> dict[str, str]:
+    values = os.environ.copy()
+    for name in SCHEDULER_ENVIRONMENT_VARIABLES:
+        values.pop(name, None)
+    return values
 
 
 def _manifest(
@@ -65,9 +83,8 @@ def _manifest(
 
 
 def _run_e1(manifest: Path, **environment: str) -> subprocess.CompletedProcess[str]:
-    values = os.environ.copy()
-    for name in ("SLURM_JOB_ID", "SLURM_ARRAY_TASK_ID", "SLURM_TMPDIR", "E1_STAGE"):
-        values.pop(name, None)
+    values = _clean_scheduler_environment()
+    values.pop("E1_STAGE", None)
     values.update(
         {
             "STAGE": "run",
@@ -90,10 +107,8 @@ def _run_e1(manifest: Path, **environment: str) -> subprocess.CompletedProcess[s
 
 
 def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
-    values = os.environ.copy()
+    values = _clean_scheduler_environment()
     for name in (
-        "SLURM_JOB_ID",
-        "SLURM_TMPDIR",
         "AGENTDOJO_MONITOR_CHECKPOINT",
         "AGENTDOJO_MONITOR_CHECKPOINT_MONITOR_A",
         "AGENTDOJO_MODEL_CACHE",
@@ -142,13 +157,46 @@ def test_exactly_eight_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
         assert result.returncode == 0, result.stderr
 
 
+def test_spooled_entrypoint_uses_explicit_repository_root(tmp_path: Path) -> None:
+    source = EXPERIMENT_DIR / ENTRYPOINTS[2]
+    spooled = tmp_path / "pbs-spooled-script.sh"
+    spooled.write_bytes(source.read_bytes())
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "AGENTDOJO_REPO_ROOT": str(REPO_ROOT),
+            "STAGE": "run",
+            "GRID_MANIFEST": str(tmp_path / "unread-before-authorization.jsonl"),
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "AGENTDOJO_FAKE_MODEL": "1",
+            "AGENTDOJO_REQUIRES_GPU": "0",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", str(spooled)],
+        cwd=tmp_path,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "outside an authorized Slurm or PBS job" in result.stderr
+    assert "_agentdojo_common.sh" not in result.stderr
+
+
 def test_scripts_contain_no_submission_or_guessed_site_gpu_flags() -> None:
     contents = "\n".join(
         (EXPERIMENT_DIR / name).read_text(encoding="utf-8")
         for name in ("_agentdojo_common.sh", *ENTRYPOINTS)
     )
     assert "sbatch" not in contents
+    assert "qsub" not in contents
     assert "#SBATCH" not in contents
+    assert "#PBS" not in contents
     for flag in ("--account", "--partition", "--gres", "--gpus"):
         assert flag not in contents
 
@@ -166,12 +214,98 @@ def test_out_of_range_array_fails_before_python_is_inspected(tmp_path: Path) -> 
     assert "PYTHON_BIN is unavailable" not in result.stderr
 
 
-def test_run_fails_outside_slurm_before_python_or_model_validation(tmp_path: Path) -> None:
+def test_pbs_array_index_is_accepted_before_python_is_inspected(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest, total_tasks=2)
+    result = _run_e1(
+        manifest,
+        PBS_JOBID="123[1].gaas",
+        PBS_ARRAY_ID="123[].gaas",
+        PBS_ARRAY_INDEX="1",
+        PBS_ENVIRONMENT="PBS_BATCH",
+    )
+    assert result.returncode == 2
+    assert "PYTHON_BIN is unavailable" in result.stderr
+    assert "PBS_ARRAY_INDEX" not in result.stderr
+
+
+def test_pbs_out_of_range_array_fails_before_python_is_inspected(
+    tmp_path: Path,
+) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest, total_tasks=2)
+    result = _run_e1(
+        manifest,
+        PBS_JOBID="123[2].gaas",
+        PBS_ARRAY_ID="123[].gaas",
+        PBS_ARRAY_INDEX="2",
+        PBS_ENVIRONMENT="PBS_BATCH",
+    )
+    assert result.returncode == 2
+    assert "PBS_ARRAY_INDEX=2 is out of range" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_pbs_array_index_must_be_present_and_canonical(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest, total_tasks=2)
+    for raw_index, expected in (
+        (None, "PBS_ARRAY_INDEX is required"),
+        ("01", "must be a non-negative base-10 integer"),
+        ("-1", "must be a non-negative base-10 integer"),
+        ("task-1", "must be a non-negative base-10 integer"),
+    ):
+        environment = {
+            "PBS_JOBID": "123[].gaas",
+            "PBS_ARRAY_ID": "123[].gaas",
+            "PBS_ENVIRONMENT": "PBS_BATCH",
+        }
+        if raw_index is not None:
+            environment["PBS_ARRAY_INDEX"] = raw_index
+        result = _run_e1(manifest, **environment)
+        assert result.returncode == 2
+        assert expected in result.stderr
+        assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_pbs_job_requires_batch_environment_before_python(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    result = _run_e1(
+        manifest,
+        PBS_JOBID="123[0].gaas",
+        PBS_ARRAY_INDEX="0",
+        PBS_ENVIRONMENT="PBS_INTERACTIVE",
+    )
+    assert result.returncode == 2
+    assert "requires PBS_ENVIRONMENT=PBS_BATCH" in result.stderr
+    assert "PYTHON_BIN" not in result.stderr
+
+
+def test_ambiguous_scheduler_context_is_rejected_before_python(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="slurm-123",
+        SLURM_ARRAY_TASK_ID="0",
+        PBS_JOBID="pbs-123[0].gaas",
+        PBS_ARRAY_INDEX="0",
+        PBS_ENVIRONMENT="PBS_BATCH",
+    )
+    assert result.returncode == 2
+    assert "ambiguous scheduler context" in result.stderr
+    assert "PYTHON_BIN" not in result.stderr
+
+
+def test_run_fails_outside_scheduler_before_python_or_model_validation(
+    tmp_path: Path,
+) -> None:
     manifest = tmp_path / "grid.jsonl"
     _manifest(manifest)
     result = _run_e1(manifest, SLURM_ARRAY_TASK_ID="0")
     assert result.returncode == 2
-    assert "outside an authorized SLURM job" in result.stderr
+    assert "outside an authorized Slurm or PBS job" in result.stderr
     assert "PYTHON_BIN" not in result.stderr
 
 
@@ -192,6 +326,31 @@ def test_ephemeral_authoritative_cache_is_rejected_before_python(tmp_path: Path)
     assert result.returncode == 2
     assert "must be persistent" in result.stderr
     assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_pbs_ephemeral_authoritative_cache_is_rejected_before_python(
+    tmp_path: Path,
+) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    for scratch_variable in ("PBS_JOBDIR", "TMPDIR"):
+        scratch = tmp_path / scratch_variable.lower()
+        scratch.mkdir()
+        result = _run_e1(
+            manifest,
+            PBS_JOBID="123[0].gaas",
+            PBS_ARRAY_ID="123[].gaas",
+            PBS_ARRAY_INDEX="0",
+            PBS_ENVIRONMENT="PBS_BATCH",
+            AGENTDOJO_FAKE_MODEL="0",
+            AGENTDOJO_REQUIRES_GPU="0",
+            AGENTDOJO_MODEL_CACHE=str(scratch / "models"),
+            **{scratch_variable: str(scratch)},
+        )
+        assert result.returncode == 2
+        assert scratch_variable in result.stderr
+        assert "must be persistent" in result.stderr
+        assert "PYTHON_BIN is unavailable" not in result.stderr
 
 
 def test_pair_observation_rejects_generic_profile_and_cache_scratch_paths_before_python(
@@ -229,11 +388,23 @@ def test_pair_observation_requires_persistent_model_cache_before_python() -> Non
     assert "PYTHON_BIN is unavailable" not in result.stderr
 
 
+def test_pbs_pair_observation_authorization_precedes_model_cache_check() -> None:
+    result = _run_pair_observe(
+        PBS_JOBID="123.gaas",
+        PBS_ENVIRONMENT="PBS_BATCH",
+        AGENTDOJO_REQUIRES_GPU="0",
+        AGENTDOJO_MODEL_CACHE="",
+    )
+    assert result.returncode == 2
+    assert "learned monitors require AGENTDOJO_MODEL_CACHE" in result.stderr
+    assert "authorized Slurm or PBS job" not in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
 def test_experiment_alias_can_override_generic_stage(tmp_path: Path) -> None:
     manifest = tmp_path / "grid.jsonl"
     _manifest(manifest)
-    values = os.environ.copy()
-    values.pop("SLURM_JOB_ID", None)
+    values = _clean_scheduler_environment()
     values.update(
         {
             "STAGE": "grid",
@@ -255,7 +426,7 @@ def test_experiment_alias_can_override_generic_stage(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode == 2
-    assert "outside an authorized SLURM job" in result.stderr
+    assert "outside an authorized Slurm or PBS job" in result.stderr
 
 
 def test_run_stage_invokes_the_concrete_checkpointed_grid_runner() -> None:
@@ -397,7 +568,7 @@ agentdojo_init e4 E4 controlled
 agentdojo_run_preflight_before_python
 printf '%s\n' "$AGENTDOJO_REQUIRES_GPU"
 """
-    values = os.environ.copy()
+    values = _clean_scheduler_environment()
     values.pop("AGENTDOJO_REQUIRES_GPU", None)
     values.update(
         {
@@ -430,7 +601,7 @@ agentdojo_init e1 E1 controlled
 agentdojo_run_preflight_before_python
 printf '%s %s %s %s\n' "$AGENTDOJO_REQUIRES_GPU" "$ATTACKER_DEVICE" "$VICTIM_DEVICE" "$MONITOR_DEVICE"
 """
-    values = os.environ.copy()
+    values = _clean_scheduler_environment()
     for name in ("ATTACKER_DEVICE", "VICTIM_DEVICE", "MONITOR_DEVICE"):
         values.pop(name, None)
     values.update(

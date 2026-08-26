@@ -795,7 +795,9 @@ def generate_attack_injections(
 
     modules = _modules()
     if attack_name == "manual":
-        raise AgentDojoCompatibilityError("the interactive manual attack is not runnable in SLURM")
+        raise AgentDojoCompatibilityError(
+            "the interactive manual attack is not runnable in a scheduler array"
+        )
     registry = modules["attacks"].ATTACKS
     if attack_name not in registry:
         raise AgentDojoCompatibilityError(f"unknown released attack {attack_name!r}")

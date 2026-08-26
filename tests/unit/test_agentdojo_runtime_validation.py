@@ -197,7 +197,51 @@ def test_pair_observation_preflight_rejects_every_ephemeral_model_path(
     monkeypatch.setattr(
         runner, "validate_environment_integrity", forbidden_environment_check
     )
-    with pytest.raises(RuntimeArtifactError, match="ephemeral SLURM_TMPDIR"):
+    with pytest.raises(
+        RuntimeArtifactError, match="ephemeral scheduler scratch SLURM_TMPDIR"
+    ):
+        runner._preflight_pair_observation_environment(
+            strategy_catalog={
+                "monitor_profiles": [
+                    {
+                        "profile_id": "monitor-a",
+                        "implementation": "local_transformers",
+                        "runtime_fingerprint": "sha256:" + "a" * 64,
+                    }
+                ]
+            },
+            dependency_lock_path=LOCK,
+        )
+
+
+@pytest.mark.parametrize("scratch_variable", ("PBS_JOBDIR", "TMPDIR"))
+def test_pair_observation_preflight_rejects_pbs_ephemeral_model_paths(
+    scratch_variable: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from silenttwin.agentdojo import runner
+
+    scratch = tmp_path / scratch_variable.lower()
+    scratch.mkdir()
+    ephemeral = scratch / "model-cache"
+    ephemeral.mkdir()
+    persistent_checkpoint = tmp_path / "persistent-monitor"
+    persistent_checkpoint.mkdir()
+    monkeypatch.delenv("SLURM_TMPDIR", raising=False)
+    monkeypatch.setenv("PBS_JOBID", "123.gaas")
+    monkeypatch.setenv(scratch_variable, str(scratch))
+    monkeypatch.setenv(
+        "AGENTDOJO_MONITOR_CHECKPOINT", str(persistent_checkpoint)
+    )
+    monkeypatch.setenv("AGENTDOJO_MODEL_CACHE", str(ephemeral))
+
+    monkeypatch.setattr(
+        runner,
+        "validate_environment_integrity",
+        lambda **_: pytest.fail("runtime validation must follow path preflight"),
+    )
+    with pytest.raises(RuntimeArtifactError, match=scratch_variable):
         runner._preflight_pair_observation_environment(
             strategy_catalog={
                 "monitor_profiles": [

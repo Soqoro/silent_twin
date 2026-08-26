@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-26
+Last updated: 2026-08-26 (destination PBS support implemented; submission pending)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -15,14 +15,14 @@ Open Codex at the root of this repository and send:
 ```text
 Read handoff.md completely, then read docs/agentdojo_tier2.md and
 docs/agentdojo_tier2_audit.md. Inspect the repository and current platform
-before changing anything. Confirm the git revision, Python version, SLURM
+before changing anything. Confirm the git revision, Python version, scheduler
 environment, persistent storage, available GPU types/VRAM, local wheelhouse,
 and checkpoint paths. Summarize what is ready and what is missing. Then guide
 me through the benchmark one checkpoint at a time, beginning with CPU
 compatibility/catalog verification and the four-suite fake-model acceptance
-smoke. Do not submit a SLURM job or run a real model until I explicitly approve
+smoke. Do not submit a scheduler job or run a real model until I explicitly approve
 the exact command and site-specific resource flags. Do not invent account,
-partition, GPU, checkpoint, revision, or benchmark-result values.
+project, queue, partition, GPU, checkpoint, revision, or benchmark-result values.
 ```
 
 `handoff.md` is not automatically injected into every Codex conversation. The
@@ -74,12 +74,217 @@ is not committed to the remote, transfer it separately.
 ```text
 implementation: complete at the baseline commit above
 original CPU verification: complete; results recorded below
-destination-platform provisioning: not started
+destination Python 3.11/core provisioning: complete; results recorded below
+destination catalog/static/full CPU verification: complete
+destination checked model-free grid inspection: complete
+destination PBS-native authorization support: implemented; validation recorded below
 production model/artifact selection: not started
-production SLURM or GPU execution: not started
+production scheduler or GPU execution: not started
 scientific benchmark findings: none
-next checkpoint: destination CPU compatibility and four-suite fake acceptance
+next checkpoint: operator approval of the exact qsub CPU fake-smoke command and site flags
 ```
+
+## Destination CPU checkpoint completed on 2026-08-26
+
+This section records the first destination-platform session. It supersedes the
+earlier `not started` destination fields above without changing the scientific
+claim boundary. No scheduler job, GPU workload, real model, pair mining,
+production aggregation, or benchmark analysis was run.
+
+### Repository and executable source
+
+- Repository root: `/home/suaq0001/projects/silent_twin`.
+- Branch: `main`.
+- Verified `HEAD`: `1e682cd301600d390efd305ef24a8ca81f3afb98`.
+- `main`, `origin/main`, and `origin/HEAD` all pointed to that revision.
+- Baseline `79aea204dee478907c63ebce647e9bc16776aa4a` is an ancestor.
+- The only committed post-baseline change was the original addition of this
+  `handoff.md`; there were no result-affecting source/config changes.
+- Destination LinkRadius-independent SilentTwin `source_tree_hash`:
+  `7c781308eb566cb369a593d044e447c195b42249fa5c85c8bd6bf58f4fb2e94e`.
+- The checkout was clean before this destination record was added. The
+  expected worktree change after this update is `M handoff.md` only;
+  generated editable-install metadata is ignored. Commit or transfer this
+  documentation update before a production run so provenance does not retain
+  an avoidable dirty-worktree marker.
+
+### Platform and persistent paths
+
+- Login host: `hpc-gaas-hn2`, Linux x86_64.
+- Scheduler: PBS Professional
+  `2025.2.2.20260209105947`, configured server `gaas`; `sbatch` and Slurm are
+  absent.
+- This login session had no PBS allocation and exposed no GPU. `nvidia-smi -L`
+  could not communicate with a driver, as expected on the head node.
+- A read-only PBS query showed 25 configured GPU nodes (`hpc-gaas-g01` through
+  `hpc-gaas-g25`) with 8 configured GPUs each. PBS does not advertise GPU
+  model or VRAM, so neither value is authenticated. Do not infer them from
+  node names or memory.
+- Persistent root: `/home/suaq0001/projects`, an NFS mount with approximately
+  887 GiB free at inspection time.
+- Python prefix:
+  `/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311`.
+- Python binary:
+  `/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python`.
+- Engineering-smoke output root:
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-smoke`.
+- The prefix was created with Conda and has no venv-style `bin/activate`.
+  Leave `ENV_ACTIVATE` unset and use the absolute `PYTHON_BIN`, while placing
+  the prefix's `bin` first on `PATH` so shell-test subprocesses also use 3.11.
+
+### Destination runtime verification
+
+- Python `3.11.15`.
+- AgentDojo `0.1.35` and pytest `9.1.1`.
+- `pip check`: no broken requirements.
+- Exact 71-distribution core lock verified; lock SHA-256:
+  `0c1da0a4be1b183d243bd308751d3622a09a1553cae2f1ce031dc5e1250a6458`.
+- Installed AgentDojo payload verified against the frozen wheel payload
+  manifest: 115 files, payload SHA-256
+  `bce8c4f279da44fe88e7e69625d0e37a93ba60fda3a057b11b239be2b3b10b77`.
+- No retained AgentDojo wheel artifact was available, so the published wheel
+  SHA-256 was not independently rehashed from a local wheel file.
+- This is a CPU/core verification environment, not an approved learned-model
+  runtime. It has no frozen Torch/Transformers/CUDA stack. Also,
+  `requirements-dev.lock` installs SilentTwin editably, which exposes both
+  `.dist-info` and source `.egg-info` records; the full learned-runtime CLI
+  therefore rejects this environment as containing duplicate `silenttwin`
+  metadata before checking the missing learned stack. Do not freeze a learned
+  runtime fingerprint from this environment. Build a clean non-editable
+  learned environment once the operator approves the stack.
+
+### Destination CPU and static verification
+
+The complete test collection was run as two disjoint invocations so the long
+acceptance test could be reported explicitly:
+
+```text
+all tests except the explicit fake acceptance:
+  443 passed, 79 subtests passed in 667.29 seconds
+
+tests/integration/test_agentdojo_run_grid_task_fake_smoke.py:
+  8 passed in 354.95 seconds
+
+combined complete collection:
+  451 passed, 79 subtests passed
+```
+
+The frozen catalog verification passed with:
+
+```text
+verified=true
+scenario_count=555
+eligible_combination_count=1467
+structural_group_count_by_suite:
+  workspace=40
+  banking=16
+  slack=21
+  travel=20
+catalog_hash=d4e4cda9ab44689953852b98a23aec819f5ccc91330fbd145f9fa284591b3015
+split_manifest_hash=8aeea9a4fd17304b3d8e02dc4aeaa96687944ce731fb04a8f08e60858c6d4978
+```
+
+`compileall`, `bash -n` for all nine documented AgentDojo shell files, and
+`git diff --check` also passed.
+
+### Checked engineering-smoke grids
+
+All six development grids were frozen on persistent storage with replicate
+`0`, eight structural groups per bundle, full four-suite coverage, array range
+`0-4`, and `model_free=True`:
+
+| ID | Configurations | Grid hash |
+| --- | ---: | --- |
+| `e1` | 240 | `f1614beb27b9f3e8fe51f337744df4fcd544b339a54ff72c32be9238d65f3abc` |
+| `e2` | 65 | `316f7e43c7f4741fea2ad01d385c16c53c282a16f94b07e2f3d7f51d54dff5d4` |
+| `e3` | 60 | `641d4afc187d4ee8816230fe10ec2e5ff3a9e72a729121ff86de2bfe462d195e` |
+| `e4` | 45 | `5f208db10a6b15d16b7b05fc36c2314d920426582e7a39dbbb07d8cbd548e11a` |
+| `e5` | 75 | `7a76f6cc5161589a23757e478e3a3d0184189afef79dfa59ee95fb14819aa079` |
+| `ecological` | 75 | `4532a870e1426f667ab8a013d67211e2c63b1d663a3a9209f125cdf12991ed72` |
+
+These manifests live under
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-smoke/<ID>/grid/`.
+They select checked fixtures marked `fixture_mode: true`,
+`evidence_class: engineering_smoke_only`, and
+`scientific_evidence_eligible: false`. They are not benchmark findings.
+
+### Destination worksheet and next authorization boundary
+
+```text
+REPO_ROOT=/home/suaq0001/projects/silent_twin
+PERSIST_ROOT=/home/suaq0001/projects
+PYTHON311_BINARY=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python
+VENV_ROOT=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311
+WHEELHOUSE=MISSING
+OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-smoke
+LOG_ROOT=UNSET
+MODEL_CACHE=UNSET
+ATTACKER_CHECKPOINT=MISSING
+VICTIM_CHECKPOINT=MISSING
+MONITOR_CHECKPOINT=MISSING
+PI_DETECTOR_CHECKPOINT=MISSING
+ACCOUNT_OR_PROJECT_FLAG=UNAPPROVED_PBS_SITE_VALUE
+CPU_QUEUE_AND_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
+GPU_QUEUE_AND_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
+ONE_GPU_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
+TWO_GPU_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
+GPU_MODEL=UNAUTHENTICATED_WITHOUT_ALLOCATION
+GPU_VRAM_GB=UNAUTHENTICATED_WITHOUT_ALLOCATION
+MAX_ARRAY_CONCURRENCY=UNAPPROVED
+```
+
+The operator selected PBS/qsub for this destination. The scoped PBS-native
+authorization change described below is now implemented, but no job has been
+submitted. The next step requires operator approval of an exact CPU fake-smoke
+`qsub` command and the site's account/project, queue, CPU, memory, and walltime
+flags. Separately, an approved GPU allocation is required to authenticate GPU
+model/VRAM, and production model checkpoints, a learned stack, candidate
+strategies, mined pairs, wheelhouse/image, cache, log root, and production plan
+are still missing. Do not submit `qsub` or select production artifacts without
+explicit operator approval.
+
+## Destination PBS adaptation checkpoint on 2026-08-26
+
+The AgentDojo run boundary now supports both PBS Professional and Slurm while
+retaining fail-closed authorization. This is an engineering implementation
+checkpoint, not scheduler execution or benchmark evidence.
+
+- PBS batch authorization requires `PBS_JOBID` and
+  `PBS_ENVIRONMENT=PBS_BATCH`; grid arrays additionally require canonical
+  non-negative `PBS_ARRAY_INDEX`.
+- Slurm authorization remains supported through the existing `SLURM_JOB_ID`
+  and `SLURM_ARRAY_TASK_ID` contract. A mixed PBS/Slurm context is rejected.
+- PBS `PBS_ARRAY_INDEX` is bounds-checked against the frozen manifest before
+  Python activation, model validation, or GPU inspection.
+- Persistent runtime paths are rejected inside Slurm `SLURM_TMPDIR`, PBS
+  `PBS_JOBDIR`, and PBS-assigned `TMPDIR`, in both shell and Python preflight.
+- Runtime provenance now normalizes PBS job, array, queue, node-file, and CPU
+  metadata while retaining Slurm fields.
+- Explicit `AGENTDOJO_REPO_ROOT` support lets a PBS-spooled entrypoint resolve
+  the authoritative checkout without relying on the spool path.
+- The scripts still contain no submission command and no guessed site account,
+  project, queue, GPU, memory, or walltime request.
+- Post-adaptation executable `source_tree_hash`:
+  `f3fe9da0437cc08441888c465fb6077edc16a6bcebac748a7b425b58938d1505`.
+- Complete CPU validation passed as two disjoint invocations:
+  457 tests plus 79 subtests outside the explicit acceptance in 661.88 seconds,
+  and 8 four-suite fake-model acceptance tests in 356.40 seconds. One additional
+  PBS missing/noncanonical-index regression was then added and passed in the
+  focused scheduler suite. The current collection therefore has 466 validated
+  tests plus 79 subtests; the final focused PBS/Slurm subset contained 56
+  passing tests.
+- `compileall`, `bash -n` for all nine AgentDojo shell files, and
+  `git diff --check` passed.
+- All six model-free grids were regenerated under `/tmp` and retained the exact
+  checked hashes, configuration counts, full-four-suite coverage, and `0-4`
+  range recorded above. Persistent grid files were not overwritten.
+- No `qsub`, GPU workload, model load, pair mining, aggregation, or scientific
+  analysis was run. The configured PBS server was not reachable during the
+  latest read-only query, so current queue/resource state is not authenticated.
+- The adaptation is currently an uncommitted source change on top of
+  `1e682cd301600d390efd305ef24a8ca81f3afb98`. Commit the reviewed code and
+  documentation before scheduler execution so run provenance has a clean,
+  immutable revision.
 
 ## What is implemented
 
@@ -110,7 +315,7 @@ Implemented Tier-2 components include:
   collision rejection;
 - scenario-clustered aggregation, CI-based gates, hierarchical E1-to-E2
   gatekeeping, development power analysis, and held-out sample freezes;
-- explicit CPU grid, SLURM run, and CPU aggregate entrypoints.
+- explicit CPU grid, PBS/Slurm run, and CPU aggregate entrypoints.
 
 Primary references inside the repository:
 
@@ -240,11 +445,12 @@ ATTACKER_CHECKPOINT=
 VICTIM_CHECKPOINT=
 MONITOR_CHECKPOINT=
 PI_DETECTOR_CHECKPOINT=
-ACCOUNT_FLAG=
-CPU_PARTITION_FLAG=
-GPU_PARTITION_FLAG=
-ONE_GPU_FLAG=
-TWO_GPU_FLAG=
+SCHEDULER=
+ACCOUNT_OR_PROJECT_FLAG=
+CPU_QUEUE_AND_RESOURCE_FLAGS=
+GPU_QUEUE_AND_RESOURCE_FLAGS=
+ONE_GPU_RESOURCE_FLAGS=
+TWO_GPU_RESOURCE_FLAGS=
 GPU_MODEL=
 GPU_VRAM_GB=
 MAX_ARRAY_CONCURRENCY=
@@ -255,8 +461,9 @@ Use read-only platform checks first:
 ```bash
 pwd
 python3.11 --version
+command -v qsub
+qsub --version
 command -v sbatch
-sbatch --version
 nvidia-smi -L
 git status --short
 ```
@@ -282,7 +489,7 @@ Transfer separately through approved persistent storage:
 - any completed development run directory needed for resume or aggregation.
 
 Do not place authoritative environments, caches, checkpoints, outputs, or logs
-inside `SLURM_TMPDIR`.
+inside Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or PBS-assigned `TMPDIR`.
 
 Experiment execution checkpoints are portable if their entire persistent
 directory and matching grid/source/artifact identities move together. Chat
@@ -452,8 +659,8 @@ export ID=e1
 export SCRIPT=experiments/silenttwin/run_experiment_1_feedback_leakage_agentdojo_tier2.sh
 ```
 
-Create its persistent scheduler-log directory before submission; Slurm does
-not create missing parent directories:
+Create its persistent scheduler-log directory before submission. PBS requires
+the destination directory to exist before it can stage stdout/stderr there:
 
 ```bash
 mkdir -p "$OUT_ROOT/logs/$ID"
@@ -479,21 +686,29 @@ model_free=True
 grid_manifest=<OUT_ROOT>/<ID>/grid/grid-manifest.jsonl
 ```
 
-The shell run stage is deliberately SLURM-only, even for fake models. Submit
-the smoke using operator-supplied CPU site flags:
+The run stage accepts PBS batch arrays and Slurm arrays. On this destination,
+prepare a PBS variable allowlist and submit only after the exact CPU site flags
+are operator-approved:
 
 ```bash
-sbatch <ACCOUNT_FLAG> <CPU_PARTITION_FLAG> \
-  --array=0-4%1 \
-  --output="$OUT_ROOT/logs/$ID/%A_%a.out" \
-  --error="$OUT_ROOT/logs/$ID/%A_%a.err" \
-  --export="ALL,STAGE=run,GRID_MANIFEST=$OUT_ROOT/$ID/grid/grid-manifest.jsonl,AGENTDOJO_FAKE_MODEL=1,AGENTDOJO_REQUIRES_GPU=0" \
-  "$SCRIPT"
+export AGENTDOJO_REPO_ROOT="$PWD"
+export PBS_RUN_VARIABLES="AGENTDOJO_REPO_ROOT=$AGENTDOJO_REPO_ROOT,PYTHON_BIN=$PYTHON_BIN,OUT_ROOT=$OUT_ROOT,STAGE=run,GRID_MANIFEST=$OUT_ROOT/$ID/grid/grid-manifest.jsonl,AGENTDOJO_FAKE_MODEL=1,AGENTDOJO_REQUIRES_GPU=0"
+
+qsub <ACCOUNT_OR_PROJECT_FLAG> <CPU_QUEUE_AND_RESOURCE_FLAGS> \
+  -N "st-$ID-smoke" \
+  -J 0-4%1 \
+  -o "$OUT_ROOT/logs/$ID/" \
+  -e "$OUT_ROOT/logs/$ID/" \
+  -v "$PBS_RUN_VARIABLES" \
+  "$AGENTDOJO_REPO_ROOT/$SCRIPT"
 ```
 
-Start at `%1`; increase concurrency only after the platform smoke is stable.
-No GPU is needed for the fake plan. A successful task ends with JSON containing
-`task_id`, `completed_shards`, and `configuration_hashes`.
+Do not use `qsub -V`; the explicit `-v` allowlist avoids copying unrelated
+login-state variables. PBS supplies `PBS_JOBID`, `PBS_ENVIRONMENT`,
+`PBS_ARRAY_ID`, and `PBS_ARRAY_INDEX`. Start at `%1`; increase concurrency only
+after the platform smoke is stable. No GPU is needed for the fake plan. A
+successful task ends with JSON containing `task_id`, `completed_shards`, and
+`configuration_hashes`.
 
 After every array task succeeds:
 
@@ -630,32 +845,41 @@ STAGE=grid bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 Submit train observation generation:
 
 ```bash
-sbatch <ACCOUNT_FLAG> <GPU_PARTITION_FLAG> <ONE_GPU_FLAG> \
-  --output=<LOG_ROOT>/pair-mining/train-%j.out \
-  --error=<LOG_ROOT>/pair-mining/train-%j.err \
-  --export="ALL,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=train,OBSERVATIONS_OUTPUT=<PERSIST_ROOT>/evidence/train.jsonl,OBSERVATION_MANIFEST_OUTPUT=<PERSIST_ROOT>/evidence/train.manifest.json,AGENTDOJO_REQUIRES_GPU=1" \
-  experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+export PBS_PAIR_TRAIN_VARIABLES="AGENTDOJO_REPO_ROOT=<REPO_ROOT>,PYTHON_BIN=<PYTHON_BIN>,OUT_ROOT=<OUT_ROOT>,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=train,OBSERVATIONS_OUTPUT=<PERSIST_ROOT>/evidence/train.jsonl,OBSERVATION_MANIFEST_OUTPUT=<PERSIST_ROOT>/evidence/train.manifest.json,AGENTDOJO_STRATEGY_CATALOG=<PERSIST_ROOT>/evidence/candidate-strategies-v1.json,AGENTDOJO_PAIR_REGISTRY=<PERSIST_ROOT>/evidence/pair-registry-v1.json,AGENTDOJO_MODEL_CACHE=<PERSIST_ROOT>/model-cache,AGENTDOJO_MONITOR_CHECKPOINT=<PERSIST_ROOT>/checkpoints/action-monitor,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:<FROZEN_RUNTIME_SHA>,AGENTDOJO_REQUIRES_GPU=1"
+
+qsub <ACCOUNT_OR_PROJECT_FLAG> <GPU_QUEUE_AND_RESOURCE_FLAGS> <ONE_GPU_RESOURCE_FLAGS> \
+  -N st-pair-train \
+  -o <LOG_ROOT>/pair-mining/ \
+  -e <LOG_ROOT>/pair-mining/ \
+  -v "$PBS_PAIR_TRAIN_VARIABLES" \
+  <REPO_ROOT>/experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 ```
 
 Submit development observation generation:
 
 ```bash
-sbatch <ACCOUNT_FLAG> <GPU_PARTITION_FLAG> <ONE_GPU_FLAG> \
-  --output=<LOG_ROOT>/pair-mining/development-%j.out \
-  --error=<LOG_ROOT>/pair-mining/development-%j.err \
-  --export="ALL,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=development,OBSERVATIONS_OUTPUT=<PERSIST_ROOT>/evidence/development.jsonl,OBSERVATION_MANIFEST_OUTPUT=<PERSIST_ROOT>/evidence/development.manifest.json,AGENTDOJO_REQUIRES_GPU=1" \
-  experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+export PBS_PAIR_DEVELOPMENT_VARIABLES="AGENTDOJO_REPO_ROOT=<REPO_ROOT>,PYTHON_BIN=<PYTHON_BIN>,OUT_ROOT=<OUT_ROOT>,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=development,OBSERVATIONS_OUTPUT=<PERSIST_ROOT>/evidence/development.jsonl,OBSERVATION_MANIFEST_OUTPUT=<PERSIST_ROOT>/evidence/development.manifest.json,AGENTDOJO_STRATEGY_CATALOG=<PERSIST_ROOT>/evidence/candidate-strategies-v1.json,AGENTDOJO_PAIR_REGISTRY=<PERSIST_ROOT>/evidence/pair-registry-v1.json,AGENTDOJO_MODEL_CACHE=<PERSIST_ROOT>/model-cache,AGENTDOJO_MONITOR_CHECKPOINT=<PERSIST_ROOT>/checkpoints/action-monitor,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:<FROZEN_RUNTIME_SHA>,AGENTDOJO_REQUIRES_GPU=1"
+
+qsub <ACCOUNT_OR_PROJECT_FLAG> <GPU_QUEUE_AND_RESOURCE_FLAGS> <ONE_GPU_RESOURCE_FLAGS> \
+  -N st-pair-dev \
+  -o <LOG_ROOT>/pair-mining/ \
+  -e <LOG_ROOT>/pair-mining/ \
+  -v "$PBS_PAIR_DEVELOPMENT_VARIABLES" \
+  <REPO_ROOT>/experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 ```
 
-After both observation jobs succeed, freeze pairs on a CPU SLURM allocation:
+After both observation jobs succeed, freeze pairs on a CPU PBS allocation:
 
 ```bash
-sbatch <ACCOUNT_FLAG> <CPU_PARTITION_FLAG> \
-  --dependency=afterok:<TRAIN_JOB_ID>:<DEVELOPMENT_JOB_ID> \
-  --output=<LOG_ROOT>/pair-mining/reduce-%j.out \
-  --error=<LOG_ROOT>/pair-mining/reduce-%j.err \
-  --export="ALL,STAGE=run,PAIR_MINING_ACTION=reduce,AGENTDOJO_REQUIRES_GPU=0,TRAIN_OBSERVATIONS=<PERSIST_ROOT>/evidence/train.jsonl,TRAIN_OBSERVATION_MANIFEST=<PERSIST_ROOT>/evidence/train.manifest.json,DEVELOPMENT_OBSERVATIONS=<PERSIST_ROOT>/evidence/development.jsonl,DEVELOPMENT_OBSERVATION_MANIFEST=<PERSIST_ROOT>/evidence/development.manifest.json" \
-  experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+export PBS_PAIR_REDUCE_VARIABLES="AGENTDOJO_REPO_ROOT=<REPO_ROOT>,PYTHON_BIN=<PYTHON_BIN>,OUT_ROOT=<OUT_ROOT>,STAGE=run,PAIR_MINING_ACTION=reduce,AGENTDOJO_REQUIRES_GPU=0,AGENTDOJO_STRATEGY_CATALOG=<PERSIST_ROOT>/evidence/candidate-strategies-v1.json,AGENTDOJO_PAIR_REGISTRY=<PERSIST_ROOT>/evidence/pair-registry-v1.json,TRAIN_OBSERVATIONS=<PERSIST_ROOT>/evidence/train.jsonl,TRAIN_OBSERVATION_MANIFEST=<PERSIST_ROOT>/evidence/train.manifest.json,DEVELOPMENT_OBSERVATIONS=<PERSIST_ROOT>/evidence/development.jsonl,DEVELOPMENT_OBSERVATION_MANIFEST=<PERSIST_ROOT>/evidence/development.manifest.json"
+
+qsub <ACCOUNT_OR_PROJECT_FLAG> <CPU_QUEUE_AND_RESOURCE_FLAGS> \
+  -N st-pair-reduce \
+  -W depend=afterok:<TRAIN_JOB_ID>:<DEVELOPMENT_JOB_ID> \
+  -o <LOG_ROOT>/pair-mining/ \
+  -e <LOG_ROOT>/pair-mining/ \
+  -v "$PBS_PAIR_REDUCE_VARIABLES" \
+  <REPO_ROOT>/experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 ```
 
 Verify the frozen artifact paths and file hashes:
@@ -697,7 +921,7 @@ per worker: one 48 GB GPU
 initial array concurrency: %1
 ```
 
-With `--array=0-4%4`, up to four workers run concurrently. One GPU per worker
+With `qsub -J 0-4%4`, up to four workers run concurrently. One GPU per worker
 therefore means up to four GPUs; two GPUs per worker means up to eight. `%1`
 runs serially and changes only wall-clock time, not the estimand.
 
@@ -748,12 +972,16 @@ STAGE=grid bash "$SCRIPT"
 Use the printed range, not a copied smoke range:
 
 ```bash
-sbatch <ACCOUNT_FLAG> <GPU_PARTITION_FLAG> <ONE_GPU_FLAG> \
-  --array=<PRINTED_VALID_ARRAY_RANGE>%1 \
-  --output="$LOG_ROOT/$ID/%A_%a.out" \
-  --error="$LOG_ROOT/$ID/%A_%a.err" \
-  --export="ALL,STAGE=run,GRID_MANIFEST=$OUT_ROOT/$ID/grid/grid-manifest.jsonl,AGENTDOJO_FAKE_MODEL=0,AGENTDOJO_REQUIRES_GPU=1,ATTACKER_DEVICE=cuda:0,MONITOR_DEVICE=cuda:0,VICTIM_DEVICE=cuda:0" \
-  "$SCRIPT"
+export REPO_ROOT=<REPO_ROOT>
+export PBS_RUN_VARIABLES="AGENTDOJO_REPO_ROOT=$REPO_ROOT,PYTHON_BIN=<PYTHON_BIN>,OUT_ROOT=$OUT_ROOT,STAGE=run,GRID_MANIFEST=$OUT_ROOT/$ID/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=$AGENTDOJO_GRID_PLAN,AGENTDOJO_STRATEGY_CATALOG=$AGENTDOJO_STRATEGY_CATALOG,AGENTDOJO_PAIR_REGISTRY=$AGENTDOJO_PAIR_REGISTRY,AGENTDOJO_MODEL_CACHE=$AGENTDOJO_MODEL_CACHE,AGENTDOJO_ATTACKER_CHECKPOINT=$AGENTDOJO_ATTACKER_CHECKPOINT,AGENTDOJO_VICTIM_CHECKPOINT=$AGENTDOJO_VICTIM_CHECKPOINT,AGENTDOJO_MONITOR_CHECKPOINT=$AGENTDOJO_MONITOR_CHECKPOINT,AGENTDOJO_RUNTIME_FINGERPRINT=$AGENTDOJO_RUNTIME_FINGERPRINT,AGENTDOJO_FAKE_MODEL=0,AGENTDOJO_REQUIRES_GPU=1,ATTACKER_DEVICE=cuda:0,MONITOR_DEVICE=cuda:0,VICTIM_DEVICE=cuda:0"
+
+qsub <ACCOUNT_OR_PROJECT_FLAG> <GPU_QUEUE_AND_RESOURCE_FLAGS> <ONE_GPU_RESOURCE_FLAGS> \
+  -N "st-$ID" \
+  -J <PRINTED_VALID_ARRAY_RANGE>%1 \
+  -o "$LOG_ROOT/$ID/" \
+  -e "$LOG_ROOT/$ID/" \
+  -v "$PBS_RUN_VARIABLES" \
+  "$REPO_ROOT/$SCRIPT"
 ```
 
 If using two GPUs for controlled attacker/monitor roles, replace the site's
@@ -864,15 +1092,18 @@ yield/headroom, clustered intervals, development power, and gate dispositions.
 
 The following failures indicate that safeguards are working:
 
-- `STAGE=run` outside a SLURM allocation exits before Python/model loading;
-- a missing or noncanonical `SLURM_ARRAY_TASK_ID` is rejected;
+- `STAGE=run` outside an unambiguous Slurm or PBS batch allocation exits before
+  Python/model loading;
+- a missing or noncanonical `SLURM_ARRAY_TASK_ID` or `PBS_ARRAY_INDEX` is
+  rejected;
 - an out-of-range array ID is rejected before environment activation;
 - Python other than 3.11 is rejected by AgentDojo entrypoints;
 - a smoke grid with `AGENTDOJO_FAKE_MODEL=0` is rejected;
 - a production grid with `AGENTDOJO_FAKE_MODEL=1` is rejected;
 - learned roles without a persistent cache/checkpoint or visible requested GPU
   are rejected;
-- paths inside `SLURM_TMPDIR` are rejected;
+- paths inside Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or PBS-assigned `TMPDIR`
+  are rejected;
 - unmaterialized plan templates and placeholder identities are rejected;
 - missing/mismatched runtime, checkpoint, catalog, split, strategy, pair,
   analysis, freeze, or source identities are rejected;
@@ -884,7 +1115,7 @@ Do not weaken these checks merely to make a platform command run.
 
 ## Known limitations
 
-- No real SLURM/GPU/model benchmark execution was performed during
+- No real PBS/Slurm/GPU/model benchmark execution was performed during
   implementation.
 - The checked smoke is deterministic engineering evidence only.
 - Production checkpoint choices, semantic model/tokenizer revisions, and site
@@ -930,8 +1161,11 @@ exact git revision verified
 -> pinned full tests passed
 -> four-suite E1/E2 CPU fake acceptance passed
 -> model-free grids inspected
--> platform/GPU/checkpoint worksheet completed
+-> PBS-native authorization support validated
+-> exact qsub CPU fake-smoke command and site flags approved
+-> one E1 fake-smoke PBS array submitted at concurrency %1
 ```
 
-Only then should the operator and new Codex materialize production identities,
-mine guard pairs, or submit learned-model arrays.
+Only after the engineering smoke succeeds should the operator and new Codex
+materialize production identities, mine guard pairs, or submit learned-model
+arrays.
