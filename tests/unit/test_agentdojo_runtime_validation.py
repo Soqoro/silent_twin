@@ -256,6 +256,44 @@ def test_pair_observation_preflight_rejects_pbs_ephemeral_model_paths(
         )
 
 
+def test_pair_observation_preflight_allows_checkpoint_in_pbs_home_jobdir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from silenttwin.agentdojo import runner
+
+    home = tmp_path / "home"
+    checkpoint = home / "persistent-monitor"
+    model_cache = home / "persistent-model-cache"
+    checkpoint.mkdir(parents=True)
+    model_cache.mkdir()
+    monkeypatch.delenv("SLURM_TMPDIR", raising=False)
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.setenv("PBS_JOBID", "123.gaas")
+    monkeypatch.setenv("PBS_JOBDIR", str(home))
+    monkeypatch.setenv("PBS_O_HOME", str(home))
+    monkeypatch.setenv("AGENTDOJO_MONITOR_CHECKPOINT", str(checkpoint))
+    monkeypatch.setenv("AGENTDOJO_MODEL_CACHE", str(model_cache))
+    monkeypatch.setattr(
+        runner,
+        "validate_environment_integrity",
+        lambda **_: None,
+    )
+
+    runner._preflight_pair_observation_environment(
+        strategy_catalog={
+            "monitor_profiles": [
+                {
+                    "profile_id": "monitor-a",
+                    "implementation": "local_transformers",
+                    "runtime_fingerprint": "sha256:" + "a" * 64,
+                }
+            ]
+        },
+        dependency_lock_path=LOCK,
+    )
+
+
 def test_pair_observation_preflight_requires_checkpoint_before_model_construction(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

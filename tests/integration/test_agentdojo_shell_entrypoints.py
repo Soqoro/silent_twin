@@ -28,6 +28,8 @@ SCHEDULER_ENVIRONMENT_VARIABLES = (
     "PBS_ARRAY_INDEX",
     "PBS_ENVIRONMENT",
     "PBS_JOBDIR",
+    "PBS_O_HOME",
+    "TMPDIR",
 )
 
 
@@ -351,6 +353,29 @@ def test_pbs_ephemeral_authoritative_cache_is_rejected_before_python(
         assert scratch_variable in result.stderr
         assert "must be persistent" in result.stderr
         assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_pbs_home_jobdir_is_not_misclassified_as_scratch_before_python(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    output_root = home / "persistent-results"
+    home.mkdir()
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    result = _run_e1(
+        manifest,
+        PBS_JOBID="123[0].gaas",
+        PBS_ARRAY_ID="123[].gaas",
+        PBS_ARRAY_INDEX="0",
+        PBS_ENVIRONMENT="PBS_BATCH",
+        PBS_JOBDIR=str(home),
+        PBS_O_HOME=str(home),
+        OUT_ROOT=str(output_root),
+    )
+    assert result.returncode == 2
+    assert "PYTHON_BIN is unavailable" in result.stderr
+    assert "scheduler scratch PBS_JOBDIR" not in result.stderr
 
 
 def test_pair_observation_rejects_generic_profile_and_cache_scratch_paths_before_python(

@@ -169,10 +169,19 @@ agentdojo_scheduler_array_index() {
 agentdojo_reject_ephemeral_runtime_paths() {
     local -a scratch_variables=(SLURM_TMPDIR)
     if [[ -n "${PBS_JOBID:-}" ]]; then
-        # PBS_JOBDIR is the job staging/execution directory.  TMPDIR is the
-        # job scratch directory when PBS assigns one.  Neither may hold an
-        # authoritative cache, checkpoint, output, or evidence artifact.
-        scratch_variables+=(PBS_JOBDIR TMPDIR)
+        # PBS_JOBDIR is the staging/execution directory.  Under PBS's default
+        # HOME sandbox it is PBS_O_HOME and is persistent; under a PRIVATE
+        # sandbox it is job-specific and ephemeral.  Fail closed when PBS did
+        # not expose PBS_O_HOME, but do not misclassify the normal home tree.
+        if [[ -n "${PBS_JOBDIR:-}" ]] && {
+            [[ -z "${PBS_O_HOME:-}" ]] ||
+                [[ "$(realpath -m -- "$PBS_JOBDIR")" != \
+                    "$(realpath -m -- "$PBS_O_HOME")" ]]
+        }; then
+            scratch_variables+=(PBS_JOBDIR)
+        fi
+        # TMPDIR is the job scratch directory when PBS assigns one.
+        scratch_variables+=(TMPDIR)
     fi
     local scratch_variable scratch_root name value
     for scratch_variable in "${scratch_variables[@]}"; do

@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-26 (destination PBS support implemented; submission pending)
+Last updated: 2026-08-26 (first PBS smoke diagnosed; HOME-sandbox fix pending commit)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -78,10 +78,12 @@ destination Python 3.11/core provisioning: complete; results recorded below
 destination catalog/static/full CPU verification: complete
 destination checked model-free grid inspection: complete
 destination PBS-native authorization support: implemented; validation recorded below
+destination E1 engineering-smoke submission: job 53127 attempted; no run shards produced
+destination PBS HOME-sandbox correction: implemented and focused validation passed
 production model/artifact selection: not started
 production scheduler or GPU execution: not started
 scientific benchmark findings: none
-next checkpoint: operator approval of the exact qsub CPU fake-smoke command and site flags
+next checkpoint: commit the PBS HOME-sandbox correction and resubmit E1 job 53127's array
 ```
 
 ## Destination CPU checkpoint completed on 2026-08-26
@@ -217,31 +219,32 @@ PYTHON311_BINARY=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/p
 VENV_ROOT=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311
 WHEELHOUSE=MISSING
 OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-smoke
-LOG_ROOT=UNSET
+LOG_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-smoke/logs
 MODEL_CACHE=UNSET
 ATTACKER_CHECKPOINT=MISSING
 VICTIM_CHECKPOINT=MISSING
 MONITOR_CHECKPOINT=MISSING
 PI_DETECTOR_CHECKPOINT=MISSING
-ACCOUNT_OR_PROJECT_FLAG=UNAPPROVED_PBS_SITE_VALUE
-CPU_QUEUE_AND_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
-GPU_QUEUE_AND_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
-ONE_GPU_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
+ACCOUNT_OR_PROJECT_FLAG=-P fs_ccds_asysong
+CPU_QUEUE_AND_RESOURCE_FLAGS=NO_CPU_ONLY_QUEUE_OBSERVED
+GPU_QUEUE_AND_RESOURCE_FLAGS=-q gpu_free
+ONE_GPU_RESOURCE_FLAGS=-l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb
 TWO_GPU_RESOURCE_FLAGS=UNAPPROVED_PBS_SITE_VALUE
 GPU_MODEL=UNAUTHENTICATED_WITHOUT_ALLOCATION
 GPU_VRAM_GB=UNAUTHENTICATED_WITHOUT_ALLOCATION
-MAX_ARRAY_CONCURRENCY=UNAPPROVED
+MAX_ARRAY_CONCURRENCY=1
 ```
 
-The operator selected PBS/qsub for this destination. The scoped PBS-native
-authorization change described below is now implemented, but no job has been
-submitted. The next step requires operator approval of an exact CPU fake-smoke
-`qsub` command and the site's account/project, queue, CPU, memory, and walltime
-flags. Separately, an approved GPU allocation is required to authenticate GPU
-model/VRAM, and production model checkpoints, a learned stack, candidate
-strategies, mined pairs, wheelhouse/image, cache, log root, and production plan
-are still missing. Do not submit `qsub` or select production artifacts without
-explicit operator approval.
+The operator selected PBS/qsub, supplied project `fs_ccds_asysong`, and approved
+the first engineering-smoke submission. Live PBS queries authenticated
+`gpu_free`, which requires exactly one GPU, permits at most four hours, and
+limits this user/project to one running GPU. Existing project launchers and
+accepted queue jobs use the chunk shape recorded above. A 30-minute E1 array
+using those flags was accepted as job `53127[].gaas`; its diagnostic outcome is
+recorded below. Separately, production model checkpoints, a learned stack,
+candidate strategies, mined pairs, wheelhouse/image, cache, and production plan
+are still missing. Do not select production artifacts without explicit
+operator approval.
 
 ## Destination PBS adaptation checkpoint on 2026-08-26
 
@@ -257,7 +260,9 @@ checkpoint, not scheduler execution or benchmark evidence.
 - PBS `PBS_ARRAY_INDEX` is bounds-checked against the frozen manifest before
   Python activation, model validation, or GPU inspection.
 - Persistent runtime paths are rejected inside Slurm `SLURM_TMPDIR`, PBS
-  `PBS_JOBDIR`, and PBS-assigned `TMPDIR`, in both shell and Python preflight.
+  private-sandbox `PBS_JOBDIR` when it differs from `PBS_O_HOME`, and
+  PBS-assigned `TMPDIR`, in both shell and Python preflight. PBS's default HOME
+  sandbox is persistent and is not misclassified as scratch.
 - Runtime provenance now normalizes PBS job, array, queue, node-file, and CPU
   metadata while retaining Slurm fields.
 - Explicit `AGENTDOJO_REPO_ROOT` support lets a PBS-spooled entrypoint resolve
@@ -278,13 +283,24 @@ checkpoint, not scheduler execution or benchmark evidence.
 - All six model-free grids were regenerated under `/tmp` and retained the exact
   checked hashes, configuration counts, full-four-suite coverage, and `0-4`
   range recorded above. Persistent grid files were not overwritten.
-- No `qsub`, GPU workload, model load, pair mining, aggregation, or scientific
-  analysis was run. The configured PBS server was not reachable during the
-  latest read-only query, so current queue/resource state is not authenticated.
-- The adaptation is currently an uncommitted source change on top of
-  `1e682cd301600d390efd305ef24a8ca81f3afb98`. Commit the reviewed code and
-  documentation before scheduler execution so run provenance has a clean,
-  immutable revision.
+- The adaptation was committed as `27dc54b036980d98192218a94a86e3cb849cd2c2`
+  on top of `1e682cd301600d390efd305ef24a8ca81f3afb98` before the first submission.
+- Live read-only PBS queries then authenticated server `gaas`, queue access,
+  project GPU limits, and the accepted resource shape. Engineering-smoke array
+  `53127[].gaas` was accepted and all five members executed sequentially, but
+  each exited during shell preflight before Python activation because
+  `PBS_JOBDIR=/home/suaq0001` was incorrectly treated as scratch. No run shard,
+  model load, benchmark observation, or scientific result was produced.
+- PBS documents that its default HOME sandbox uses the user's home directory
+  for staging/execution; only a PRIVATE sandbox creates a job-specific
+  directory. Shell and Python checks now allow `PBS_JOBDIR == PBS_O_HOME` while
+  retaining fail-closed rejection for a different/unverifiable `PBS_JOBDIR`
+  and PBS-assigned `TMPDIR`. Eight targeted old/new regressions and the full
+  three-file scheduler/runtime subset passed (`56 passed`). Corrected executable
+  `source_tree_hash`:
+  `171a67cd719beda8fed4422203137c6a3b9a8092408962ddd42f2cea88935865`.
+- The HOME-sandbox correction and this incident record are uncommitted. Commit
+  them before resubmission so run provenance has a clean, immutable revision.
 
 ## What is implemented
 
@@ -489,7 +505,9 @@ Transfer separately through approved persistent storage:
 - any completed development run directory needed for resume or aggregation.
 
 Do not place authoritative environments, caches, checkpoints, outputs, or logs
-inside Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or PBS-assigned `TMPDIR`.
+inside Slurm `SLURM_TMPDIR`, a PBS private-sandbox `PBS_JOBDIR` that differs
+from `PBS_O_HOME`, or PBS-assigned `TMPDIR`. The normal PBS HOME sandbox sets
+`PBS_JOBDIR` to persistent `PBS_O_HOME` and is allowed.
 
 Experiment execution checkpoints are portable if their entire persistent
 directory and matching grid/source/artifact identities move together. Chat
@@ -687,14 +705,17 @@ grid_manifest=<OUT_ROOT>/<ID>/grid/grid-manifest.jsonl
 ```
 
 The run stage accepts PBS batch arrays and Slurm arrays. On this destination,
-prepare a PBS variable allowlist and submit only after the exact CPU site flags
-are operator-approved:
+the operator-approved `gpu_free` smoke allocation necessarily reserves one GPU
+even though the deterministic fixture does not use it:
 
 ```bash
 export AGENTDOJO_REPO_ROOT="$PWD"
 export PBS_RUN_VARIABLES="AGENTDOJO_REPO_ROOT=$AGENTDOJO_REPO_ROOT,PYTHON_BIN=$PYTHON_BIN,OUT_ROOT=$OUT_ROOT,STAGE=run,GRID_MANIFEST=$OUT_ROOT/$ID/grid/grid-manifest.jsonl,AGENTDOJO_FAKE_MODEL=1,AGENTDOJO_REQUIRES_GPU=0"
 
-qsub <ACCOUNT_OR_PROJECT_FLAG> <CPU_QUEUE_AND_RESOURCE_FLAGS> \
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=00:30:00 \
   -N "st-$ID-smoke" \
   -J 0-4%1 \
   -o "$OUT_ROOT/logs/$ID/" \
@@ -1102,8 +1123,8 @@ The following failures indicate that safeguards are working:
 - a production grid with `AGENTDOJO_FAKE_MODEL=1` is rejected;
 - learned roles without a persistent cache/checkpoint or visible requested GPU
   are rejected;
-- paths inside Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or PBS-assigned `TMPDIR`
-  are rejected;
+- paths inside Slurm `SLURM_TMPDIR`, a PBS private-sandbox `PBS_JOBDIR` that
+  differs from `PBS_O_HOME`, or PBS-assigned `TMPDIR` are rejected;
 - unmaterialized plan templates and placeholder identities are rejected;
 - missing/mismatched runtime, checkpoint, catalog, split, strategy, pair,
   analysis, freeze, or source identities are rejected;
@@ -1163,7 +1184,10 @@ exact git revision verified
 -> model-free grids inspected
 -> PBS-native authorization support validated
 -> exact qsub CPU fake-smoke command and site flags approved
--> one E1 fake-smoke PBS array submitted at concurrency %1
+-> first E1 array 53127 diagnosed before Python; no run shards produced
+-> PBS HOME-sandbox portability correction implemented and validated
+-> correction committed at a clean revision
+-> E1 fake-smoke PBS array resubmitted at concurrency %1
 ```
 
 Only after the engineering smoke succeeds should the operator and new Codex

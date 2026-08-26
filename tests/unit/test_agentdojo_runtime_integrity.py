@@ -541,6 +541,25 @@ def test_checkpoint_path_inside_pbs_scratch_is_rejected(
         runtime_validation._validate_checkpoint_paths({"attacker"})
 
 
+def test_checkpoint_path_inside_pbs_home_jobdir_is_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from silenttwin.agentdojo import runtime_validation
+
+    home = tmp_path / "home"
+    checkpoint = home / "attacker-model"
+    checkpoint.mkdir(parents=True)
+    monkeypatch.delenv("SLURM_TMPDIR", raising=False)
+    monkeypatch.delenv("TMPDIR", raising=False)
+    monkeypatch.setenv("PBS_JOBID", "123.gaas")
+    monkeypatch.setenv("PBS_JOBDIR", str(home))
+    monkeypatch.setenv("PBS_O_HOME", str(home))
+    monkeypatch.setenv("AGENTDOJO_ATTACKER_CHECKPOINT", str(checkpoint))
+
+    runtime_validation._validate_checkpoint_paths({"attacker"})
+
+
 def test_cli_fingerprint_only_emits_directly_freezable_value(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

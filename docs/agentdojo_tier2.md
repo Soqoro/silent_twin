@@ -96,8 +96,8 @@ non-pinned compatibility reports, or missing/mismatched set manifests. The
 pair registry retains both complete self-hashed observation manifests, then
 freezes every held-out scenario as unobserved. Pair-observation checkpoint and
 cache paths, including profile-specific monitor checkpoint overrides, must be
-persistent and cannot resolve inside Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or
-PBS-assigned `TMPDIR`.
+persistent and cannot resolve inside Slurm `SLURM_TMPDIR`, a PBS private-sandbox
+`PBS_JOBDIR` that differs from `PBS_O_HOME`, or PBS-assigned `TMPDIR`.
 Pair mining always defaults to the operator-owned production paths
 `candidate-strategies-v1.json` and `pair-registry-v1.json`; it never overwrites
 the checked engineering-smoke fixtures.
@@ -236,11 +236,13 @@ and `AGENTDOJO_REQUIRES_GPU=0`. A persistent model cache is required only when
 the selected task contains a learned local model or detector. `OUT_ROOT`,
 `AGENTDOJO_MODEL_CACHE`, `HF_HOME`,
 `HF_HUB_CACHE`, and `TRANSFORMERS_CACHE` must not resolve inside
-Slurm `SLURM_TMPDIR`, PBS `PBS_JOBDIR`, or PBS-assigned `TMPDIR`. Each array
-task receives distinct output and checkpoint directories. Supply distinct
-scheduler log paths (PBS job-ID filenames or Slurm `%A_%a`) so stdout/stderr are
-unique as well. Resume and reuse are accepted only when the runner's scientific
-manifest and grid identity match.
+Slurm `SLURM_TMPDIR`, a PBS private-sandbox `PBS_JOBDIR` that differs from
+`PBS_O_HOME`, or PBS-assigned `TMPDIR`. PBS's default HOME sandbox makes
+`PBS_JOBDIR` equal to the persistent `PBS_O_HOME`; that normal case is allowed.
+Each array task receives distinct output and checkpoint directories. Supply
+distinct scheduler log paths (PBS job-ID filenames or Slurm `%A_%a`) so
+stdout/stderr are unique as well. Resume and reuse are accepted only when the
+runner's scientific manifest and grid identity match.
 
 Use `AGENTDOJO_VICTIM_CHECKPOINT` for ecological victim cells and
 `AGENTDOJO_MONITOR_CHECKPOINT` for learned action monitors or the transformer

@@ -103,9 +103,18 @@ def validate_persistent_runtime_paths(
 
     scratch_variables = ["SLURM_TMPDIR"]
     if os.environ.get("PBS_JOBID"):
-        # PBS_JOBDIR is the staging/execution directory; TMPDIR is PBS-assigned
-        # job scratch when present.  Both are non-authoritative runtime paths.
-        scratch_variables.extend(("PBS_JOBDIR", "TMPDIR"))
+        # PBS_JOBDIR is persistent when PBS uses its default HOME sandbox and
+        # equals PBS_O_HOME.  A different (or unverifiable) PBS_JOBDIR can be a
+        # job-specific PRIVATE sandbox and must remain non-authoritative.
+        pbs_jobdir = os.environ.get("PBS_JOBDIR")
+        pbs_home = os.environ.get("PBS_O_HOME")
+        if pbs_jobdir and (
+            not pbs_home
+            or Path(pbs_jobdir).expanduser().resolve()
+            != Path(pbs_home).expanduser().resolve()
+        ):
+            scratch_variables.append("PBS_JOBDIR")
+        scratch_variables.append("TMPDIR")
     scratch_roots = tuple(
         (variable, Path(value).expanduser().resolve())
         for variable in scratch_variables
