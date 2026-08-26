@@ -1,0 +1,10 @@
+{
+  "agentdojo_benchmark_version": "v1.2.2",
+  "agentdojo_package_version": "0.1.35",
+  "agentdojo_sdist_sha256": "9eacbc89d996f8656b235ad7b626bcf840b1ace7101174ca62d790c7c6d62956",
+  "agentdojo_source_revision": "a75aba7631d3ca5fb7ab938965c97ead2f9ff84b",
+  "agentdojo_wheel_sha256": "364bea4219716b716bf639f504d195943f7f6a5535d312ca41d7098704a2affd",
+  "python_major_minor": "3.11",
+  "schema_version": "silenttwin.agentdojo.release_pin.v1",
+  "source_revision_verification": "deployment_assertion_bound_to_published_wheel"
+}

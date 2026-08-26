@@ -4,21 +4,48 @@ from __future__ import annotations
 
 from typing import Any
 
-from silenttwin.attackers.base import AttackRunResult, Attacker, BaseAttacker
-from silenttwin.attackers.bayesian_attacker import BayesianAttacker, OptimalBayesianAttacker
+from silenttwin.attackers.base import (
+    AttackRunResult,
+    Attacker,
+    AttackerTelemetry,
+    BaseAttacker,
+    Prediction,
+    PublicAction,
+    PublicTrialContext,
+    TranscriptSnapshot,
+)
+from silenttwin.attackers.bayesian_attacker import (
+    BayesianAttacker,
+    KnownLikelihoodModel,
+    LikelihoodRow,
+    OptimalBayesianAttacker,
+)
 from silenttwin.attackers.black_box_attacker import (
     BlackBoxAttacker,
+    TrainingExample,
+    TrainingProvenance,
     TranscriptClassifierAttacker,
     transcript_features,
 )
-from silenttwin.attackers.llm_attacker import LLMAttacker, ModelClient, ModelResponse, ModelUsage
+from silenttwin.attackers.llm_attacker import (
+    LLMAttacker,
+    ModelClient,
+    ModelResponse,
+    ModelUsage,
+    StructuredProbeSelectionError,
+    StructuredPredictionError,
+    parse_probe_response,
+    parse_prediction_response,
+)
 from silenttwin.attackers.mock_llm import DeterministicMockAgent, MockLLM, MockLLMAttacker, MockModelClient
-from silenttwin.attackers.random_attacker import RandomAttacker
+from silenttwin.attackers.random_attacker import MajorityPriorAttacker, RandomAttacker
 
 
 ATTACKER_CLASSES: dict[str, type[Attacker]] = {
     "random": RandomAttacker,
     "random_attacker": RandomAttacker,
+    "majority": MajorityPriorAttacker,
+    "majority_prior": MajorityPriorAttacker,
     "bayesian": BayesianAttacker,
     "bayesian_attacker": BayesianAttacker,
     "black_box": BlackBoxAttacker,
@@ -49,21 +76,35 @@ __all__ = [
     "ATTACKER_CLASSES",
     "AttackRunResult",
     "Attacker",
+    "AttackerTelemetry",
     "BaseAttacker",
     "BayesianAttacker",
     "BlackBoxAttacker",
     "DeterministicMockAgent",
     "LLMAttacker",
+    "KnownLikelihoodModel",
+    "LikelihoodRow",
+    "MajorityPriorAttacker",
     "MockLLM",
     "MockLLMAttacker",
     "MockModelClient",
     "ModelClient",
     "ModelResponse",
     "ModelUsage",
+    "StructuredProbeSelectionError",
     "OptimalBayesianAttacker",
+    "Prediction",
+    "PublicAction",
+    "PublicTrialContext",
     "RandomAttacker",
+    "StructuredPredictionError",
+    "parse_probe_response",
+    "TrainingExample",
+    "TrainingProvenance",
     "TranscriptClassifierAttacker",
+    "TranscriptSnapshot",
     "get_attacker",
     "make_attacker",
+    "parse_prediction_response",
     "transcript_features",
 ]

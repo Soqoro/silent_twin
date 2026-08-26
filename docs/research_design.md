@@ -32,9 +32,11 @@ Three boundaries are intentionally explicit:
 
 The visible schema covers values, errors, receipts, identifiers, normalized
 timing buckets, retries, termination events, callbacks, visible memory, and
-settlement messages. Transcript hashes use canonical serialization. Exact
-Tier-1 SilentTwin therefore supports a strict byte-equality test across paired
-states, rather than only a statistical indistinguishability claim.
+settlement messages. Transcript hashes use canonical serialization. The exact
+Tier-1 checker examines every reachable public probe choice and pre-prediction
+flush; deterministic runtimes use public-state bisimulation and the randomized
+baseline uses its complete rational channel distribution. It does not infer a
+universal claim from one byte-equal scripted trajectory.
 
 Effects are staged separately from temporary observations. Every staged effect
 records an ID, data and control dependencies, atomic-group membership, policy
@@ -58,7 +60,7 @@ settlement report.
 
 | Experiment | Hypothesis | Independent variables | Primary metrics |
 |---|---|---|---|
-| E1 — feedback leakage | Feedback correlated with enforcement state makes paired worlds distinguishable; exact SilentTwin makes the canonical transcripts equal. | Runtime, attacker, query budget \(Q\), world suite, seed | Inference accuracy, lift above prior, transcript AUC, unseen-proposal proxy accuracy versus \(Q\) |
+| E1 — feedback leakage | Feedback correlated with enforcement state makes paired worlds distinguishable; exact SilentTwin makes the canonical transcripts equal. | Runtime, feedback source, attacker, query budget \(Q\), world suite, seed | Inference accuracy, lift above prior, transcript AUC, unseen-proposal proxy accuracy versus \(Q\) |
 | E2 — feedback-assisted bypass | Adaptive probes improve selection of a state-specific monitor blind spot. | Runtime, attacker, \(Q\), condition, world suite, seed | Prohibited-effect rate, feedback-assisted gain, monitor false-negative rate |
 | E3 — channel closure | Full SilentTwin removes both distinguishability and its downstream attack advantage; degraded variants identify reopened channels. | Runtime/full or degraded method, attacker, \(Q\), world suite, seed | Exact transcript distance, accuracy/AUC, prohibited effects, exploit success and gain versus \(Q\) |
 | E4 — useful work | Dependency-aware staging salvages independent safe branches without committing rejected actions or descendants. | Runtime, workflow family, world suite, seed | Benign success, salvage, rejected/descendant commit, atomicity, repair/report accuracy, latency and cost |
@@ -71,9 +73,12 @@ only the allowed visible transcript. It predicts \(\theta\), and evaluation is
 on held-out public instances/policy configurations. The Tier-1 Bayesian attacker
 uses the known finite-state likelihood and computes the optimal posterior.
 
-The positive control is verdict-correlated generic failure. The negative control
-is exact SilentTwin: adjacent states must have byte-identical canonical visible
-transcripts, excluding trusted metadata.
+The positive control is verdict-correlated generic failure. Two negative
+controls separate mechanisms: online shuffled feedback independently crosses
+target and donor state, while exact SilentTwin requires adjacent states to have
+byte-identical canonical visible transcripts, excluding trusted metadata.
+Genuine E1 uses two balanced target-state rows per public task; shuffled E1
+uses all four target/donor cells for that same task.
 
 ### E2: feedback-assisted bypass
 
@@ -82,10 +87,16 @@ cloud-link exfiltration while the other misses an encoded attachment. Both
 effects remain prohibited under `TruePolicy`. After \(Q\) probes, the attacker
 gets exactly one final exploit selection in every condition:
 
-- `adaptive`: select using the observed feedback;
+- `adaptive`/`genuine`: select using target-state feedback generated online;
 - `random`: random-exploit lower baseline;
 - `oracle`: hidden-state upper baseline;
-- `shuffled`: break the causal pairing between feedback and state.
+- `shuffled`: independently cross target and donor state, generate every probe
+  response in the donor session, and evaluate the locked final exploit only in
+  the target session.
+
+The public final-effect slot consumes exactly one selection request. A blocked,
+invalid, or failed selection cannot be replaced or promoted to the other
+candidate.
 
 The grid includes \(Q=0\). Report the raw prohibited-effect rate and
 
@@ -146,12 +157,26 @@ Privacy, safety, and utility are retained as separate metric families. A low
 leakage score does not excuse a prohibited commit, and perfect safety achieved by
 discarding all work does not establish utility.
 
-Aggregation matches records by public task/cohort before comparing conditions.
-It uses paired bootstrap confidence intervals where paired observations exist.
-It refuses incompatible schema/configuration groups and must not silently pool
-different cohorts. Curves versus \(Q\), feedback-assisted gain, the joint
-privacy–safety–utility comparison, and the E5 ablation table are derived from the
-validated per-run records rather than hand-entered values.
+Aggregation first validates every exact leaf-grid identity, then combines
+contiguous physical shards into their complete treatment cell. Decoding seeds
+remain explicit replication strata. It matches public tasks across treatments
+and uses 95% public-task-cluster bootstrap intervals (including nonlinear AUC)
+plus paired task-level sign-flip tests. Probe rows and decoding seeds are never
+treated as independent experimental units. Domain and model factors remain
+visible before any pooling.
+
+The preregistered shuffled-Q16 versus genuine-Q0 E1 control is paired after
+averaging within public task, because its treatments contain four and two rows
+per task respectively. Its equivalence criterion requires the full paired 95%
+interval to fall within the analysis-plan margin; incomplete matches remain
+`not_evaluated`.
+
+The checked-in analysis plan pre-registers the Q=16 E1 and E2 contrasts,
+bootstrap settings, G0–G4 thresholds, paired-discordance power method, and an
+explicitly unfrozen held-out sample size. Development evidence can be converted
+to a hash-bound sample-size freeze; Pilot C/D remain development-only. Gate
+summaries evaluate only criteria for which the complete required cohort exists
+and label all others `not_evaluated`.
 
 ## Record and provenance contract
 
@@ -161,6 +186,9 @@ Each leaf run produces:
 result.jsonl
 manifest.json
 run.log
+failures.jsonl
+checkpoint_manifest.json
+checkpoints/<episode-id>.json
 ```
 
 Sample records include the schema/experiment/tier/sample identity; paired-world
@@ -180,8 +208,9 @@ Tier 1 is intentionally small and exact: finite state, deterministic tools and
 attackers, explicit likelihoods, canonical transcripts, and no external
 services. It supports regression tests for the claimed mechanism.
 
-Tier 2 should reuse the public/private schemas, lifecycle, staging controller,
-manifests, and experiment interfaces with real agent workflows or model clients.
-It must add provider/model provenance, retry and sampling controls, token and
-latency accounting, credential isolation, and realistic tool adapters. Until
-those adapters are configured, selecting `tier2` fails explicitly.
+Tier 2 reuses the same restricted callbacks and trial runner through a lazy
+local-files-only `transformers` adapter. It records model/tokenizer revisions,
+chat-template/prompt/response hashes, decoding settings, token counts, latency,
+failures, software, CUDA, and GPU metadata. It never downloads a checkpoint or
+falls back to a provider/mock; missing packages, CUDA, or local model files fail
+explicitly. Tier-2 inference is permitted only through the GPU SLURM wrappers.

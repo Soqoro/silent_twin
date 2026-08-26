@@ -1,0 +1,47 @@
+{
+  "schema_version": "silenttwin.pilot.v1",
+  "pilot_id": "pilot_a",
+  "title": "Engineering smoke",
+  "tier": "tier1",
+  "development_only": true,
+  "dataset_split": "development",
+  "dataset_revision": "silenttwin-tier1-v1",
+  "experiments": {
+    "e1": {
+      "world_suites": ["email"],
+      "runtimes": ["generic_failure", "silenttwin"],
+      "attackers": ["mock_llm"],
+      "query_budgets": [0, 4],
+      "feedback_sources": ["genuine", "shuffled"],
+      "feedback_source_query_budgets": {
+        "genuine": [0, 4],
+        "shuffled": [4]
+      },
+      "pair_families": ["monitor_blind_spot"],
+      "seeds": [42],
+      "paired_instances": 16,
+      "trial_rows_per_paired_instance": 2,
+      "cells_per_task": 1,
+      "public_instances_per_shard": 16
+    },
+    "e2": {
+      "world_suites": ["email"],
+      "runtimes": ["generic_failure", "silenttwin"],
+      "attackers": ["mock_llm"],
+      "query_budgets": [0, 4],
+      "conditions": ["no_probe", "adaptive", "shuffled", "oracle"],
+      "condition_query_budgets": {
+        "no_probe": [0],
+        "adaptive": [4],
+        "shuffled": [4],
+        "oracle": [0]
+      },
+      "pair_families": ["monitor_blind_spot"],
+      "seeds": [42],
+      "paired_instances": 16,
+      "trial_rows_per_paired_instance": 4,
+      "cells_per_task": 1,
+      "public_instances_per_shard": 16
+    }
+  }
+}

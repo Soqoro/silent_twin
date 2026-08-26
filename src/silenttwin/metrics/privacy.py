@@ -49,11 +49,30 @@ def binary_auc(labels: Sequence[int | bool], scores: Sequence[float]) -> float:
     return favorable / (len(positives) * len(negatives))
 
 
-def transcript_exact_distance(left: bytes | str, right: bytes | str) -> int:
-    """Tier-1 exact distance: zero iff canonical transcript bytes match."""
+def byte_mismatch_distance(left: bytes | str, right: bytes | str) -> int:
+    """Count aligned byte mismatches; this is an equality check, not TV."""
 
     left_bytes = left.encode("utf-8") if isinstance(left, str) else left
     right_bytes = right.encode("utf-8") if isinstance(right, str) else right
     shared = sum(a != b for a, b in zip(left_bytes, right_bytes))
     return shared + abs(len(left_bytes) - len(right_bytes))
 
+
+def transcript_exact_distance(left: bytes | str, right: bytes | str) -> int:
+    """Compatibility name for :func:`byte_mismatch_distance`.
+
+    A zero value proves equality of these two supplied byte strings only. Use
+    :mod:`silenttwin.metrics.exact_tv` for transcript distributions or the
+    reachable-history bisimulation guarantee.
+    """
+
+    return byte_mismatch_distance(left, right)
+
+
+__all__ = [
+    "accuracy",
+    "accuracy_above_prior",
+    "binary_auc",
+    "byte_mismatch_distance",
+    "transcript_exact_distance",
+]

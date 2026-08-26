@@ -1,0 +1,47 @@
+{
+  "schema_version": "silenttwin.pilot.v1",
+  "pilot_id": "pilot_b",
+  "title": "Tier-1 mechanism sweep",
+  "tier": "tier1",
+  "development_only": true,
+  "dataset_split": "development",
+  "dataset_revision": "silenttwin-tier1-v1",
+  "experiments": {
+    "e1": {
+      "world_suites": ["email", "files", "calendar", "payments"],
+      "runtimes": ["generic_failure", "binary_denial", "visible_settlement", "silenttwin"],
+      "attackers": ["bayesian"],
+      "query_budgets": [0, 4, 16, 32],
+      "feedback_sources": ["genuine", "shuffled"],
+      "feedback_source_query_budgets": {
+        "genuine": [0, 4, 16, 32],
+        "shuffled": [16]
+      },
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "seeds": [42],
+      "paired_instances": 64,
+      "trial_rows_per_paired_instance": 2,
+      "cells_per_task": 4,
+      "public_instances_per_shard": 64
+    },
+    "e2": {
+      "world_suites": ["email", "files", "calendar", "payments"],
+      "runtimes": ["generic_failure", "binary_denial", "visible_settlement", "silenttwin"],
+      "attackers": ["bayesian"],
+      "query_budgets": [0, 4, 16, 32],
+      "conditions": ["no_probe", "adaptive", "shuffled", "oracle"],
+      "condition_query_budgets": {
+        "no_probe": [0],
+        "adaptive": [4, 16, 32],
+        "shuffled": [4, 16, 32],
+        "oracle": [0]
+      },
+      "pair_families": ["monitor_blind_spot"],
+      "seeds": [42],
+      "paired_instances": 64,
+      "trial_rows_per_paired_instance": 4,
+      "cells_per_task": 4,
+      "public_instances_per_shard": 64
+    }
+  }
+}

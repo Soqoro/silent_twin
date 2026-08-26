@@ -1,4 +1,9 @@
-"""Common deterministic finite-state machinery and run orchestration."""
+"""Run/checkpoint orchestration plus deprecated E4/E5 scaffold helpers.
+
+Experiments 1--3 deliberately do not use the hard-coded transcript, inference,
+monitor, or outcome helpers retained below for E4/E5 compatibility.  New
+scientific experiment code must use :mod:`silenttwin.experiments.trial_runner`.
+"""
 
 from __future__ import annotations
 
@@ -10,11 +15,24 @@ import math
 import os
 from pathlib import Path
 import tempfile
+import traceback
 from typing import Any, Callable, Mapping, Sequence
 
 from silenttwin.config import ExperimentConfig, SCHEMA_VERSION, canonical_json, stable_hash
-from silenttwin.io.jsonl import ResultValidationError, atomic_write_jsonl
+from silenttwin.io.checkpoints import (
+    CHECKPOINT_DIRECTORY,
+    CHECKPOINT_MANIFEST,
+    CheckpointStore,
+    episode_id,
+)
+from silenttwin.io.jsonl import (
+    ResultValidationError,
+    atomic_write_jsonl,
+    atomic_write_objects_jsonl,
+    read_jsonl,
+)
 from silenttwin.io.manifests import (
+    FAILURES_FILENAME,
     LOG_FILENAME,
     MANIFEST_FILENAME,
     RESULT_FILENAME,
@@ -41,6 +59,9 @@ class RunOutcome:
     reused: bool
 
 
+# Deprecated compatibility scaffold. E1--E3 are forbidden from importing the
+# helpers in this section; only base serialization/run orchestration below is
+# shared by the real TrialRunner path.
 @dataclass(frozen=True, slots=True)
 class TranscriptPair:
     theta0: list[dict[str, Any]]
@@ -314,18 +335,41 @@ def make_effect(
     }
 
 
-def base_sample(config: ExperimentConfig, sample_index: int) -> Sample:
+def base_sample(
+    config: ExperimentConfig,
+    sample_index: int,
+    *,
+    pair: Any | None = None,
+) -> Sample:
+    selected_pair = pair or _world_pair(config.world_suite, config.seed, sample_index)
+    template_id = getattr(selected_pair, "template_id", None) or getattr(
+        selected_pair.theta0, "template_id", config.template_id
+    )
     return {
         "schema_version": SCHEMA_VERSION,
         "record_type": "sample",
         "experiment_id": config.experiment,
         "tier": config.tier,
         "sample_id": f"sample-{sample_index:06d}",
-        "paired_world_id": paired_world_id(config, sample_index),
-        "public_instance_hash": public_instance_hash(config, sample_index),
+        "sample_index": sample_index,
+        "paired_world_id": selected_pair.paired_world_id,
+        "public_instance_hash": selected_pair.public_instance_hash,
+        "pair_family": getattr(
+            selected_pair,
+            "pair_family",
+            getattr(selected_pair.theta0, "pair_family", config.pair_family),
+        ),
+        "template_id": template_id,
+        "dataset_split": getattr(
+            selected_pair.theta0, "dataset_split", config.dataset_split
+        ),
+        "dataset_revision": getattr(
+            selected_pair.theta0, "dataset_revision", config.dataset_revision
+        ),
         "runtime": config.runtime,
         "attacker": config.attacker,
         "query_budget": config.query_budget,
+        "decoding_seed": config.decoding_seed,
         "world_suite": config.world_suite,
         "seed": config.seed,
         "configuration_hash": config.configuration_hash,
@@ -398,7 +442,12 @@ def _atomic_write_text(path: Path, text: str) -> None:
 
 
 def run_experiment(config: ExperimentConfig) -> RunOutcome:
-    """Run or strictly reuse one deterministic experiment configuration."""
+    """Run, resume, or strictly reuse one experiment shard.
+
+    Successful samples are atomically checkpointed one at a time.  A resumed
+    invocation validates both the scientific configuration and executable
+    source hash, loads completed episodes, and executes only missing IDs.
+    """
 
     output_dir = config.output_dir
     provenance = collect_provenance()
@@ -406,9 +455,11 @@ def run_experiment(config: ExperimentConfig) -> RunOutcome:
         output_dir / RESULT_FILENAME,
         output_dir / MANIFEST_FILENAME,
         output_dir / LOG_FILENAME,
+        output_dir / FAILURES_FILENAME,
+        output_dir / CHECKPOINT_MANIFEST,
     ]
     existing = [path for path in known_artifacts if path.exists()]
-    if existing and not config.overwrite:
+    if (output_dir / MANIFEST_FILENAME).exists() and not config.overwrite:
         try:
             validate_result_directory(
                 output_dir,
@@ -423,19 +474,103 @@ def run_experiment(config: ExperimentConfig) -> RunOutcome:
             ) from error
         return RunOutcome(output_dir, config.configuration_hash, config.num_samples, True)
 
+    if config.overwrite:
+        for path in known_artifacts:
+            if path.is_file() or path.is_symlink():
+                path.unlink(missing_ok=True)
+        checkpoint_directory = output_dir / CHECKPOINT_DIRECTORY
+        if checkpoint_directory.exists():
+            for path in checkpoint_directory.iterdir():
+                if not path.is_file() or path.suffix != ".json":
+                    raise ResultValidationError(
+                        f"refusing to remove unexpected checkpoint entry: {path}"
+                    )
+                path.unlink()
+            checkpoint_directory.rmdir()
+    elif existing and not (output_dir / CHECKPOINT_MANIFEST).exists():
+        names = ", ".join(path.name for path in existing)
+        raise ResultValidationError(
+            f"existing output at {output_dir} cannot be resumed because its checkpoint "
+            f"manifest is missing (found: {names}); pass --overwrite to replace known artifacts"
+        )
+
     started_at = utc_now()
     runner, summarizer = _load_experiment(config)
-    samples = [runner(config, sample_index) for sample_index in range(config.num_samples)]
-    for sample in samples:
-        sample["code_revision"] = provenance["code_revision"]
+    sample_indices = tuple(
+        range(config.sample_start, config.sample_start + config.num_samples)
+    )
+    store = CheckpointStore(
+        output_dir,
+        config,
+        sample_indices,
+        provenance_hash=str(provenance["source_tree_hash"]),
+    )
+    store.initialize()
+    completed = store.load()
+    resumed_sample_count = len(completed)
+    failures_path = output_dir / FAILURES_FILENAME
+    failures = read_jsonl(failures_path) if failures_path.exists() else []
+    atomic_write_objects_jsonl(failures_path, failures)
+    for sample_index in sample_indices:
+        if sample_index in completed:
+            continue
+        try:
+            sample = runner(config, sample_index)
+            sample["code_revision"] = provenance["code_revision"]
+            sample["episode_id"] = episode_id(config, sample_index)
+            store.save(sample_index, sample)
+            completed[sample_index] = sample
+        except Exception as error:
+            attempt = 1 + sum(
+                int(item.get("sample_index", -1)) == sample_index for item in failures
+            )
+            failure = {
+                "failure_schema_version": "silenttwin.failure.v1",
+                "failure_id": stable_hash(
+                    [config.configuration_hash, sample_index, attempt]
+                ),
+                "configuration_hash": config.configuration_hash,
+                "episode_id": episode_id(config, sample_index),
+                "sample_index": sample_index,
+                "attempt": attempt,
+                "occurred_at": utc_now(),
+                "exception_type": type(error).__name__,
+                "message": str(error),
+                "traceback": traceback.format_exc(),
+                "terminal": True,
+            }
+            failures.append(failure)
+            atomic_write_objects_jsonl(failures_path, failures)
+            _atomic_write_text(
+                output_dir / LOG_FILENAME,
+                "\n".join(
+                    (
+                        f"started_at={started_at}",
+                        f"interrupted_at={failure['occurred_at']}",
+                        f"experiment={config.experiment}",
+                        f"configuration_hash={config.configuration_hash}",
+                        f"completed_samples={len(completed)}",
+                        f"failed_sample_index={sample_index}",
+                        "status=interrupted",
+                        "",
+                    )
+                ),
+            )
+            raise
+
+    if set(completed) != set(sample_indices):
+        raise ResultValidationError("checkpoint resume ended with missing sample indices")
+    samples = [completed[index] for index in sample_indices]
     summary = summarizer(config, samples)
     records: list[Mapping[str, Any]] = [*samples, summary]
     output_dir.mkdir(parents=True, exist_ok=True)
     result_path = output_dir / RESULT_FILENAME
     atomic_write_jsonl(result_path, records)
+    store.mark_complete()
     manifest = make_manifest(
         config,
         result_path=result_path,
+        failures_path=failures_path,
         provenance=provenance,
         started_at=started_at,
     )
@@ -449,6 +584,11 @@ def run_experiment(config: ExperimentConfig) -> RunOutcome:
                 f"experiment={config.experiment}",
                 f"configuration_hash={config.configuration_hash}",
                 f"sample_count={config.num_samples}",
+                f"resumed_sample_count={resumed_sample_count}",
+                f"failure_count={len(failures)}",
+                f"slurm_job_id={os.environ.get('SLURM_JOB_ID', '')}",
+                f"slurm_array_job_id={os.environ.get('SLURM_ARRAY_JOB_ID', '')}",
+                f"slurm_array_task_id={os.environ.get('SLURM_ARRAY_TASK_ID', '')}",
                 "status=complete",
                 "",
             )

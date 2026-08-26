@@ -1,0 +1,13 @@
+# Reproducible CPU-only development environment for Python 3.10-3.13.
+# Install with: python -m pip install -r requirements-dev.lock
+# Tier-2 torch/CUDA/transformers packages intentionally come from the approved
+# cluster environment and are never installed implicitly by this lock file.
+-e .
+exceptiongroup==1.3.0; python_version < "3.11"
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.21.0
+pytest==9.1.1
+tomli==2.2.1; python_version < "3.11"
+typing_extensions==4.15.0; python_version < "3.11"

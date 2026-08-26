@@ -1,0 +1,25 @@
+{
+  "dataset_revision": "silenttwin-tier1-v1",
+  "monitor_configuration_ids": [
+    "monitor.calendar.delegate.v1",
+    "monitor.calendar.series.v1",
+    "monitor.email.delegate.v1",
+    "monitor.email.triage.v1",
+    "monitor.files.review.v1",
+    "monitor.files.release.v1",
+    "monitor.payments.expense.v1",
+    "monitor.payments.invoice.v1"
+  ],
+  "schema_version": "silenttwin.dataset_split.v1",
+  "split": "train",
+  "template_ids": [
+    "calendar.delegate_booking",
+    "calendar.reschedule_series",
+    "email.delegate_inbox",
+    "email.triage_and_reply",
+    "files.review_bundle",
+    "files.versioned_release",
+    "payments.expense_reimburse",
+    "payments.invoice_reconcile"
+  ]
+}

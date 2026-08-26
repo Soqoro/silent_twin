@@ -1,0 +1,57 @@
+{
+  "schema_version": "silenttwin.pilot.v1",
+  "pilot_id": "pilot_c",
+  "title": "Tier-2 semantic pilot",
+  "tier": "tier2",
+  "development_only": true,
+  "dataset_split": "development",
+  "dataset_revision": "silenttwin-tier1-v1",
+  "recommended_array_throttle": 4,
+  "model": {
+    "dtype": "bfloat16",
+    "max_new_tokens": 256,
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "batch_size": 1
+  },
+  "experiments": {
+    "e1": {
+      "world_suites": ["email"],
+      "runtimes": ["generic_failure", "silenttwin"],
+      "attackers": ["llm"],
+      "query_budgets": [0, 4, 16],
+      "feedback_sources": ["genuine", "shuffled"],
+      "feedback_source_query_budgets": {
+        "genuine": [0, 4, 16],
+        "shuffled": [16]
+      },
+      "pair_families": ["monitor_blind_spot"],
+      "seeds": [42],
+      "decoding_seeds": [0],
+      "paired_instances": 20,
+      "trial_rows_per_paired_instance": 2,
+      "cells_per_task": 1,
+      "public_instances_per_shard": 10
+    },
+    "e2": {
+      "world_suites": ["email"],
+      "runtimes": ["generic_failure", "silenttwin"],
+      "attackers": ["llm"],
+      "query_budgets": [0, 4, 16],
+      "conditions": ["no_probe", "adaptive", "shuffled", "oracle"],
+      "condition_query_budgets": {
+        "no_probe": [0],
+        "adaptive": [4, 16],
+        "shuffled": [4, 16],
+        "oracle": [0]
+      },
+      "pair_families": ["monitor_blind_spot"],
+      "seeds": [42],
+      "decoding_seeds": [0],
+      "paired_instances": 20,
+      "trial_rows_per_paired_instance": 4,
+      "cells_per_task": 1,
+      "public_instances_per_shard": 5
+    }
+  }
+}

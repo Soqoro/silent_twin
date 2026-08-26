@@ -14,6 +14,7 @@ def effect(
     effect_id: str,
     *,
     allowed: bool = True,
+    permitted: bool | None = None,
     data: tuple[str, ...] = (),
     control: tuple[str, ...] = (),
     group: str | None = None,
@@ -26,7 +27,9 @@ def effect(
             MonitorDecision.ALLOW if allowed else MonitorDecision.BLOCK
         ),
         true_policy_label=(
-            TruePolicyLabel.PERMITTED if allowed else TruePolicyLabel.PROHIBITED
+            TruePolicyLabel.PERMITTED
+            if (allowed if permitted is None else permitted)
+            else TruePolicyLabel.PROHIBITED
         ),
         policy_epoch=3,
         data_dependencies=data,
@@ -36,6 +39,31 @@ def effect(
 
 
 class ControllerTests(unittest.TestCase):
+    def test_monitor_and_true_policy_are_separate_in_all_four_cells(self) -> None:
+        controller = DependencyAwareController(
+            [
+                effect("allow-permitted", allowed=True, permitted=True),
+                effect("allow-prohibited", allowed=True, permitted=False),
+                effect("block-permitted", allowed=False, permitted=True),
+                effect("block-prohibited", allowed=False, permitted=False),
+            ],
+            expected_policy_epoch=3,
+        )
+        report = controller.commit_all()
+        self.assertEqual(
+            {"allow-permitted", "allow-prohibited"},
+            set(report.committed_effect_ids),
+        )
+        self.assertEqual(
+            {"block-permitted", "block-prohibited"},
+            set(report.rejected_effect_ids),
+        )
+        # The safety outcome comes from TruePolicy on committed effects, not
+        # from either the allowed or rejected monitor sets.
+        self.assertEqual(
+            ("allow-prohibited",), report.prohibited_effect_ids
+        )
+
     def test_rejected_effect_cannot_commit(self) -> None:
         controller = DependencyAwareController(
             [effect("rejected", allowed=False)], expected_policy_epoch=3

@@ -63,11 +63,11 @@ def get_runtime(name: str = "silenttwin", **kwargs: Any) -> Runtime:
         return SilentTwinRuntime(variant=normalized.split(":", 1)[1], **kwargs)
     if normalized.startswith("silenttwin_") and normalized != "silenttwin":
         return SilentTwinRuntime(variant=normalized.removeprefix("silenttwin_"), **kwargs)
-    if normalized in SILENTTWIN_ABLATIONS:
-        return SilentTwinRuntime(variant=normalized, **kwargs)
     try:
         runtime_class = RUNTIME_CLASSES[normalized]
     except KeyError as exc:
+        if normalized in SILENTTWIN_ABLATIONS:
+            return SilentTwinRuntime(variant=normalized, **kwargs)
         names = sorted(set(RUNTIME_CLASSES) | set(SILENTTWIN_ABLATIONS))
         raise ValueError(f"unknown runtime {name!r}; choose one of: {', '.join(names)}") from exc
     return runtime_class(**kwargs)

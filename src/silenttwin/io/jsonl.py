@@ -11,6 +11,7 @@ import tempfile
 from typing import Any
 
 from silenttwin.config import SCHEMA_VERSION, canonical_json
+from silenttwin.schemas import assert_agent_visible, is_agentdojo_public_envelope
 
 
 class ResultValidationError(ValueError):
@@ -54,12 +55,39 @@ def read_jsonl(path: Path | str) -> list[dict[str, Any]]:
 def _check_visible_value(value: Any, path: str = "agent_visible_transcript") -> None:
     """Reject obvious trusted-only fields in the visible transcript namespace."""
 
+    try:
+        assert_agent_visible(value, path)
+    except ValueError as error:
+        raise ResultValidationError(str(error)) from error
+
+    # Typed AgentDojo application payload is opaque to the legacy Tier-1 key
+    # denylist below. The envelope constructor already rejected trusted DTOs.
+    if is_agentdojo_public_envelope(value):
+        return
+
     forbidden_keys = {
         "private_state",
+        "actual_state",
+        "donor_state",
+        "feedback_source_state",
         "theta",
+        "world",
+        "world_pair",
+        "session",
+        "protected_session",
+        "private_record",
+        "private_records",
+        "staged_effect",
+        "staged_effects",
+        "controller",
+        "trusted_report",
+        "trusted_evaluation",
+        "true_policy",
         "monitor_decision",
         "monitor_verdict",
         "true_policy_label",
+        "policy_epoch",
+        "commit_token",
         "admissible",
     }
     if isinstance(value, Mapping):
@@ -123,11 +151,33 @@ def validate_records(
             if sample_id in sample_ids:
                 raise ResultValidationError(f"duplicate sample_id {sample_id!r}")
             sample_ids.add(sample_id)
-            if "agent_visible_transcript" in record:
-                _check_visible_value(record["agent_visible_transcript"])
-            if "private_state" not in record.get("trusted_evaluation", {}):
+            visible_fields = (
+                "agent_visible_transcript",
+                "delivered_visible_transcript",
+                "decision_visible_transcript",
+                "postselection_visible_transcript",
+            )
+            for field in visible_fields:
+                if field in record:
+                    _check_visible_value(record[field], field)
+            callback_fields = (
+                "agent_visible_transcript",
+                "delivered_visible_transcript",
+                "decision_visible_transcript",
+            )
+            callback_values = [record[field] for field in callback_fields if field in record]
+            if callback_values and any(
+                value != callback_values[0] for value in callback_values[1:]
+            ):
                 raise ResultValidationError(
-                    f"sample {sample_id!r} lacks trusted_evaluation.private_state"
+                    f"sample {sample_id!r} has inconsistent attacker-visible transcript aliases"
+                )
+            trusted_evaluation = record.get("trusted_evaluation", {})
+            if not isinstance(trusted_evaluation, Mapping) or not (
+                {"private_state", "actual_hidden_state"} & set(trusted_evaluation)
+            ):
+                raise ResultValidationError(
+                    f"sample {sample_id!r} lacks a trusted hidden-state field"
                 )
     return summary
 
@@ -153,6 +203,38 @@ def atomic_write_jsonl(path: Path | str, records: Iterable[Mapping[str, Any]]) -
         # Parse the bytes that will actually be published, not only the source
         # Python values, before the atomic rename.
         validate_records(read_jsonl(temporary_path))
+        os.replace(temporary_path, destination)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def atomic_write_objects_jsonl(
+    path: Path | str, records: Iterable[Mapping[str, Any]]
+) -> None:
+    """Atomically publish a generic JSONL stream, including an empty stream.
+
+    Result bundles use :func:`atomic_write_jsonl`, whose summary-record contract
+    is intentionally stricter.  Checkpoint and failure ledgers are ordinary
+    append-like object streams and use this helper instead.
+    """
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    materialized = [dict(record) for record in records]
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            for record in materialized:
+                handle.write(canonical_json(record))
+                handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        parsed = read_jsonl(temporary_path) if materialized else []
+        if parsed != materialized:
+            raise ResultValidationError("generic JSONL round-trip mismatch")
         os.replace(temporary_path, destination)
     finally:
         temporary_path.unlink(missing_ok=True)

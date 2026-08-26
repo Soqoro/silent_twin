@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from importlib.metadata import PackageNotFoundError, version
+import os
 from pathlib import Path
 import platform
 import subprocess
@@ -45,8 +46,10 @@ def source_tree_hash() -> str:
     source_patterns = (
         "src/silenttwin/**/*.py",
         "experiments/silenttwin/*.sh",
-        "configs/silenttwin/*.json",
+        "configs/silenttwin/**/*",
         "pyproject.toml",
+        "requirements-dev.lock",
+        "requirements-tier2-agentdojo.lock",
     )
     paths = {
         path
@@ -71,6 +74,15 @@ def collect_provenance() -> dict[str, Any]:
     except PackageNotFoundError:
         package_version = "0.1.0+source"
     status = _git_output("status", "--porcelain", "--untracked-files=all")
+    scheduler = {
+        "job_id": os.environ.get("SLURM_JOB_ID"),
+        "array_job_id": os.environ.get("SLURM_ARRAY_JOB_ID"),
+        "array_task_id": os.environ.get("SLURM_ARRAY_TASK_ID"),
+        "partition": os.environ.get("SLURM_JOB_PARTITION"),
+        "node_list": os.environ.get("SLURM_JOB_NODELIST"),
+        "cpus_per_task": os.environ.get("SLURM_CPUS_PER_TASK"),
+        "job_gpus": os.environ.get("SLURM_JOB_GPUS"),
+    }
     return {
         "code_revision": _git_output("rev-parse", "HEAD") or "unknown",
         "code_dirty": bool(status),
@@ -79,6 +91,11 @@ def collect_provenance() -> dict[str, Any]:
         "python_implementation": platform.python_implementation(),
         "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "platform": platform.platform(),
+        "scheduler": scheduler,
+        "gpu_environment": {
+            "cuda_visible_devices": os.environ.get("CUDA_VISIBLE_DEVICES"),
+            "nvidia_visible_devices": os.environ.get("NVIDIA_VISIBLE_DEVICES"),
+        },
     }
 
 

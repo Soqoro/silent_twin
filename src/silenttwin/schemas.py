@@ -137,12 +137,24 @@ PRIVATE_FIELD_NAMES = frozenset(
         "theta",
         "private_state",
         "hidden_state",
+        "actual_state",
+        "actual_hidden_state",
+        "donor_state",
+        "source_state",
+        "feedback_source_state",
         "monitor_decision",
         "monitor_verdict",
         "true_policy_label",
         "ground_truth_label",
+        "policy_epoch",
         "admissible",
         "commit_token",
+        "staged_effect",
+        "staged_effects",
+        "committed_effects",
+        "private_records",
+        "controller",
+        "trusted_report",
     }
 )
 
@@ -155,6 +167,25 @@ def assert_agent_visible(value: Any, path: str = "$") -> None:
     explicitly named ``monitor_decision`` is never acceptable.
     """
 
+    namespace = getattr(value, "__silenttwin_namespace__", None)
+    if namespace == "trusted":
+        raise ValueError(f"trusted object cannot enter the visible transcript at {path}")
+    if namespace == "public":
+        serializer = getattr(value, "to_public_dict", None)
+        if not callable(serializer):
+            raise ValueError(f"public namespace object at {path} has no serializer")
+        encoded = serializer()
+        if not is_agentdojo_public_envelope(encoded):
+            raise ValueError(f"invalid AgentDojo public envelope at {path}")
+        return
+    if isinstance(value, Mapping) and isinstance(value.get("schema"), str) and str(
+        value.get("schema")
+    ).startswith("silenttwin.agentdojo.trusted"):
+        raise ValueError(f"trusted envelope cannot enter the visible transcript at {path}")
+    if isinstance(value, Mapping) and is_agentdojo_public_envelope(value):
+        # AgentDojo application data is opaque within its explicit typed
+        # namespace. Keys such as world/session are ordinary domain payload.
+        return
     if isinstance(value, Mapping):
         for key, item in value.items():
             normalized = str(key).strip().lower()
@@ -164,6 +195,19 @@ def assert_agent_visible(value: Any, path: str = "$") -> None:
     elif isinstance(value, (list, tuple)):
         for index, item in enumerate(value):
             assert_agent_visible(item, f"{path}[{index}]")
+
+
+def is_agentdojo_public_envelope(value: Any) -> bool:
+    """Recognize the durable representation of a typed public envelope."""
+
+    if not isinstance(value, Mapping) or set(value) != {"schema", "value"}:
+        return False
+    schema = value.get("schema")
+    return (
+        isinstance(schema, str)
+        and schema.startswith("silenttwin.agentdojo.")
+        and ".trusted" not in schema
+    )
 
 
 @dataclass(frozen=True)
@@ -592,6 +636,7 @@ __all__ = [
     "TrustedReport",
     "VisibleEvent",
     "assert_agent_visible",
+    "is_agentdojo_public_envelope",
     "canonical_hash",
     "canonical_json",
     "stable_digest",

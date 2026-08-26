@@ -1,0 +1,17 @@
+{
+  "dataset_revision": "silenttwin-tier1-v1",
+  "monitor_configuration_ids": [
+    "monitor.calendar.oncall.v1",
+    "monitor.email.incident.v1",
+    "monitor.files.legal_hold.v1",
+    "monitor.payments.vendor.v1"
+  ],
+  "schema_version": "silenttwin.dataset_split.v1",
+  "split": "test",
+  "template_ids": [
+    "calendar.incident_oncall",
+    "email.incident_escalation",
+    "files.legal_hold_export",
+    "payments.vendor_onboarding"
+  ]
+}

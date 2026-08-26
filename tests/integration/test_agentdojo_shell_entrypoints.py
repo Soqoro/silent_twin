@@ -1,0 +1,474 @@
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import subprocess
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+EXPERIMENT_DIR = REPO_ROOT / "experiments/silenttwin"
+ENTRYPOINTS = (
+    "run_agentdojo_catalog.sh",
+    "run_agentdojo_pair_mining_tier2.sh",
+    "run_experiment_1_feedback_leakage_agentdojo_tier2.sh",
+    "run_experiment_2_feedback_assisted_bypass_agentdojo_tier2.sh",
+    "run_experiment_3_channel_closure_agentdojo_tier2.sh",
+    "run_experiment_4_useful_work_agentdojo_tier2.sh",
+    "run_experiment_5_assumption_ablations_agentdojo_tier2.sh",
+    "run_agentdojo_ecological_tier2.sh",
+)
+
+
+def _manifest(
+    path: Path,
+    total_tasks: int = 2,
+    *,
+    fixture_mode: bool = True,
+    learned_model: bool = False,
+) -> None:
+    metadata = {
+        "record_type": "grid_metadata",
+        "schema_version": "silenttwin.agentdojo.grid.v1",
+        "environment_backend": "agentdojo",
+        "model_free": True,
+        "total_tasks": total_tasks,
+    }
+    records = [metadata]
+    for task_id in range(total_tasks):
+        records.append(
+            {
+                "record_type": "grid_member",
+                "schema_version": "silenttwin.agentdojo.grid.v1",
+                "task_id": task_id,
+                "batch_offset": 0,
+                "cell_index": task_id,
+                "configuration": {
+                    "fixture_mode": fixture_mode,
+                    "models": (
+                        [{"implementation": "local_transformers", "role": "attacker"}]
+                        if learned_model
+                        else []
+                    ),
+                },
+                "configuration_hash": "a" * 64,
+                "shard_id": "b" * 64,
+            }
+        )
+    path.write_text(
+        "".join(
+            json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n"
+            for record in records
+        ),
+        encoding="utf-8",
+    )
+
+
+def _run_e1(manifest: Path, **environment: str) -> subprocess.CompletedProcess[str]:
+    values = os.environ.copy()
+    for name in ("SLURM_JOB_ID", "SLURM_ARRAY_TASK_ID", "SLURM_TMPDIR", "E1_STAGE"):
+        values.pop(name, None)
+    values.update(
+        {
+            "STAGE": "run",
+            "GRID_MANIFEST": str(manifest),
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "AGENTDOJO_FAKE_MODEL": "1",
+            "AGENTDOJO_REQUIRES_GPU": "0",
+            **environment,
+        }
+    )
+    return subprocess.run(
+        ["bash", str(EXPERIMENT_DIR / ENTRYPOINTS[2])],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
+    values = os.environ.copy()
+    for name in (
+        "SLURM_JOB_ID",
+        "SLURM_TMPDIR",
+        "AGENTDOJO_MONITOR_CHECKPOINT",
+        "AGENTDOJO_MONITOR_CHECKPOINT_MONITOR_A",
+        "AGENTDOJO_MODEL_CACHE",
+        "HF_HOME",
+        "HF_HUB_CACHE",
+        "TRANSFORMERS_CACHE",
+    ):
+        values.pop(name, None)
+    values.update(
+        {
+            "STAGE": "run",
+            "PAIR_MINING_ACTION": "observe",
+            "OBSERVATION_SPLIT": "train",
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "AGENTDOJO_REQUIRES_GPU": "0",
+            **environment,
+        }
+    )
+    return subprocess.run(
+        ["bash", str(EXPERIMENT_DIR / ENTRYPOINTS[1])],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def test_exactly_eight_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
+    discovered = {
+        path.name
+        for path in EXPERIMENT_DIR.glob("*agentdojo*.sh")
+        if path.name != "_agentdojo_common.sh"
+    }
+    assert discovered == set(ENTRYPOINTS)
+    for name in ("_agentdojo_common.sh", *ENTRYPOINTS):
+        result = subprocess.run(
+            ["bash", "-n", str(EXPERIMENT_DIR / name)],
+            cwd=REPO_ROOT,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+
+
+def test_scripts_contain_no_submission_or_guessed_site_gpu_flags() -> None:
+    contents = "\n".join(
+        (EXPERIMENT_DIR / name).read_text(encoding="utf-8")
+        for name in ("_agentdojo_common.sh", *ENTRYPOINTS)
+    )
+    assert "sbatch" not in contents
+    assert "#SBATCH" not in contents
+    for flag in ("--account", "--partition", "--gres", "--gpus"):
+        assert flag not in contents
+
+
+def test_out_of_range_array_fails_before_python_is_inspected(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest, total_tasks=2)
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="123",
+        SLURM_ARRAY_TASK_ID="2",
+    )
+    assert result.returncode == 2
+    assert "out of range" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_run_fails_outside_slurm_before_python_or_model_validation(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    result = _run_e1(manifest, SLURM_ARRAY_TASK_ID="0")
+    assert result.returncode == 2
+    assert "outside an authorized SLURM job" in result.stderr
+    assert "PYTHON_BIN" not in result.stderr
+
+
+def test_ephemeral_authoritative_cache_is_rejected_before_python(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    scratch = tmp_path / "slurm-scratch"
+    scratch.mkdir()
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="123",
+        SLURM_ARRAY_TASK_ID="0",
+        SLURM_TMPDIR=str(scratch),
+        AGENTDOJO_FAKE_MODEL="0",
+        AGENTDOJO_REQUIRES_GPU="0",
+        AGENTDOJO_MODEL_CACHE=str(scratch / "models"),
+    )
+    assert result.returncode == 2
+    assert "must be persistent" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_pair_observation_rejects_generic_profile_and_cache_scratch_paths_before_python(
+    tmp_path: Path,
+) -> None:
+    scratch = tmp_path / "slurm-scratch"
+    scratch.mkdir()
+    for variable in (
+        "AGENTDOJO_MONITOR_CHECKPOINT",
+        "AGENTDOJO_MONITOR_CHECKPOINT_MONITOR_A",
+        "AGENTDOJO_MODEL_CACHE",
+        "HF_HOME",
+        "HF_HUB_CACHE",
+        "TRANSFORMERS_CACHE",
+    ):
+        result = _run_pair_observe(
+            SLURM_JOB_ID="123",
+            SLURM_TMPDIR=str(scratch),
+            **{variable: str(scratch / variable.lower())},
+        )
+        assert result.returncode == 2
+        assert variable in result.stderr
+        assert "must be persistent" in result.stderr
+        assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_pair_observation_requires_persistent_model_cache_before_python() -> None:
+    result = _run_pair_observe(
+        SLURM_JOB_ID="123",
+        AGENTDOJO_REQUIRES_GPU="0",
+        AGENTDOJO_MODEL_CACHE="",
+    )
+    assert result.returncode == 2
+    assert "learned monitors require AGENTDOJO_MODEL_CACHE" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_experiment_alias_can_override_generic_stage(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest)
+    values = os.environ.copy()
+    values.pop("SLURM_JOB_ID", None)
+    values.update(
+        {
+            "STAGE": "grid",
+            "E1_STAGE": "run",
+            "GRID_MANIFEST": str(manifest),
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "SLURM_ARRAY_TASK_ID": "0",
+            "AGENTDOJO_FAKE_MODEL": "1",
+            "AGENTDOJO_REQUIRES_GPU": "0",
+        }
+    )
+    result = subprocess.run(
+        ["bash", str(EXPERIMENT_DIR / ENTRYPOINTS[2])],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 2
+    assert "outside an authorized SLURM job" in result.stderr
+
+
+def test_run_stage_invokes_the_concrete_checkpointed_grid_runner() -> None:
+    common = (EXPERIMENT_DIR / "_agentdojo_common.sh").read_text(encoding="utf-8")
+    assert "silenttwin.agentdojo.runner run-grid-task" in common
+    assert '--grid-manifest "$GRID_MANIFEST" --task-id "$AGENTDOJO_TASK_ID"' in common
+
+
+def test_checked_smoke_plan_uses_fixtures_but_production_defaults_stay_operator_owned() -> None:
+    script = f"""
+source {EXPERIMENT_DIR / '_agentdojo_common.sh'}
+agentdojo_init e1 E1 controlled
+printf '%s\\n%s\\n' "$AGENTDOJO_STRATEGY_CATALOG" "$AGENTDOJO_PAIR_REGISTRY"
+"""
+    smoke = subprocess.run(
+        ["bash", "-c", script],
+        cwd=REPO_ROOT,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert smoke.returncode == 0, smoke.stderr
+    assert smoke.stdout.splitlines() == [
+        str(
+            REPO_ROOT
+            / "configs/silenttwin/agentdojo/fixtures/deterministic-fake-smoke-candidate-strategies-v1.json"
+        ),
+        str(
+            REPO_ROOT
+            / "configs/silenttwin/agentdojo/fixtures/deterministic-fake-smoke-pair-registry-v1.json"
+        ),
+    ]
+
+    production = subprocess.run(
+        ["bash", "-c", script],
+        cwd=REPO_ROOT,
+        env={
+            **os.environ,
+            "AGENTDOJO_GRID_PLAN": "/persistent/operator/controlled-local-v1.json",
+        },
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert production.returncode == 0, production.stderr
+    assert production.stdout.splitlines() == [
+        str(REPO_ROOT / "configs/silenttwin/agentdojo/candidate-strategies-v1.json"),
+        str(REPO_ROOT / "configs/silenttwin/agentdojo/pair-registry-v1.json"),
+    ]
+
+    pair_mining_script = script.replace(
+        "agentdojo_init e1 E1 controlled",
+        "agentdojo_init pair_mining PAIR_MINING controlled",
+    )
+    pair_mining = subprocess.run(
+        ["bash", "-c", pair_mining_script],
+        cwd=REPO_ROOT,
+        env={**os.environ, "STAGE": "grid"},
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert pair_mining.returncode == 0, pair_mining.stderr
+    assert pair_mining.stdout.splitlines() == production.stdout.splitlines()
+
+
+def test_fake_model_execution_is_explicit_not_inferred_from_plan_filename() -> None:
+    common = (EXPERIMENT_DIR / "_agentdojo_common.sh").read_text(encoding="utf-8")
+    assert 'local fake_model="${AGENTDOJO_FAKE_MODEL:-0}"' in common
+    assert 'basename -- "$AGENTDOJO_GRID_PLAN"' not in common
+    assert "*fake*" not in common
+
+
+def test_checked_smoke_filename_does_not_enable_fake_execution(tmp_path: Path) -> None:
+    manifest = tmp_path / "grid.jsonl"
+    _manifest(manifest, total_tasks=1)
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="123",
+        SLURM_ARRAY_TASK_ID="0",
+        AGENTDOJO_FAKE_MODEL="",
+        AGENTDOJO_REQUIRES_GPU="0",
+    )
+    assert result.returncode == 2
+    assert "AGENTDOJO_FAKE_MODEL disagrees" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_selected_learned_role_requires_cache_before_python(tmp_path: Path) -> None:
+    manifest = tmp_path / "learned-grid.jsonl"
+    _manifest(
+        manifest,
+        total_tasks=1,
+        fixture_mode=False,
+        learned_model=True,
+    )
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="123",
+        SLURM_ARRAY_TASK_ID="0",
+        AGENTDOJO_FAKE_MODEL="0",
+        AGENTDOJO_REQUIRES_GPU="0",
+    )
+    assert result.returncode == 2
+    assert "selected learned models require AGENTDOJO_MODEL_CACHE" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_selected_model_free_production_task_needs_no_cache_or_gpu(
+    tmp_path: Path,
+) -> None:
+    manifest = tmp_path / "model-free-grid.jsonl"
+    _manifest(manifest, total_tasks=1, fixture_mode=False, learned_model=False)
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="123",
+        SLURM_ARRAY_TASK_ID="0",
+        AGENTDOJO_FAKE_MODEL="0",
+        AGENTDOJO_REQUIRES_GPU="0",
+        AGENTDOJO_MODEL_CACHE="",
+    )
+    assert result.returncode == 2
+    assert "PYTHON_BIN is unavailable" in result.stderr
+    assert "AGENTDOJO_MODEL_CACHE" not in result.stderr
+    assert "visible GPU" not in result.stderr
+
+
+def test_selected_model_free_gpu_decision_is_exported_to_python_validator(
+    tmp_path: Path,
+) -> None:
+    manifest = tmp_path / "model-free-grid.jsonl"
+    _manifest(manifest, total_tasks=1, fixture_mode=False, learned_model=False)
+    script = f"""
+source {EXPERIMENT_DIR / '_agentdojo_common.sh'}
+agentdojo_init e4 E4 controlled
+agentdojo_run_preflight_before_python
+printf '%s\n' "$AGENTDOJO_REQUIRES_GPU"
+"""
+    values = os.environ.copy()
+    values.pop("AGENTDOJO_REQUIRES_GPU", None)
+    values.update(
+        {
+            "STAGE": "run",
+            "GRID_MANIFEST": str(manifest),
+            "SLURM_JOB_ID": "123",
+            "SLURM_ARRAY_TASK_ID": "0",
+            "AGENTDOJO_FAKE_MODEL": "0",
+        }
+    )
+    result = subprocess.run(
+        ["bash", "-c", script],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0\n"
+
+
+def test_cpu_learned_override_sets_role_devices_before_python(tmp_path: Path) -> None:
+    manifest = tmp_path / "learned-grid.jsonl"
+    _manifest(manifest, total_tasks=1, fixture_mode=False, learned_model=True)
+    script = f"""
+source {EXPERIMENT_DIR / '_agentdojo_common.sh'}
+agentdojo_init e1 E1 controlled
+agentdojo_run_preflight_before_python
+printf '%s %s %s %s\n' "$AGENTDOJO_REQUIRES_GPU" "$ATTACKER_DEVICE" "$VICTIM_DEVICE" "$MONITOR_DEVICE"
+"""
+    values = os.environ.copy()
+    for name in ("ATTACKER_DEVICE", "VICTIM_DEVICE", "MONITOR_DEVICE"):
+        values.pop(name, None)
+    values.update(
+        {
+            "STAGE": "run",
+            "GRID_MANIFEST": str(manifest),
+            "SLURM_JOB_ID": "123",
+            "SLURM_ARRAY_TASK_ID": "0",
+            "AGENTDOJO_FAKE_MODEL": "0",
+            "AGENTDOJO_REQUIRES_GPU": "0",
+            "AGENTDOJO_MODEL_CACHE": "/persistent/model-cache",
+        }
+    )
+    result = subprocess.run(
+        ["bash", "-c", script],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == "0 cpu cpu cpu\n"
+
+
+def test_cpu_override_rejects_cuda_role_device_before_python(tmp_path: Path) -> None:
+    manifest = tmp_path / "learned-grid.jsonl"
+    _manifest(manifest, total_tasks=1, fixture_mode=False, learned_model=True)
+    result = _run_e1(
+        manifest,
+        SLURM_JOB_ID="123",
+        SLURM_ARRAY_TASK_ID="0",
+        AGENTDOJO_FAKE_MODEL="0",
+        AGENTDOJO_REQUIRES_GPU="0",
+        AGENTDOJO_MODEL_CACHE="/persistent/model-cache",
+        ATTACKER_DEVICE="cuda:0",
+    )
+    assert result.returncode == 2
+    assert "ATTACKER_DEVICE requests CUDA" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr

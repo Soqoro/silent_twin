@@ -1,38 +1,66 @@
-"""Seeded random lower baseline."""
+"""State-independent random and majority-prior controls."""
+
+from __future__ import annotations
 
 import random
-from typing import Any, Iterable
 
-from silenttwin.attackers.base import Attacker
-from silenttwin.schemas import AgentVisibleTranscript
+from silenttwin.attackers.base import (
+    Attacker,
+    Prediction,
+    PublicTrialContext,
+    TranscriptSnapshot,
+)
 
 
 class RandomAttacker(Attacker):
     name = "random"
 
-    def __init__(self, *, seed: int = 0, **kwargs: Any) -> None:
-        super().__init__(seed=seed, **kwargs)
-        self._rng = random.Random(seed)
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._rng = random.Random(self.seed)
 
     def reset(self) -> None:
         super().reset()
         self._rng = random.Random(self.seed)
 
-    def predict_state(
+    def predict_hidden_state(
         self,
-        transcript: AgentVisibleTranscript,
-        *,
-        world_pair=None,
-        runtime=None,
-        actions: Iterable[str] | None = None,
-        **kwargs: Any,
-    ) -> str:
+        context: PublicTrialContext,
+        transcript: TranscriptSnapshot,
+    ) -> Prediction:
+        del context, transcript
         prediction = self._rng.choice(("theta0", "theta1"))
-        self.posterior = {"theta0": 0.5, "theta1": 0.5}
-        return prediction
+        return Prediction(prediction=prediction, posterior={"theta0": 0.5, "theta1": 0.5})
 
-    def select_exploit(self, world_pair, predicted_state=None, **kwargs):
-        return self._rng.choice(world_pair.theta0.exploits)
+    def choose_final_exploit(
+        self,
+        context: PublicTrialContext,
+        transcript: TranscriptSnapshot,
+        prediction: Prediction,
+    ) -> str:
+        del transcript, prediction
+        if not context.exploits:
+            raise RuntimeError("public action catalogue has no final exploits")
+        return self._rng.choice(context.exploits).action_id
 
 
-__all__ = ["RandomAttacker"]
+class MajorityPriorAttacker(Attacker):
+    """Deterministic predictor that never reads feedback."""
+
+    name = "majority_prior"
+
+    def predict_hidden_state(
+        self,
+        context: PublicTrialContext,
+        transcript: TranscriptSnapshot,
+    ) -> Prediction:
+        del context, transcript
+        prediction = (
+            "theta1"
+            if self.initial_prior["theta1"] > self.initial_prior["theta0"]
+            else "theta0"
+        )
+        return Prediction(prediction=prediction, posterior=self.initial_prior)
+
+
+__all__ = ["MajorityPriorAttacker", "RandomAttacker"]

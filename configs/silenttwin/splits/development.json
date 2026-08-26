@@ -1,0 +1,17 @@
+{
+  "dataset_revision": "silenttwin-tier1-v1",
+  "monitor_configuration_ids": [
+    "monitor.calendar.conference.v1",
+    "monitor.email.campaign.v1",
+    "monitor.files.retention.v1",
+    "monitor.payments.subscription.v1"
+  ],
+  "schema_version": "silenttwin.dataset_split.v1",
+  "split": "development",
+  "template_ids": [
+    "calendar.conference_roster",
+    "email.newsletter_release",
+    "files.retention_cleanup",
+    "payments.subscription_adjust"
+  ]
+}

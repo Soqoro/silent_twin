@@ -68,9 +68,12 @@ and tool schema and return an action or hidden-state prediction plus usage
 metadata. It must not receive trusted evaluation records.
 
 The current `ModelClient` protocol exposes
-`complete(prompt, seed=..., max_tokens=...)` and returns `ModelResponse` (or a
-string for minimal adapters). `LLMAttacker` is the integration example; keep the
-deterministic `MockModelClient` available for offline tests.
+`complete(prompt, seed=..., max_tokens=...)` and returns a `ModelResponse`.
+`LLMAttacker` validates an exact prediction/posterior JSON schema and records
+invalid output instead of repairing it with trusted state. The production
+adapter loads only an already-cached local checkpoint with
+`local_files_only=True` and `trust_remote_code=False`; the deterministic
+`MockModelClient` is reserved for offline tests.
 
 At minimum, a Tier-2 adapter must provide:
 
@@ -80,7 +83,8 @@ At minimum, a Tier-2 adapter must provide:
 - request/response and cached-result digests without storing credentials;
 - input/output token counts, tool-call count, and latency;
 - a mock implementation for offline tests;
-- an explicit opt-in before any network or billable request.
+- no implicit network or billable request; a separate future network adapter
+  would require an explicit opt-in and threat-model review.
 
 Credentials must come from the deployment secret manager or process environment
 and must never enter a config, transcript, manifest, log, or result record. Keep

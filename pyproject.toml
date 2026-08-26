@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools==80.9.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,11 +7,21 @@ name = "silenttwin"
 version = "0.1.0"
 description = "Finite-state experiments for feedback-private LLM guardrails"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 dependencies = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
 
 [project.optional-dependencies]
-test = ["pytest>=7"]
+test = ["pytest==9.1.1"]
+tier2-agentdojo = ["agentdojo==0.1.35"]
 
 [project.scripts]
 silenttwin = "silenttwin.cli:main"
@@ -23,6 +33,5 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.pytest.ini_options]
-addopts = "-ra"
+addopts = "-ra --strict-config --strict-markers"
 testpaths = ["tests"]
-

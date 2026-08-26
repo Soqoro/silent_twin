@@ -3,6 +3,7 @@ from __future__ import annotations
 import unittest
 
 from silenttwin.attackers import BayesianAttacker, MockLLMAttacker
+from silenttwin.experiments.trial_runner import TrialMode, TrialRunner, TrialSpec
 from silenttwin.runtime import SessionRetiredError, make_runtime
 from silenttwin.schemas import SessionState
 from silenttwin.worlds import build_world_pair
@@ -30,29 +31,55 @@ class RuntimePrivacyTests(unittest.TestCase):
         self.assertEqual(left, right)
 
     def test_bayesian_attacker_uses_the_known_finite_state_likelihood(self) -> None:
-        attacker = BayesianAttacker(seed=123)
         for state in ("theta0", "theta1"):
             with self.subTest(state=state):
-                result = attacker.run_attack(
-                    self.pair, state, "generic_failure", 1, final_exploit=False
+                result = TrialRunner().run(
+                    TrialSpec(
+                        world_pair=self.pair,
+                        actual_state=state,
+                        runtime="generic_failure",
+                        attacker=BayesianAttacker(seed=123),
+                        query_budget=1,
+                        mode=TrialMode.INFERENCE_ONLY,
+                        seed=123,
+                    )
                 )
-                self.assertEqual(state, result.predicted_state)
-                self.assertGreater(result.posterior[state], 0.99)
+                self.assertEqual(state, result.prediction.prediction)
+                self.assertGreater(result.prediction.posterior[state], 0.99)
 
-        exact = attacker.run_attack(
-            self.pair, "theta1", "silenttwin", 1, final_exploit=False
+        exact = TrialRunner().run(
+            TrialSpec(
+                world_pair=self.pair,
+                actual_state="theta1",
+                runtime="silenttwin",
+                attacker=BayesianAttacker(seed=123),
+                query_budget=1,
+                mode=TrialMode.INFERENCE_ONLY,
+                seed=123,
+            )
         )
-        self.assertEqual({"theta0": 0.5, "theta1": 0.5}, exact.posterior)
+        self.assertEqual(
+            {"theta0": 0.5, "theta1": 0.5}, dict(exact.prediction.posterior)
+        )
 
     def test_mock_llm_agent_is_offline_and_deterministic(self) -> None:
-        first = MockLLMAttacker(seed=5).run_attack(
-            self.pair, "theta1", "generic_failure", 1
-        )
-        second = MockLLMAttacker(seed=5).run_attack(
-            self.pair, "theta1", "generic_failure", 1
-        )
-        self.assertEqual(first.predicted_state, second.predicted_state)
-        self.assertEqual(first.selected_exploit, second.selected_exploit)
+        def run_once():
+            return TrialRunner().run(
+                TrialSpec(
+                    world_pair=self.pair,
+                    actual_state="theta1",
+                    runtime="generic_failure",
+                    attacker=MockLLMAttacker(seed=5),
+                    query_budget=1,
+                    mode=TrialMode.SINGLE_FINAL_EFFECT,
+                    seed=5,
+                )
+            )
+
+        first = run_once()
+        second = run_once()
+        self.assertEqual(first.prediction.prediction, second.prediction.prediction)
+        self.assertEqual(first.selected_final_exploit, second.selected_final_exploit)
 
     def test_settlement_is_not_visible_after_silenttwin_retirement(self) -> None:
         runtime = make_runtime("silenttwin", world=self.pair.theta0)

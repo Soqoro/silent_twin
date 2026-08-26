@@ -1,0 +1,90 @@
+{
+  "schema_version": "silenttwin.agentdojo.production_grid_template.v1",
+  "template_only": true,
+  "claim_boundary": "Operator materialization input; this file is deliberately rejected as an executable grid plan until every placeholder is replaced and the effective plan is frozen.",
+  "matrix_source": {
+    "path": "configs/silenttwin/agentdojo/grid-plans/controlled-fake-smoke-v1.json",
+    "file_sha256": "af63a6024e15a3c9ae88ec255b7c4471c3cc3da3e18572f7633f70ac4ba17fbd",
+    "reuse_only": [
+      "experiments",
+      "primary_contrasts"
+    ],
+    "forbidden_fixture_fields": [
+      "artifact_class",
+      "evidence_class",
+      "scientific_evidence_eligible",
+      "claim_boundary",
+      "required_fixture_artifact_hashes"
+    ]
+  },
+  "required_operator_artifacts": {
+    "candidate_strategy_catalog": "/persistent/evidence/candidate-strategies-v1.json",
+    "pair_registry": "/persistent/evidence/pair-registry-v1.json",
+    "dependency_lock": "requirements-tier2-agentdojo.lock",
+    "learned_runtime_fingerprint": "sha256:<DERIVE_WITH_RUNTIME_INTEGRITY_CLI>"
+  },
+  "base_configuration": {
+    "fixture_mode": false,
+    "feedback_policy": "generic_failure",
+    "feedback_source": "genuine",
+    "monitor_family": "<ONE_FROZEN_ACTION_MONITOR_FAMILY>",
+    "query_budget": 0,
+    "settlement_runtime": "speculative_dependency_aware",
+    "threat_mode": "indirect_injection",
+    "tool_protocol_revision": "agentdojo-tool-protocol-v1"
+  },
+  "models": [
+    {
+      "role": "attacker",
+      "implementation": "local_transformers",
+      "model_id": "<SEMANTIC_ATTACKER_MODEL_ID>",
+      "model_revision": "<IMMUTABLE_ATTACKER_REVISION>",
+      "tokenizer_revision": "<IMMUTABLE_ATTACKER_TOKENIZER_REVISION>",
+      "checkpoint_fingerprint": "sha256:<FULL_ATTACKER_TREE_SHA256>",
+      "runtime_fingerprint": "sha256:<LEARNED_RUNTIME_SHA256>",
+      "prompt_hash": "3ef6e4129bc30ef227da9929b297fe36d7b3f4cc2d9af046567c4e8e81d297f5",
+      "dtype": "bfloat16",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_new_tokens": 256
+    },
+    {
+      "role": "victim",
+      "implementation": "local_transformers",
+      "model_id": "<SEMANTIC_VICTIM_MODEL_ID>",
+      "model_revision": "<IMMUTABLE_VICTIM_REVISION>",
+      "tokenizer_revision": "<IMMUTABLE_VICTIM_TOKENIZER_REVISION>",
+      "checkpoint_fingerprint": "sha256:<FULL_VICTIM_TREE_SHA256>",
+      "runtime_fingerprint": "sha256:<LEARNED_RUNTIME_SHA256>",
+      "prompt_hash": "51c323752c18c84432840223f622d3cd4829e01ffe8250ff009a971bf9aa0ec8",
+      "dtype": "bfloat16",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_new_tokens": 512
+    },
+    {
+      "role": "monitor",
+      "implementation": "local_transformers",
+      "model_id": "<MATCH_THE_TWO_SELECTED_PROFILE_ROWS>",
+      "model_revision": "<MATCH_THE_TWO_SELECTED_PROFILE_ROWS>",
+      "tokenizer_revision": "<MATCH_THE_TWO_SELECTED_PROFILE_ROWS>",
+      "checkpoint_fingerprint": "sha256:<MATCH_THE_TWO_SELECTED_PROFILE_ROWS>",
+      "runtime_fingerprint": "sha256:<LEARNED_RUNTIME_SHA256>",
+      "prompt_hash": "<DERIVED_BY_GRID_FROM_ORDERED_THETA_PROFILE_PROMPTS>",
+      "policy_hash": "<DERIVED_BY_GRID_FROM_ORDERED_THETA_PROFILE_POLICIES>",
+      "threshold": null,
+      "reasoning_mode": "<MATCH_THE_TWO_SELECTED_PROFILE_ROWS>",
+      "dtype": "bfloat16",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_new_tokens": 64
+    }
+  ],
+  "materialization_invariants": [
+    "Copy only experiments and primary_contrasts from the hash-pinned matrix source.",
+    "Set schema_version to silenttwin.agentdojo.grid_plan.v1.",
+    "Replace every angle-bracket placeholder; retain fixture_mode=false.",
+    "The selected theta profiles must share transport, checkpoint, tokenizer, runtime, reasoning, dtype, and decoding; prompt, policy, and threshold are profile-local.",
+    "Run grid inspection before SLURM; runtime preflight independently verifies artifacts, package bytes, lock versions, learned runtime, and checkpoint bytes."
+  ]
+}

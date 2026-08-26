@@ -72,6 +72,7 @@ class Runtime(ABC):
         self.controller_class = controller_class
         self.executor = executor
         self._session_counter = 0
+        self._probing_closed_sessions: set[int] = set()
 
     def start_session(
         self,
@@ -104,7 +105,13 @@ class Runtime(ABC):
             return session.world.action(action)
         if not isinstance(action, ActionProposal):
             raise TypeError("action must be an ActionProposal or public action ID")
-        return action
+        # Never execute caller-forged policy tags, effectfulness, arguments, or
+        # dependencies. Object input is compatibility syntax only; the trusted
+        # catalogue remains authoritative.
+        canonical = session.world.action(action.action_id)
+        if canonical.to_dict() != action.to_dict():
+            raise ValueError(f"action {action.action_id!r} does not match the trusted catalogue")
+        return canonical
 
     def _next_effect_id(self, session: ProtectedSession, action: ActionProposal) -> str:
         existing = {effect.effect_id for effect in session.staged_effects}
@@ -253,6 +260,23 @@ class Runtime(ABC):
     def _before_retirement(self, session: ProtectedSession) -> None:
         return None
 
+    def end_probing(self, session: ProtectedSession) -> tuple[VisibleEvent, ...]:
+        """Flush any pre-retirement public feedback exactly once.
+
+        This hook lets a visible-settlement baseline expose its documented
+        feedback before the attacker predicts, while finalization remains
+        responsible for retirement and trusted settlement.
+        """
+
+        session.ensure_active("end probing")
+        session_identity = id(session)
+        if session_identity in self._probing_closed_sessions:
+            return ()
+        before = len(session.transcript)
+        self._before_retirement(session)
+        self._probing_closed_sessions.add(session_identity)
+        return tuple(session.transcript.events[before:])
+
     def _controller_kwargs(self) -> dict[str, Any]:
         return {}
 
@@ -261,7 +285,7 @@ class Runtime(ABC):
 
     def finalize(self, session: ProtectedSession) -> RuntimeFinalization:
         if session.state is SessionState.ACTIVE:
-            self._before_retirement(session)
+            self.end_probing(session)
             # The protected session is irreversibly retired before the final
             # controller evaluates tokens or invokes any external executor.
             session.retire()

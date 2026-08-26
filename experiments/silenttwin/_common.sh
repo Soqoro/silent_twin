@@ -105,6 +105,123 @@ st_print_grid_header() {
     printf 'ordering=%s\n' "$ordering"
 }
 
+st_append_repeated() {
+    local command_name="$1"
+    local flag="$2"
+    local values_name="$3"
+    local -n command_ref="$command_name"
+    local -n values_ref="$values_name"
+    local value
+    for value in "${values_ref[@]}"; do
+        command_ref+=("$flag" "$value")
+    done
+}
+
+st_grid_command() {
+    local subcommand="$1"
+    local arguments_name="$2"
+    shift 2
+    local -n arguments_ref="$arguments_name"
+    local command=(
+        "$PYTHON_BIN" -m silenttwin.experiments.grid "$subcommand"
+        "${arguments_ref[@]}"
+        "$@"
+    )
+    "${command[@]}"
+}
+
+st_grid_count() {
+    st_grid_command count "$1"
+}
+
+st_grid_member_count() {
+    st_grid_command member-count "$1"
+}
+
+st_grid_hash() {
+    st_grid_command hash "$1"
+}
+
+st_grid_print() {
+    st_grid_command print "$1"
+}
+
+st_grid_write_manifest() {
+    local arguments_name="$1"
+    local destination="$2"
+    st_grid_command manifest "$arguments_name" --output "$destination" >/dev/null
+}
+
+st_grid_select() {
+    local arguments_name="$1"
+    local task_id="$2"
+    local destination_name="$3"
+    local -n destination_ref="$destination_name"
+    local selection_file
+    selection_file="$(mktemp "${TMPDIR:-/tmp}/silenttwin-grid-select.XXXXXX")" || \
+        st_die "could not create temporary grid-selection file"
+    if ! st_grid_command select "$arguments_name" \
+        --task-id "$task_id" --format env-nul >"$selection_file"; then
+        rm -f -- "$selection_file"
+        st_die "could not select task $task_id from the deterministic grid"
+    fi
+    destination_ref=()
+    mapfile -d '' -t destination_ref <"$selection_file"
+    rm -f -- "$selection_file"
+    ((${#destination_ref[@]} > 0)) || st_die "grid task $task_id contains no configurations"
+}
+
+st_for_each_selected_cell() {
+    local values_name="$1"
+    local callback="$2"
+    local -n values_ref="$values_name"
+    local cursor=0
+    local key value
+    local -A st_selected_cell=()
+    while ((cursor < ${#values_ref[@]})); do
+        st_selected_cell=()
+        while ((cursor < ${#values_ref[@]})); do
+            key="${values_ref[cursor]}"
+            cursor=$((cursor + 1))
+            if [[ "$key" == __CELL_END__ ]]; then
+                break
+            fi
+            ((cursor < ${#values_ref[@]})) || st_die "malformed grid selection after key $key"
+            value="${values_ref[cursor]}"
+            cursor=$((cursor + 1))
+            st_selected_cell["$key"]="$value"
+        done
+        [[ -n "${st_selected_cell[configuration_hash]:-}" ]] || \
+            st_die "selected grid cell lacks configuration_hash"
+        "$callback" st_selected_cell
+    done
+}
+
+st_parse_single_selected_cell() {
+    local values_name="$1"
+    local destination_name="$2"
+    local -n values_ref="$values_name"
+    local -n destination_ref="$destination_name"
+    destination_ref=()
+    local cursor=0
+    local key value
+    while ((cursor < ${#values_ref[@]})); do
+        key="${values_ref[cursor]}"
+        cursor=$((cursor + 1))
+        if [[ "$key" == __CELL_END__ ]]; then
+            ((cursor == ${#values_ref[@]})) || \
+                st_die "expected one selected grid cell, found a batch"
+            break
+        fi
+        ((cursor < ${#values_ref[@]})) || st_die "malformed grid selection after key $key"
+        value="${values_ref[cursor]}"
+        cursor=$((cursor + 1))
+        destination_ref["$key"]="$value"
+    done
+    [[ -n "${destination_ref[configuration_hash]:-}" ]] || \
+        st_die "selected grid cell lacks configuration_hash"
+}
+
 st_select_index() {
     local total="$1"
     local raw_index="${SLURM_ARRAY_TASK_ID:-}"
@@ -147,6 +264,9 @@ st_execute() {
     mkdir -p -- "$st_scratch_dir"
 
     printf 'scratch_dir=%s\n' "$st_scratch_dir"
+    printf 'slurm_job_id=%s\n' "${SLURM_JOB_ID:-}"
+    printf 'slurm_array_job_id=%s\n' "${SLURM_ARRAY_JOB_ID:-}"
+    printf 'slurm_array_task_id=%s\n' "${SLURM_ARRAY_TASK_ID:-}"
     if [[ "$task_label" != aggregate ]] && command -v nvidia-smi >/dev/null 2>&1; then
         if st_nvidia_status="$(nvidia-smi 2>&1)"; then
             printf '%s\n' "$st_nvidia_status"
@@ -169,6 +289,8 @@ st_append_common_run_flags() {
 
 st_aggregate() {
     local expected_runs="$1"
+    local expected_grid_manifest="${2:-}"
+    local expected_grid_hash="${3:-}"
     local output_dir="$OUT_ROOT/$ST_EXPERIMENT/aggregate"
     local aggregate_command=(
         "$PYTHON_BIN" -m silenttwin.cli aggregate
@@ -177,6 +299,12 @@ st_aggregate() {
         --output-dir "$output_dir"
         --expected-runs "$expected_runs"
     )
+    if [[ -n "$expected_grid_manifest" ]]; then
+        aggregate_command+=(--expected-grid-manifest "$expected_grid_manifest")
+    fi
+    if [[ -n "$expected_grid_hash" ]]; then
+        aggregate_command+=(--expected-grid-hash "$expected_grid_hash")
+    fi
     aggregate_command+=("${ST_EXTRA_ARGV[@]}")
     printf 'aggregation_output=%s\n' "$output_dir"
     st_execute aggregate aggregate_command

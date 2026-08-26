@@ -98,19 +98,36 @@ main() {
     st_validate_choices ATTACKERS 'bayesian black_box mock_llm random' "${attackers[@]}"
     st_validate_choices E4_WORKFLOWS 'independent rejection_dependent atomic' "${workflows[@]}"
 
-    local total
-    total="$(total_jobs)"
+    local -a grid_arguments=(--experiment e4 --num-samples "$NUM_SAMPLES")
+    st_append_repeated grid_arguments --tier tiers
+    st_append_repeated grid_arguments --world-suite world_suites
+    st_append_repeated grid_arguments --runtime runtimes
+    st_append_repeated grid_arguments --attacker attackers
+    st_append_repeated grid_arguments --query-budget query_budgets
+    st_append_repeated grid_arguments --workflow workflows
+    st_append_repeated grid_arguments --seed seeds
+    local total total_members expected_grid_hash
+    total="$(st_grid_count grid_arguments)"
+    total_members="$(st_grid_member_count grid_arguments)"
+    expected_grid_hash="$(st_grid_hash grid_arguments)"
     case "$ST_STAGE" in
         grid)
-            print_grid
+            st_grid_print grid_arguments
             ;;
         aggregate)
-            printf 'total_jobs=%s\nvalid_array_range=0-%s\n' "$total" "$((total - 1))"
-            st_aggregate "$total"
+            local expected_manifest="$OUT_ROOT/e4/aggregate/grid_manifest.jsonl"
+            st_grid_write_manifest grid_arguments "$expected_manifest"
+            printf 'total_jobs=%s\nvalid_array_range=0-%s\ngrid_hash=%s\n' \
+                "$total" "$((total - 1))" "$expected_grid_hash"
+            st_aggregate "$total_members" "$expected_manifest" "$expected_grid_hash"
             ;;
         run)
             st_select_index "$total"
             select_config "$ST_TASK_INDEX"
+            local -a selected_values
+            local -A selected_cell
+            st_grid_select grid_arguments "$ST_TASK_INDEX" selected_values
+            st_parse_single_selected_cell selected_values selected_cell
             local run_dir="$OUT_ROOT/e4/tier=$SELECTED_TIER/world=$SELECTED_WORLD/runtime=$SELECTED_RUNTIME/attacker=$SELECTED_ATTACKER/q=$SELECTED_BUDGET/workflow=$SELECTED_WORKFLOW/seed=$SELECTED_SEED"
             local run_command=(
                 "$PYTHON_BIN" -m silenttwin.cli run
@@ -124,10 +141,15 @@ main() {
                 --num-samples "$NUM_SAMPLES"
                 --output-dir "$run_dir"
                 --workflow "$SELECTED_WORKFLOW"
+                --grid-hash "$expected_grid_hash"
+                --grid-task-id "$ST_TASK_INDEX"
+                --shard-id "${selected_cell[shard_id]}"
+                --expected-configuration-hash "${selected_cell[configuration_hash]}"
             )
             st_append_common_run_flags run_command
-            printf 'total_jobs=%s\nvalid_array_range=0-%s\nselected_task_id=%s\noutput_dir=%s\n' \
-                "$total" "$((total - 1))" "$ST_TASK_INDEX" "$run_dir"
+            printf 'total_jobs=%s\nvalid_array_range=0-%s\ngrid_hash=%s\nselected_task_id=%s\nconfiguration_hash=%s\noutput_dir=%s\n' \
+                "$total" "$((total - 1))" "$expected_grid_hash" "$ST_TASK_INDEX" \
+                "${selected_cell[configuration_hash]}" "$run_dir"
             st_execute "task_$ST_TASK_INDEX" run_command
             ;;
     esac

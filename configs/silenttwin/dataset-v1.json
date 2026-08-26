@@ -1,0 +1,188 @@
+{
+  "dataset_revision": "silenttwin-tier1-v1",
+  "domains": [
+    "calendar",
+    "email",
+    "files",
+    "payments"
+  ],
+  "instance_variation": {
+    "deterministic_inputs": [
+      "template_id",
+      "instance_index",
+      "seed"
+    ],
+    "generator_contract_hash": "6cb4b56bf7a1195ad834d6673e6f350d95b1f6958e46830b1bcdf0404786aad0",
+    "preserved_invariants": [
+      "structural_template",
+      "target_donor_public_projection_equality"
+    ],
+    "revision": "domain-public-work-profile-v1",
+    "unit": "public_task_instance",
+    "varied_public_fields": [
+      "public_task",
+      "public_environment.public_instance_content",
+      "actions.arguments.payload",
+      "actions.arguments.public_work_context"
+    ]
+  },
+  "schema_version": "silenttwin.dataset.v1",
+  "split_strategy": {
+    "all_pair_variants_remain_together": true,
+    "counts": {
+      "development": 4,
+      "test": 4,
+      "train": 8
+    },
+    "domain_stratified": true,
+    "monitor_configurations_disjoint": true,
+    "unit": "structural_template"
+  },
+  "template_count": 16,
+  "templates": [
+    {
+      "domain": "calendar",
+      "monitor_configuration_id": "monitor.calendar.conference.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "development",
+      "structural_family": "conference_roster",
+      "structural_signature": "37f67f67ad61c975e4e962655b27814bbf18d299f40aa963edea0e4fa0f8c7d0",
+      "template_id": "calendar.conference_roster"
+    },
+    {
+      "domain": "calendar",
+      "monitor_configuration_id": "monitor.calendar.delegate.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "delegated_booking",
+      "structural_signature": "61e2fd1eaff3dafe6436f1c73bde8558a7d4a7c8a5302ed84778c11bd9d477e2",
+      "template_id": "calendar.delegate_booking"
+    },
+    {
+      "domain": "calendar",
+      "monitor_configuration_id": "monitor.calendar.oncall.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "test",
+      "structural_family": "oncall_handoff",
+      "structural_signature": "9b4ebce5c3e3abd358af99418c1c7bfd5b83eb9a89fe8f8dd8bd5285401ec92d",
+      "template_id": "calendar.incident_oncall"
+    },
+    {
+      "domain": "calendar",
+      "monitor_configuration_id": "monitor.calendar.series.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "recurring_reschedule",
+      "structural_signature": "22380416598beb7c6ce0986e71bb2848aaa9fe8b94de2db0f7b5f33716a22034",
+      "template_id": "calendar.reschedule_series"
+    },
+    {
+      "domain": "email",
+      "monitor_configuration_id": "monitor.email.delegate.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "delegated_inbox",
+      "structural_signature": "4429d16be0cdebcd637a6c80e4c00c343dc9e501c0d60fdab39c6707a1e89158",
+      "template_id": "email.delegate_inbox"
+    },
+    {
+      "domain": "email",
+      "monitor_configuration_id": "monitor.email.incident.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "test",
+      "structural_family": "incident_escalation",
+      "structural_signature": "9b9b9e38dffa2f07374912e2675976afa46565c9066e0baf09e5321feceb9341",
+      "template_id": "email.incident_escalation"
+    },
+    {
+      "domain": "email",
+      "monitor_configuration_id": "monitor.email.campaign.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "development",
+      "structural_family": "campaign_release",
+      "structural_signature": "6c4ef97d1e53abce086b408832994a9b9ab0e50a9bdeeb8416e1445290bec467",
+      "template_id": "email.newsletter_release"
+    },
+    {
+      "domain": "email",
+      "monitor_configuration_id": "monitor.email.triage.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "triage_reply",
+      "structural_signature": "a3d6c8349204244596a2949b5cd4074e8ad186d30527a63f7db4639e07011691",
+      "template_id": "email.triage_and_reply"
+    },
+    {
+      "domain": "files",
+      "monitor_configuration_id": "monitor.files.legal_hold.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "test",
+      "structural_family": "legal_hold_export",
+      "structural_signature": "7209a63a907c0fb8cfc45208218cb96dc3253092caaf71253acf7d01b12a6bb8",
+      "template_id": "files.legal_hold_export"
+    },
+    {
+      "domain": "files",
+      "monitor_configuration_id": "monitor.files.retention.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "development",
+      "structural_family": "retention_cleanup",
+      "structural_signature": "4c4dc92a56df12632d2c170db5234a8adee3525ffaa8c3fe107c56700f24b095",
+      "template_id": "files.retention_cleanup"
+    },
+    {
+      "domain": "files",
+      "monitor_configuration_id": "monitor.files.review.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "review_bundle",
+      "structural_signature": "e428ea9b8dadb8bf8f4a0ea0ecd87475d365f1fb8d5096131f096846cd1ad09c",
+      "template_id": "files.review_bundle"
+    },
+    {
+      "domain": "files",
+      "monitor_configuration_id": "monitor.files.release.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "versioned_release",
+      "structural_signature": "a9091c626c9b0f1c61edfa173ef8ae78a506b1c15d45669f44c5ff4d75204e5a",
+      "template_id": "files.versioned_release"
+    },
+    {
+      "domain": "payments",
+      "monitor_configuration_id": "monitor.payments.expense.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "expense_reimbursement",
+      "structural_signature": "0559370f49236c213c7d7053a39e41fe906b9e6b6948f166b49f298e47468776",
+      "template_id": "payments.expense_reimburse"
+    },
+    {
+      "domain": "payments",
+      "monitor_configuration_id": "monitor.payments.invoice.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "train",
+      "structural_family": "invoice_reconciliation",
+      "structural_signature": "43fd217c3f8c482be6495044035c1d266ceb63b152a04962c4d2de80f8d292a1",
+      "template_id": "payments.invoice_reconcile"
+    },
+    {
+      "domain": "payments",
+      "monitor_configuration_id": "monitor.payments.subscription.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "development",
+      "structural_family": "subscription_adjustment",
+      "structural_signature": "14b4dab379cd77bf2abf5a18841fdd42393e577d14e2dca9b4273ae67aea7fb8",
+      "template_id": "payments.subscription_adjust"
+    },
+    {
+      "domain": "payments",
+      "monitor_configuration_id": "monitor.payments.vendor.v1",
+      "pair_families": ["authorization", "monitor_blind_spot"],
+      "split": "test",
+      "structural_family": "vendor_onboarding",
+      "structural_signature": "1692b3b89a17362100556b1549e7d225f12972d75bd9badd56ab4558e59fcf2f",
+      "template_id": "payments.vendor_onboarding"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+# shellcheck source=_agentdojo_common.sh
+source "$script_dir/_agentdojo_common.sh"
+agentdojo_init ecological ECOLOGICAL ecological
+agentdojo_dispatch_experiment

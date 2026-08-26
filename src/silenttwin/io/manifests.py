@@ -25,11 +25,16 @@ from silenttwin.io.provenance import (
     provenance_compatible,
     provenance_mismatches,
 )
+from silenttwin.io.checkpoints import (
+    CHECKPOINT_MANIFEST,
+    CHECKPOINT_SCHEMA_VERSION,
+)
 
 
 RESULT_FILENAME = "result.jsonl"
 MANIFEST_FILENAME = "manifest.json"
 LOG_FILENAME = "run.log"
+FAILURES_FILENAME = "failures.jsonl"
 
 
 def utc_now() -> str:
@@ -40,6 +45,7 @@ def make_manifest(
     config: ExperimentConfig,
     *,
     result_path: Path,
+    failures_path: Path,
     provenance: Mapping[str, Any],
     started_at: str,
     completed_at: str | None = None,
@@ -51,22 +57,35 @@ def make_manifest(
         "experiment_id": config.experiment,
         "configuration": config.as_manifest_config(),
         "configuration_hash": config.configuration_hash,
+        "operational_configuration": config.operational_dict(),
         "expected_sample_count": config.num_samples,
         "actual_sample_count": config.num_samples,
         "result_file": RESULT_FILENAME,
         "result_sha256": sha256_file(result_path),
+        "failures_file": FAILURES_FILENAME,
+        "failures_sha256": sha256_file(failures_path),
+        "failure_count": len(read_jsonl(failures_path)),
+        "checkpoint_manifest": CHECKPOINT_MANIFEST,
         "started_at": started_at,
         "completed_at": completed_at or utc_now(),
         "provenance": dict(provenance),
         "generation_provenance": {
             "tier": config.tier,
-            "agent": "deterministic-tier1",
-            "model_client": None,
+            "agent": config.attacker,
+            "model_client": config.model_id,
+            "model_revision": config.model_revision,
             "external_api_calls": 0,
         },
         "evaluation_provenance": {
             "evaluator": "silenttwin-finite-state-v1",
             "uses_trusted_metadata": True,
+        },
+        "orchestration": {
+            "grid_hash": config.grid_hash,
+            "grid_task_id": config.grid_task_id,
+            "shard_id": config.shard_id,
+            "pilot_id": config.pilot_id,
+            "scheduler": dict(provenance.get("scheduler", {})),
         },
     }
 
@@ -144,6 +163,37 @@ def validate_result_directory(
         raise ResultValidationError("result summary configuration does not match manifest")
     if manifest.get("actual_sample_count") != len(records) - 1:
         raise ResultValidationError("manifest actual_sample_count does not match result")
+    if manifest.get("failures_file") != FAILURES_FILENAME:
+        raise ResultValidationError(
+            f"manifest failures_file must be {FAILURES_FILENAME!r}"
+        )
+    failures_path = directory / FAILURES_FILENAME
+    if not failures_path.is_file():
+        raise ResultValidationError(f"complete run is missing failures file: {failures_path}")
+    failures = read_jsonl(failures_path)
+    if manifest.get("failures_sha256") != sha256_file(failures_path):
+        raise ResultValidationError("failure ledger digest does not match manifest")
+    if manifest.get("failure_count") != len(failures):
+        raise ResultValidationError("manifest failure_count does not match failures file")
+    checkpoint_path = directory / CHECKPOINT_MANIFEST
+    try:
+        checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as error:
+        raise ResultValidationError(
+            f"complete run is missing checkpoint manifest: {checkpoint_path}"
+        ) from error
+    except (OSError, json.JSONDecodeError) as error:
+        raise ResultValidationError(f"invalid checkpoint manifest: {error}") from error
+    if checkpoint.get("checkpoint_schema_version") != CHECKPOINT_SCHEMA_VERSION:
+        raise ResultValidationError("incompatible checkpoint manifest schema")
+    if checkpoint.get("configuration_hash") != manifest.get("configuration_hash"):
+        raise ResultValidationError("checkpoint and run manifest configuration hashes differ")
+    if checkpoint.get("source_tree_hash") != manifest.get("provenance", {}).get(
+        "source_tree_hash"
+    ):
+        raise ResultValidationError("checkpoint and run manifest source hashes differ")
+    if checkpoint.get("status") != "complete":
+        raise ResultValidationError("complete run has an incomplete checkpoint manifest")
     log_path = directory / LOG_FILENAME
     if not log_path.is_file():
         raise ResultValidationError(f"complete run is missing log file: {log_path}")

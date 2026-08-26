@@ -59,14 +59,16 @@ CASES = (
 
 
 class EntrypointSmokeTests(unittest.TestCase):
-    def test_five_two_sample_runs_and_aggregators(self) -> None:
+    def test_five_four_sample_runs_and_aggregators(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "smoke"
             common = {
                 **os.environ,
                 "PYTHON_BIN": sys.executable,
                 "OUT_ROOT": str(root),
-                "NUM_SAMPLES": "2",
+                # E2 uses a fully crossed target/donor assignment, so every
+                # smoke shard must contain a complete four-row block.
+                "NUM_SAMPLES": "4",
                 "TIERS": "tier1",
                 "WORLD_SUITES": "email",
                 "ATTACKERS": "mock_llm",
@@ -106,7 +108,7 @@ class EntrypointSmokeTests(unittest.TestCase):
                     summary_path = root / experiment / "aggregate" / "summary.json"
                     summary = json.loads(summary_path.read_text(encoding="utf-8"))
                     self.assertEqual(1, summary["run_count"])
-                    self.assertEqual(2, summary["total_sample_count"])
+                    self.assertEqual(4, summary["total_sample_count"])
 
 
 if __name__ == "__main__":
