@@ -1409,3 +1409,116 @@ Immediate next checkpoint:
 
 Do not submit pair mining yet: the current learned runtime is source-stale and
 the separate scientific 193-scenario candidate catalog has not been authored.
+
+## Scientific catalog and refreshed runtime freeze on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The estimation
+protocol was committed as
+`952954626687adc538403b1421f946526803f06a` (`Add action-representable
+estimation protocol`). No PBS job, learned-model inference, pair observation,
+pair selection, or benchmark run was submitted in this checkpoint.
+
+- The committed worktree reproduced executable `source_tree_hash`
+  `0c7a7f45d2f366c51520e33ec4e97a5dab6e7ac17b2621fba2e05a6c095c6b9e`.
+- A wheel built offline from `git archive HEAD` reproduced byte-for-byte in two
+  independent builds. It is archived read-only at
+  `/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/0c7a7f45d2f366c51520e33ec4e97a5dab6e7ac17b2621fba2e05a6c095c6b9e/silenttwin-0.1.0-py3-none-any.whl`
+  with SHA-256
+  `0be03b391b4bf6c5033ea085d3da137fbf1dc44fdffc231a6c249acfdc9624f5`.
+- The dedicated learned Python 3.11 environment was changed only by
+  force-reinstalling that local wheel with no dependency resolution. Its 111
+  immutable SilentTwin payload files matched the wheel byte-for-byte; their
+  canonical payload-manifest SHA-256 is
+  `eda858aca84b4ce07aa95687454eedb6cad9862577f7abec5c0857291737336b`,
+  and the installed RECORD identity is
+  `2837b7ecd27155e7bb3f4c359288375d11a9ca8b6d828cfa63272e800ea29716`.
+  `pip check` passed.
+- The refreshed 108-distribution learned-runtime fingerprint is
+  `sha256:76b337594fb9bb6271581ff2c0edec0f3e35931dd43a52a46a540f991e7a7bd3`.
+  The core runtime-integrity input remains the 71-pin
+  `requirements-tier2-agentdojo.lock`.
+- The separate scientific catalog is frozen read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-v1.json`.
+  Its file SHA-256 is
+  `c31b0962daec06619a6bdd33c52d2756203f25ea20537c32e7930f13d868dcff`;
+  its internal candidate-catalog hash is
+  `84ffd73d2ea8463c9fc9f4d4439b668f78f70f7970bb8953edd53b82c5f371a1`.
+- The catalog contains exactly the two nonfallback strategies
+  `released-ground-truth-derived-path-v1` and
+  `typed-distinct-materialization-v1`, with exact plans for all 193 pilot
+  scenarios, and the two train-frozen Granite profiles
+  `scientific-integrity-guardian-v1` and
+  `scientific-privacy-guardian-v1`. Both profiles bind the approved Granite
+  checkpoint and refreshed runtime above. No test plan is present.
+- The workspace calendar task required an exact correction during authoring:
+  `participants` is optional in the released `create_calendar_event` schema,
+  so merely adding a participant would not change its required-argument
+  signature. The frozen paths instead compare a target-day conflict check plus
+  inline-participant creation with creation followed by the required
+  `add_calendar_event_participants` action. Both are goal-faithful, nonnested,
+  and pass the released grader.
+- The model-free action audit is frozen read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-action-audit-v1.json`.
+  Its file SHA-256 is
+  `f3c0870d93f30932ff7d4996d89bdafed7641929d8e9fb805512f0a4e243cba7`;
+  its internal audit hash is
+  `ff35edfab325abe9273c54c26345c010d23cbf9449f591ac2a95e6de553e410a`.
+  All 386 scenario/strategy plans had distinct nonnested required-action
+  multisets, executed in fresh clones without tool errors, and returned
+  released attack-success `True`. External API calls, model inference, learned
+  attacker/monitor outcome inspection, and test outcome inspection were all
+  zero/false.
+- The scientific catalog reproduced byte-for-byte. A second complete
+  386-plan audit reproduced every identity, call sequence, required-action
+  hash, initial-state hash, trace hash, and grader result. Only post-state and
+  enclosing validation hashes differ because pinned AgentDojo email tools
+  retain wall-clock `datetime.now()` timestamps; that execution-specific
+  boundary is recorded in the final audit.
+- The refreshed engineering-only conformance catalog is archived read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v2.json`.
+  File SHA-256 is
+  `2f5aabb7b6e2e418fc110f9da72e46a45af20e50c4324c1ad978052f38aa70bf`;
+  internal candidate-catalog hash is
+  `f3309a687ce21ebffea4029c4c68d4b093c2cc5ee24f45f785b844ed3e16329e`.
+- The refreshed one-H200 spec is archived read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v2.json`.
+  File SHA-256 is
+  `4c459cb257ba91dedfd8e0bbcef41bcb9741251c3a4afe91f6facf5e30572013`;
+  internal spec hash is
+  `e6eafbd6c33a8e0ce23cf8bd18988470b0b4cf93a5502dfd3f4f3d1c9b88ea72`.
+  It retains the previously passed engineering scenario/probes/checkpoints but
+  binds the refreshed source and runtime. The v2 report path is deliberately
+  absent because no scheduler submission was authorized.
+- Independent artifact validation and the focused protocol regression set
+  passed; the latter produced `81 passed in 23.74s` across action eligibility,
+  pair mining, conformance, runtime integrity, and shell entrypoints.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only update; the conformance launcher rejects
+   a dirty worktree, while the documentation-only commit does not change the
+   frozen executable source hash or runtime fingerprint;
+2. inspect and explicitly approve the resolved v2 conformance command below;
+3. submit it once, validate the new report, and only then inspect and approve
+   the train pair-observation command. Development observation remains
+   conditional on successful train observation.
+
+Resolved v2 conformance command (prepared, **not submitted**):
+
+```bash
+export PBS_CONFORMANCE_V2_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,AGENTDOJO_DATASET_SPLIT=development,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v2.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:76b337594fb9bb6271581ff2c0edec0f3e35931dd43a52a46a540f991e7a7bd3,CONFORMANCE_SPEC=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v2.json,CONFORMANCE_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v2.json,EXPECTED_SOURCE_TREE_HASH=0c7a7f45d2f366c51520e33ec4e97a5dab6e7ac17b2621fba2e05a6c095c6b9e,ATTACKER_DEVICE=cuda:0,MONITOR_DEVICE=cuda:0,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=00:15:00 \
+  -N st-conform-v2 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -v "$PBS_CONFORMANCE_V2_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_checkpoint_conformance_tier2.sh
+```
+
+Do not submit pair observation yet. The refreshed H200 conformance report must
+pass first, and the exact train command still requires separate operator
+approval.
