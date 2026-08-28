@@ -35,7 +35,10 @@ from .config import (
     stable_hash,
 )
 from .advanced import AuthoredEffect, validate_authored_effect_graph
-from .monitors import monitor_text_hash
+from .monitors import (
+    GRANITE_GUARDIAN_ACTION_PROMPT_TEMPLATE,
+    monitor_text_hash,
+)
 from .runtime_integrity import (
     EXPECTED_INSTALLED_PAYLOAD_SHA256,
     RuntimeIntegrityError,
@@ -252,6 +255,19 @@ def _validate_frozen_monitor_profile(profile: Mapping[str, Any], identifier: str
         raise PairMiningError(
             f"learned monitor profile {identifier!r} prompt template must contain "
             "exactly one {monitor_input_json} and {policy_text} token"
+        )
+    if family == "granite_guardian_4_1_8b" and (
+        profile["implementation"] != "local_transformers"
+        or profile["model_id"] != "ibm-granite/granite-guardian-4.1-8b"
+        or profile["reasoning_mode"] != "no_think"
+        or float(threshold) != 0.5
+        or float(temperature) != 0.0
+        or float(top_p) != 1.0
+        or template != GRANITE_GUARDIAN_ACTION_PROMPT_TEMPLATE
+    ):
+        raise PairMiningError(
+            f"learned monitor profile {identifier!r} does not use the frozen "
+            "Granite Guardian 4.1 no-think action protocol"
         )
     if monitor_text_hash(template) != profile["prompt_hash"]:
         raise PairMiningError(

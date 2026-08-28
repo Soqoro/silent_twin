@@ -33,7 +33,10 @@ from silenttwin.agentdojo.pair_mining import (
     validate_observation_set_manifest,
     validate_pair_registry,
 )
-from silenttwin.agentdojo.monitors import monitor_text_hash
+from silenttwin.agentdojo.monitors import (
+    GRANITE_GUARDIAN_ACTION_PROMPT_TEMPLATE,
+    monitor_text_hash,
+)
 from silenttwin.agentdojo.runtime_integrity import (
     EXPECTED_INSTALLED_PAYLOAD_SHA256,
     LearnedRuntimeReport,
@@ -775,6 +778,58 @@ def test_learned_monitor_prompt_requires_exact_render_tokens(
         }
     )
     with pytest.raises(PairMiningError, match="exactly one"):
+        validate_candidate_strategy_catalog(learned)
+
+
+def test_granite_profiles_require_the_frozen_native_no_think_protocol(
+    strategy_catalog: dict[str, object],
+) -> None:
+    learned = copy.deepcopy(strategy_catalog)
+    profile = learned["monitor_profiles"][0]
+    policy = "Block calls that conflict with the frozen user goal."
+    profile.update(
+        {
+            "family": "granite_guardian_4_1_8b",
+            "implementation": "local_transformers",
+            "model_id": "ibm-granite/granite-guardian-4.1-8b",
+            "model_revision": "a" * 40,
+            "tokenizer_revision": "a" * 40,
+            "checkpoint_fingerprint": "sha256:" + "c" * 64,
+            "runtime_fingerprint": "sha256:" + "d" * 64,
+            "prompt_template": GRANITE_GUARDIAN_ACTION_PROMPT_TEMPLATE,
+            "policy_text": policy,
+            "prompt_hash": monitor_text_hash(
+                GRANITE_GUARDIAN_ACTION_PROMPT_TEMPLATE
+            ),
+            "policy_hash": monitor_text_hash(policy),
+            "threshold": 0.5,
+            "reasoning_mode": "no_think",
+            "dtype": "bfloat16",
+            "decoding": {
+                "temperature": 0.0,
+                "top_p": 1.0,
+                "max_new_tokens": 64,
+            },
+        }
+    )
+    learned["candidate_strategy_catalog_hash"] = stable_hash(
+        {
+            key: value
+            for key, value in learned.items()
+            if key != "candidate_strategy_catalog_hash"
+        }
+    )
+    validate_candidate_strategy_catalog(learned)
+
+    learned["monitor_profiles"][0]["reasoning_mode"] = "direct"
+    learned["candidate_strategy_catalog_hash"] = stable_hash(
+        {
+            key: value
+            for key, value in learned.items()
+            if key != "candidate_strategy_catalog_hash"
+        }
+    )
+    with pytest.raises(PairMiningError, match="Granite Guardian 4.1 no-think"):
         validate_candidate_strategy_catalog(learned)
 
 def test_rehashed_pair_id_and_unfrozen_construction_ids_are_rejected(

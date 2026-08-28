@@ -1193,3 +1193,41 @@ exact git revision verified
 Only after the engineering smoke succeeds should the operator and new Codex
 materialize production identities, mine guard pairs, or submit learned-model
 arrays.
+
+## Destination continuation checkpoint on 2026-08-28
+
+This section supersedes the older immediate-next-milestone list above. The
+repository remained on `main` at committed revision
+`9a109ff1400af8f22cbd5288841a7ce6913d9dc1` before the uncommitted protocol
+work described below.
+
+- The complete deterministic fake-model controlled smoke finished: E1--E5
+  covered 485 configurations and 26,100 rows with zero invalid rows.
+- The ecological fake smoke finished 75 configurations and 1,305 rows. Its
+  261 transformer-detector rows were conservatively invalid because no real
+  detector checkpoint was configured; this was expected fixture behavior, not
+  a detector result.
+- All smoke artifacts remain engineering-only and establish no scientific
+  benchmark finding.
+- The operator reports that the production GPU allocation is NVIDIA H200. No
+  real checkpoint inference has run yet.
+- The working primary checkpoint choice is Qwen2.5-7B-Instruct for attacker
+  and victim, Granite Guardian 4.1 8B for the action monitor, and the released
+  ProtectAI DeBERTa-v3 prompt-injection-v2 detector for the ecological track.
+  Checkpoint trees and a clean learned runtime have not yet been materialized
+  or fingerprinted.
+- The worktree now contains an uncommitted native Granite Guardian 4.1
+  no-think scoring adapter. It uses exact structured chat, maps released
+  `<score>yes|no</score>` outputs to block/allow, rejects generic JSON or
+  reasoning prose, and freezes the complete protocol template. Focused tests
+  passed (30), followed by an expanded 111-test regression set. The exhaustive
+  run plus a corrected Python-3.11 rerun of its host-Python shell failures
+  covered all 480 tests then collected and 79 subtests successfully. A final
+  post-hardening targeted run passed 126 tests and 4 subtests.
+
+The next checkpoint is to review and commit the protocol diff. After that,
+build a clean non-editable Torch/Transformers/CUDA environment, download the
+approved immutable checkpoint snapshots to persistent storage, derive all
+runtime/checkpoint fingerprints, and run a development-only one-scenario
+conformance job before guard-pair mining. Do not submit the real-model pilot
+until the operator approves its exact resolved PBS command.

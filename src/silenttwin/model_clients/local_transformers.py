@@ -11,11 +11,12 @@ import hashlib
 import os
 from pathlib import Path
 import time
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from silenttwin.attackers.llm_attacker import ModelResponse, ModelUsage
 from silenttwin.config import is_immutable_model_revision, stable_hash
 from silenttwin.io.jsonl import atomic_write_json
+from silenttwin.schemas import canonical_json
 
 
 class LocalModelUnavailableError(RuntimeError):
@@ -452,14 +453,15 @@ class LocalTransformersModelClient:
         )
         return None if value is None else str(value)
 
-    def complete(
+    def _complete_rendered(
         self,
-        prompt: str,
+        rendered: str,
         *,
-        seed: int = 0,
-        max_tokens: int = 128,
+        input_prompt: str,
+        seed: int,
+        max_tokens: int,
+        input_metadata: Mapping[str, Any] | None = None,
     ) -> ModelResponse:
-        self._load()
         torch = self._torch
         tokenizer = self._tokenizer
         model = self._model
@@ -467,15 +469,6 @@ class LocalTransformersModelClient:
         if max_tokens <= 0:
             raise ValueError("max_tokens must be positive")
         effective_seed = int(seed if seed is not None else self.config.decoding_seed)
-
-        if getattr(tokenizer, "chat_template", None):
-            rendered = tokenizer.apply_chat_template(
-                [{"role": "user", "content": prompt}],
-                tokenize=False,
-                add_generation_prompt=True,
-            )
-        else:
-            rendered = prompt
         encoded = tokenizer(rendered, return_tensors="pt")
         encoded = {key: value.to(self.config.device) for key, value in encoded.items()}
         input_tokens = int(encoded["input_ids"].shape[-1])
@@ -535,7 +528,9 @@ class LocalTransformersModelClient:
             "local_checkpoint_verification_mode": self._local_verification_mode,
             "local_checkpoint_manifest_hash": self._local_fingerprint_manifest_hash,
             "chat_template_hash": hashlib.sha256(chat_template.encode("utf-8")).hexdigest(),
-            "input_prompt_hash": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            "input_prompt_hash": hashlib.sha256(
+                input_prompt.encode("utf-8")
+            ).hexdigest(),
             "rendered_input_hash": hashlib.sha256(rendered.encode("utf-8")).hexdigest(),
             # Trusted provenance needs the exact tokenizer chat-template
             # material, not only a digest.  This metadata never enters the
@@ -561,6 +556,8 @@ class LocalTransformersModelClient:
             "external_api_calls": 0,
             "local_files_only": True,
         }
+        if input_metadata is not None:
+            metadata.update(dict(input_metadata))
         return ModelResponse(
             text=text,
             usage=ModelUsage(
@@ -568,6 +565,103 @@ class LocalTransformersModelClient:
                 output_tokens=int(completion_ids.shape[-1]),
             ),
             metadata=metadata,
+        )
+
+    def complete(
+        self,
+        prompt: str,
+        *,
+        seed: int = 0,
+        max_tokens: int = 128,
+    ) -> ModelResponse:
+        self._load()
+        tokenizer = self._tokenizer
+        assert tokenizer is not None
+        if getattr(tokenizer, "chat_template", None):
+            rendered = tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        else:
+            rendered = prompt
+        if not isinstance(rendered, str):
+            raise LocalModelUnavailableError(
+                "tokenizer chat template did not render text"
+            )
+        return self._complete_rendered(
+            rendered,
+            input_prompt=prompt,
+            seed=seed,
+            max_tokens=max_tokens,
+        )
+
+    @staticmethod
+    def _normalize_chat_messages(
+        messages: Sequence[Mapping[str, str]],
+    ) -> tuple[dict[str, str], ...]:
+        if isinstance(messages, (str, bytes, bytearray)) or not isinstance(
+            messages, Sequence
+        ):
+            raise TypeError("messages must be a sequence of role/content mappings")
+        normalized: list[dict[str, str]] = []
+        for index, message in enumerate(messages):
+            if not isinstance(message, Mapping) or set(message) != {"role", "content"}:
+                raise TypeError(
+                    f"chat message {index} must contain exactly role and content"
+                )
+            role = message["role"]
+            content = message["content"]
+            if (
+                not isinstance(role, str)
+                or role not in {"system", "user", "assistant"}
+                or not isinstance(content, str)
+            ):
+                raise TypeError(f"chat message {index} has an invalid role or content")
+            normalized.append({"role": role, "content": content})
+        if not normalized:
+            raise ValueError("messages must not be empty")
+        return tuple(normalized)
+
+    def complete_chat(
+        self,
+        messages: Sequence[Mapping[str, str]],
+        *,
+        seed: int = 0,
+        max_tokens: int = 128,
+    ) -> ModelResponse:
+        """Complete an exact structured chat using the checkpoint's template."""
+
+        normalized = self._normalize_chat_messages(messages)
+        self._load()
+        tokenizer = self._tokenizer
+        assert tokenizer is not None
+        if not getattr(tokenizer, "chat_template", None):
+            raise LocalModelUnavailableError(
+                "structured chat completion requires a tokenizer chat template"
+            )
+        rendered = tokenizer.apply_chat_template(
+            list(normalized),
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        if not isinstance(rendered, str):
+            raise LocalModelUnavailableError(
+                "tokenizer chat template did not render text"
+            )
+        canonical_messages = canonical_json(list(normalized))
+        return self._complete_rendered(
+            rendered,
+            input_prompt=canonical_messages,
+            seed=seed,
+            max_tokens=max_tokens,
+            input_metadata={
+                "input_mode": "structured_chat",
+                "input_messages": [dict(message) for message in normalized],
+                "input_messages_hash": hashlib.sha256(
+                    canonical_messages.encode("utf-8")
+                ).hexdigest(),
+            },
         )
 
 
