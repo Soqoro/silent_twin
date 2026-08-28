@@ -1285,10 +1285,28 @@ has been submitted and no benchmark result has been generated.
   It selects one frozen workspace development scenario, two schema-valid
   engineering-only prohibited-action probes, Qwen with 256 output tokens,
   and two separately retained Granite no-think profiles with 64 output tokens.
-- The report destination
-  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v1.json`
-  is absent and reserved for the first run. Publication is atomic and refuses
-  replacement.
+- The first real-checkpoint conformance job was submitted as PBS job
+  `54096.gaas` to `gpu_free` under project `fs_ccds_asysong`. It ran once on
+  `hpc-gaas-g25`, finished in 78 seconds, and returned `Exit_status = 0`.
+  PBS recorded one NVIDIA H200, 12 CPUs, 250 GiB host RAM, and maximum GPU
+  memory use of 48,586 MB.
+- The atomically published report is
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v1.json`.
+  Its file SHA-256 is
+  `519baea077bdd1e97dd8f05164badb16d23e4717f4d5294064862b871bd73816`;
+  its internal self-hash is
+  `62454c4aad92750e85b166a4f625cf7082f15492dd5e426df94f7584f8d63181`.
+  Strict report validation passed with 8/8 checks, zero errors, zero external
+  API calls, three simultaneously retained clients, all three Qwen attacker
+  contracts valid, all four Granite monitor cells valid, and successful
+  attacker retirement. All four engineering probes were blocked; this is a
+  protocol-conformance observation, not a monitor-quality estimate.
+- The allocated H200 exposed 150,109,880,320 bytes. Process-local Torch
+  allocation rose from zero to 15,276,322,816 bytes after Qwen, to
+  32,037,950,464 bytes after the first Granite client, and to
+  48,799,053,824 bytes after the second. Peak allocated memory after protocol
+  checks was 49,567,984,640 bytes. This validates the intended one-H200,
+  three-client topology for the selected 7--8B checkpoints.
 - The conformance implementation binds exact identities and verifies three
   attacker contracts, every profile/strategy/call monitor cell, raw local-only
   provenance, pinned AgentDojo compatibility, five ordered H200 memory stages,
@@ -1314,8 +1332,11 @@ a scientific-protocol decision, not an engineering smoke result.
 
 Immediate next checkpoint:
 
-1. inspect and commit every repository change so `git status --short` is empty;
-2. recheck the source and runtime fingerprints above;
-3. show and explicitly approve the fully resolved non-array H200 PBS command;
-4. submit only the one-scenario engineering conformance job and inspect its
-   report before any pair observation.
+1. commit this handoff-only result record so `git status --short` is empty;
+2. choose and preregister either the action-representable eligibility subset
+   or the typed deterministic plan/output-action protocol extension;
+3. author a separate scientific train-frozen candidate catalog under that
+   decision and audit executable action success before pair observation;
+4. only then prepare and explicitly approve the train/development
+   pair-observation PBS jobs. Never reuse the engineering conformance catalog
+   or report for pair selection.
