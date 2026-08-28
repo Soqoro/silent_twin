@@ -27,6 +27,7 @@ agentdojo_init() {
     AGENTDOJO_CONFIG_ROOT="${AGENTDOJO_CONFIG_ROOT:-$AGENTDOJO_REPO_ROOT/configs/silenttwin/agentdojo}"
     AGENTDOJO_CATALOG="${AGENTDOJO_CATALOG:-$AGENTDOJO_CONFIG_ROOT/catalog-v1.json}"
     AGENTDOJO_SPLITS="${AGENTDOJO_SPLITS:-$AGENTDOJO_CONFIG_ROOT/splits-v1.json}"
+    AGENTDOJO_ACTION_ELIGIBILITY="${AGENTDOJO_ACTION_ELIGIBILITY:-$AGENTDOJO_CONFIG_ROOT/action-eligibility-v1.json}"
     AGENTDOJO_GRID_PLAN="${AGENTDOJO_GRID_PLAN:-$AGENTDOJO_CONFIG_ROOT/grid-plans/controlled-fake-smoke-v1.json}"
     local checked_fake_plan="$AGENTDOJO_CONFIG_ROOT/grid-plans/controlled-fake-smoke-v1.json"
     local default_strategy_catalog="$AGENTDOJO_CONFIG_ROOT/candidate-strategies-v1.json"
@@ -85,6 +86,7 @@ agentdojo_offline_environment() {
     export AGENTDOJO_ALLOW_API_FALLBACK=0
     export AGENTDOJO_ALLOW_MOCK_FALLBACK=0
     export AGENTDOJO_CATALOG AGENTDOJO_SPLITS AGENTDOJO_STRATEGY_CATALOG
+    export AGENTDOJO_ACTION_ELIGIBILITY
     export AGENTDOJO_PAIR_REGISTRY AGENTDOJO_ANALYSIS_PLAN
     export AGENTDOJO_DEPENDENCY_LOCK
     export AGENTDOJO_SAMPLE_SIZE_FREEZE

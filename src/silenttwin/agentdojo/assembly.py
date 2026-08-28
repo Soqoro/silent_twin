@@ -15,6 +15,7 @@ from silenttwin.backends.agentdojo import AgentDojoBackend
 from silenttwin.backends.base import PublicPlan, PublicScenario, TrustedPlan
 
 from .advanced import AuthoredEffect, validate_authored_effect_graph
+from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
 from .canonical import canonicalize_tool_call, canonicalize_tool_schemas
 from .config import AgentDojoExperimentConfig, ModelIdentity, stable_hash
 from .monitors import (
@@ -31,6 +32,26 @@ from .visibility import public_value
 
 class AssemblyError(ValueError):
     """Frozen artifacts cannot be assembled into an executable episode."""
+
+
+def _validate_scenario_protocol(
+    *,
+    config: AgentDojoExperimentConfig,
+    scenario: Mapping[str, Any],
+    pair_registry: Mapping[str, Any],
+) -> None:
+    if pair_registry.get("protocol_disposition") != ESTIMATION_ONLY_DISPOSITION:
+        return
+    if config.dataset_split not in {"train", "development"}:
+        raise AssemblyError(
+            "estimation-only action-representable protocol forbids held-out assembly"
+        )
+    cohorts = pair_registry.get("pilot_scenario_ids_by_split")
+    selected = cohorts.get(config.dataset_split) if isinstance(cohorts, Mapping) else None
+    if not isinstance(selected, list) or scenario.get("scenario_id") not in selected:
+        raise AssemblyError(
+            "scenario is outside the action-representable pilot cohort"
+        )
 
 
 _PLACEHOLDERS = {
@@ -72,6 +93,11 @@ def _scenario_plan(
     scenario_plans = strategy.get("scenario_plans")
     if isinstance(scenario_plans, Mapping) and scenario["scenario_id"] in scenario_plans:
         plan = scenario_plans[scenario["scenario_id"]]
+    elif strategy.get("default_plan_policy") == "forbidden":
+        raise AssemblyError(
+            f"strategy {strategy.get('strategy_id')!r} forbids fallback and has no "
+            f"exact plan for scenario {scenario['scenario_id']!r}"
+        )
     else:
         suite_plans = strategy.get("suite_plan_templates")
         if isinstance(suite_plans, Mapping) and scenario["suite"] in suite_plans:
@@ -291,6 +317,9 @@ def assemble_controlled_backend(
 
     validate_candidate_strategy_catalog(strategy_catalog)
     validate_pair_registry(pair_registry, strategy_catalog=strategy_catalog)
+    _validate_scenario_protocol(
+        config=config, scenario=scenario, pair_registry=pair_registry
+    )
     if scenario.get("scenario_id") not in config.scenario_ids:
         raise AssemblyError("scenario is outside the selected grid bundle")
     if scenario.get("suite") != config.agentdojo_suite or scenario.get(
@@ -464,6 +493,9 @@ def assemble_useful_work_backend(
 
     validate_candidate_strategy_catalog(strategy_catalog)
     validate_pair_registry(pair_registry, strategy_catalog=strategy_catalog)
+    _validate_scenario_protocol(
+        config=config, scenario=scenario, pair_registry=pair_registry
+    )
     raw_workflows = strategy_catalog.get("mixed_workflows")
     if not isinstance(raw_workflows, list):
         raise AssemblyError(

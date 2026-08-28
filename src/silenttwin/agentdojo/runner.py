@@ -1812,6 +1812,9 @@ def _mine_pairs(args: argparse.Namespace) -> dict[str, Any]:
     catalog = _read_object(args.catalog, label="catalog")
     splits = _read_object(args.splits, label="split manifest")
     strategies = _read_object(args.strategy_catalog, label="candidate-strategy catalog")
+    eligibility = _read_object(
+        args.action_eligibility, label="action-eligibility manifest"
+    )
     train = read_jsonl(args.train_observations)
     development = read_jsonl(args.development_observations)
     train_manifest = _read_object(
@@ -1829,6 +1832,7 @@ def _mine_pairs(args: argparse.Namespace) -> dict[str, Any]:
         development_observations=development,
         train_observation_manifest=train_manifest,
         development_observation_manifest=development_manifest,
+        action_eligibility_manifest=eligibility,
     )
     atomic_write_json(args.pair_registry_output, registry)
     return {
@@ -1837,6 +1841,10 @@ def _mine_pairs(args: argparse.Namespace) -> dict[str, Any]:
         "suite_count": len(registry["pairs"]),
         "test_instantiation_count": len(registry["test_instantiations"]),
         "test_outcomes_inspected": False,
+        "protocol_disposition": registry["protocol_disposition"],
+        "action_eligibility_manifest_hash": registry[
+            "action_eligibility_manifest_hash"
+        ],
     }
 
 
@@ -1920,16 +1928,27 @@ def _generate_pair_observations(args: argparse.Namespace) -> dict[str, Any]:
     strategies = _read_object(
         args.strategy_catalog, label="candidate-strategy catalog"
     )
+    eligibility = _read_object(
+        args.action_eligibility, label="action-eligibility manifest"
+    )
     # Compatibility and frozen artifact checks happen before checkpoint
     # construction.  The generator repeats them while materializing rows.
     from . import compat
     from .catalog import validate_catalog
-    from .pair_mining import validate_candidate_strategy_catalog
+    from .action_eligibility import validate_action_eligibility_manifest
+    from .pair_mining import (
+        validate_candidate_strategy_catalog,
+        validate_estimation_strategy_coverage,
+    )
     from .splits import validate_split_manifest
 
     validate_catalog(catalog)
     validate_split_manifest(splits, catalog=catalog)
     validate_candidate_strategy_catalog(strategies)
+    validate_action_eligibility_manifest(
+        eligibility, catalog=catalog, split_manifest=splits
+    )
+    validate_estimation_strategy_coverage(strategies, eligibility)
     # This is deliberately before compatibility imports that materialize
     # suites and, critically, before any monitor checkpoint construction.
     learned_runtime = _preflight_pair_observation_environment(
@@ -1990,6 +2009,10 @@ def _generate_pair_observations(args: argparse.Namespace) -> dict[str, Any]:
         "observation_count": len(rows),
         "observation_set_hash": manifest["observation_set_hash"],
         "test_outcomes_inspected": False,
+        "protocol_disposition": manifest["protocol_disposition"],
+        "action_eligibility_manifest_hash": manifest[
+            "action_eligibility_manifest_hash"
+        ],
     }
 
 
@@ -2006,6 +2029,7 @@ def _parser() -> argparse.ArgumentParser:
     mine.add_argument("--catalog", type=Path, required=True)
     mine.add_argument("--splits", type=Path, required=True)
     mine.add_argument("--strategy-catalog", type=Path, required=True)
+    mine.add_argument("--action-eligibility", type=Path, required=True)
     mine.add_argument("--train-observations", type=Path, required=True)
     mine.add_argument("--development-observations", type=Path, required=True)
     mine.add_argument("--train-observation-manifest", type=Path, required=True)
@@ -2015,6 +2039,7 @@ def _parser() -> argparse.ArgumentParser:
     observe.add_argument("--catalog", type=Path, required=True)
     observe.add_argument("--splits", type=Path, required=True)
     observe.add_argument("--strategy-catalog", type=Path, required=True)
+    observe.add_argument("--action-eligibility", type=Path, required=True)
     observe.add_argument(
         "--dependency-lock",
         type=Path,

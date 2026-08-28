@@ -654,6 +654,25 @@ def test_manifest_coverage_is_revalidated_and_subset_is_nonconfirmatory(
     )
     assert subset_coverage["confirmatory_suite_coverage_eligible"] is False
 
+    estimation = replace(
+        grid,
+        protocol_disposition="estimation_only_action_representable",
+        action_eligibility_manifest_hash="a" * 64,
+    )
+    estimation_metadata = estimation.metadata()
+    assert estimation_metadata["suite_coverage_status"] == (
+        "full_four_suite_estimation_only"
+    )
+    assert (
+        estimation_metadata["confirmatory_suite_coverage_eligible"] is False
+    )
+    manifest_path = tmp_path / "estimation-grid.jsonl"
+    write_manifest(estimation, manifest_path)
+    assert load_grid_manifest(manifest_path)["metadata"] == estimation_metadata
+
+    with pytest.raises(AgentDojoGridError, match="held-out execution"):
+        replace(estimation, dataset_split="test")
+
 
 def test_rehashed_fake_smoke_artifact_with_erased_claim_boundary_is_rejected(
     tmp_path: Path,

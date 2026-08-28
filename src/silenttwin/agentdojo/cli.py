@@ -14,6 +14,9 @@ from .config import AGENTDOJO_BENCHMARK_VERSION, AGENTDOJO_SOURCE_REVISION
 
 DEFAULT_CATALOG_PATH = Path("configs/silenttwin/agentdojo/catalog-v1.json")
 DEFAULT_SPLITS_PATH = Path("configs/silenttwin/agentdojo/splits-v1.json")
+DEFAULT_ACTION_ELIGIBILITY_PATH = Path(
+    "configs/silenttwin/agentdojo/action-eligibility-v1.json"
+)
 
 
 def _read_object(path: Path) -> dict[str, Any]:
@@ -120,6 +123,35 @@ def _freeze(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _freeze_action_eligibility(args: argparse.Namespace) -> dict[str, Any]:
+    from .action_eligibility import make_action_eligibility_manifest
+
+    if args.assert_no_learned_outcomes_inspected is not True:
+        raise ValueError(
+            "freezing action eligibility requires the no-learned-outcomes assertion"
+        )
+    catalog = _read_object(args.catalog)
+    splits = _read_object(args.splits)
+    manifest = make_action_eligibility_manifest(
+        catalog=catalog,
+        split_manifest=splits,
+    )
+    reused = _atomic_write_immutable(args.output, manifest)
+    pilot = manifest["pilot_scenario_ids_by_split"]
+    return {
+        "action_eligibility_manifest_hash": manifest[
+            "action_eligibility_manifest_hash"
+        ],
+        "protocol_disposition": manifest["protocol_disposition"],
+        "train_scenario_count": len(pilot["train"]),
+        "development_scenario_count": len(pilot["development"]),
+        "test_scenario_count": len(pilot["test"]),
+        "held_out_evaluation_permitted": False,
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+    }
+
+
 def _verify(args: argparse.Namespace) -> dict[str, Any]:
     from .catalog import catalog_summary, validate_catalog
     from .splits import validate_split_manifest
@@ -138,6 +170,7 @@ def _verify(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
+    from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
     from .config import AGENTDOJO_SUITES, bundle_hash
     from .freeze import (
         deterministic_test_allocation,
@@ -164,6 +197,14 @@ def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError(
                 f"{label} is an engineering-smoke fixture and cannot freeze held-out evidence"
             )
+    if (
+        inputs.pair_registry.get("protocol_disposition")
+        == ESTIMATION_ONLY_DISPOSITION
+    ):
+        raise ValueError(
+            "the action-representable pilot is estimation-only and cannot freeze "
+            "held-out evidence"
+        )
     manifest = _read_object(args.development_analysis_manifest)
     primary = inputs.analysis_plan.get("primary_contrasts", {}).get(args.experiment)
     if not isinstance(primary, str):
@@ -300,6 +341,29 @@ def _parser() -> argparse.ArgumentParser:
     verify.add_argument("--splits", type=Path, default=DEFAULT_SPLITS_PATH)
     verify.set_defaults(handler=_verify)
 
+    eligibility = commands.add_parser(
+        "freeze-action-eligibility",
+        help=(
+            "atomically freeze the conservative train/development "
+            "action-representable estimation subset"
+        ),
+    )
+    eligibility.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG_PATH)
+    eligibility.add_argument("--splits", type=Path, default=DEFAULT_SPLITS_PATH)
+    eligibility.add_argument(
+        "--output", type=Path, default=DEFAULT_ACTION_ELIGIBILITY_PATH
+    )
+    eligibility.add_argument(
+        "--assert-no-learned-outcomes-inspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that no learned attacker, monitor, or held-out "
+            "model outcome informed the eligibility freeze"
+        ),
+    )
+    eligibility.set_defaults(handler=_freeze_action_eligibility)
+
     sample = commands.add_parser(
         "freeze-sample-size",
         help="atomically freeze a deterministic held-out E1-E4 cohort from development power",
@@ -338,4 +402,9 @@ if __name__ == "__main__":  # pragma: no cover - exercised as a module command
     raise SystemExit(main())
 
 
-__all__ = ["DEFAULT_CATALOG_PATH", "DEFAULT_SPLITS_PATH", "main"]
+__all__ = [
+    "DEFAULT_ACTION_ELIGIBILITY_PATH",
+    "DEFAULT_CATALOG_PATH",
+    "DEFAULT_SPLITS_PATH",
+    "main",
+]

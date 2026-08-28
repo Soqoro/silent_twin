@@ -63,10 +63,30 @@ first-party generator materializes each frozen strategy against the live pinned
 task, evaluates every frozen monitor profile, and writes self-hashed JSONL plus
 an observation-set manifest. It accepts only train/development:
 
+The current real-model path is preregistered as
+`estimation_only_action_representable`. Freeze or verify that model-independent
+eligibility decision before authoring the scientific strategy catalog:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
+  -m silenttwin.agentdojo.cli freeze-action-eligibility \
+  --catalog configs/silenttwin/agentdojo/catalog-v1.json \
+  --splits configs/silenttwin/agentdojo/splits-v1.json \
+  --output configs/silenttwin/agentdojo/action-eligibility-v1.json \
+  --assert-no-learned-outcomes-inspected
+```
+
+The checked freeze selects 134 train and 59 development scenarios. Its pilot
+test cohort is deliberately empty. A scientific strategy catalog must contain
+exactly two strategies, set `default_plan_policy` to `forbidden`, and provide
+an exact `scenario_plans` entry for every one of those 193 scenarios. Generic
+or suite-level fallback is rejected.
+
 ```bash
 STAGE=grid bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 
 STAGE=run PAIR_MINING_ACTION=observe OBSERVATION_SPLIT=train \
+AGENTDOJO_ACTION_ELIGIBILITY=configs/silenttwin/agentdojo/action-eligibility-v1.json \
 OBSERVATIONS_OUTPUT=/persistent/evidence/train.jsonl \
 OBSERVATION_MANIFEST_OUTPUT=/persistent/evidence/train.manifest.json \
 AGENTDOJO_MODEL_CACHE=/persistent/model-cache \
@@ -74,6 +94,7 @@ AGENTDOJO_MONITOR_CHECKPOINT=/persistent/checkpoints/action-monitor \
 bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 
 STAGE=run PAIR_MINING_ACTION=observe OBSERVATION_SPLIT=development \
+AGENTDOJO_ACTION_ELIGIBILITY=configs/silenttwin/agentdojo/action-eligibility-v1.json \
 OBSERVATIONS_OUTPUT=/persistent/evidence/development.jsonl \
 OBSERVATION_MANIFEST_OUTPUT=/persistent/evidence/development.manifest.json \
 AGENTDOJO_MODEL_CACHE=/persistent/model-cache \
@@ -81,6 +102,7 @@ AGENTDOJO_MONITOR_CHECKPOINT=/persistent/checkpoints/action-monitor \
 bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 
 STAGE=run PAIR_MINING_ACTION=reduce AGENTDOJO_REQUIRES_GPU=0 \
+AGENTDOJO_ACTION_ELIGIBILITY=configs/silenttwin/agentdojo/action-eligibility-v1.json \
 TRAIN_OBSERVATIONS=/persistent/evidence/train.jsonl \
 TRAIN_OBSERVATION_MANIFEST=/persistent/evidence/train.manifest.json \
 DEVELOPMENT_OBSERVATIONS=/persistent/evidence/development.jsonl \
@@ -90,11 +112,17 @@ bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
 
 All pair-mining run phases need an authorized Slurm or PBS batch allocation. Observation
 generation defaults to GPU; the hash-verifying reducer defaults to CPU and
-never constructs a model. The reducer rejects test rows, invalid row hashes,
-unbound materializations/executions, row/manifest generator-source drift,
-non-pinned compatibility reports, or missing/mismatched set manifests. The
-pair registry retains both complete self-hashed observation manifests, then
-freezes every held-out scenario as unobserved. Pair-observation checkpoint and
+never constructs a model. Before any monitor score is accepted, both candidate
+plans are executed in fresh environments, must finish without tool errors,
+must pass AgentDojo's released attack-success grader, and must have distinct,
+non-nested required-argument action multisets. Optional/default-only and
+ordering-only variants are rejected. The reducer also rejects test rows,
+invalid row hashes, unbound materializations/executions, row/manifest
+generator-source drift, non-pinned compatibility reports, or
+missing/mismatched set manifests. The pair registry retains both complete
+self-hashed observation manifests and an execution-validation ledger. It
+contains no held-out instantiations under the current estimation-only protocol.
+Pair-observation checkpoint and
 cache paths, including profile-specific monitor checkpoint overrides, must be
 persistent and cannot resolve inside Slurm `SLURM_TMPDIR`, a PBS private-sandbox
 `PBS_JOBDIR` that differs from `PBS_O_HOME`, or PBS-assigned `TMPDIR`.
@@ -140,8 +168,15 @@ from the fingerprint commands above, and inspect it with `STAGE=grid`. Passing
 the unmaterialized template directly is an error, never a fake-model fallback.
 
 The output prints `valid_array_range` and writes the exact JSONL grid manifest.
-For held-out `test`, also provide `AGENTDOJO_SAMPLE_SIZE_FREEZE`; the grid
-rejects a missing, mismatched, post-test, or incomplete freeze chain.
+The current action-representable pair registry filters controlled
+train/development grids to its frozen pilot IDs and rejects every held-out
+`test` grid. The aggregate preserves estimates but marks all gates
+nonconfirmatory and sets `sample_size_freeze_eligible: false`.
+
+Only a future, separately preregistered full-catalog protocol may use the
+held-out flow below. For such a protocol, provide
+`AGENTDOJO_SAMPLE_SIZE_FREEZE`; the grid rejects a missing, mismatched,
+post-test, or incomplete freeze chain.
 
 After an exact, nonfixture development aggregate, freeze the preregistered
 power recommendation and deterministic held-out group IDs atomically:
@@ -161,7 +196,10 @@ PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
   --assert-test-results-uninspected
 ```
 
-Only E1–E4 have confirmatory held-out freeze contracts. E5 and ecological
+The freeze command above fails closed for an
+`estimation_only_action_representable` pair registry. In the legacy
+full-catalog design, only E1–E4 have confirmatory held-out freeze contracts.
+E5 and ecological
 remain development-only analyses. A power result below 0.80 produces an
 `underpowered_estimation_only` disposition rather than a passed gate.
 The checked structural split also records an unavoidable preregistration
@@ -373,13 +411,16 @@ evidence and is never substituted for controlled E1/E2 causal evidence.
 Recommended order:
 
 ```text
-compatibility smoke -> guard-pair mining -> four-suite signal pilot
--> power/sample freeze -> held-out E1/E2/E3 -> ecological/E4 -> E5
+compatibility smoke -> model-independent action eligibility freeze
+-> exact scientific plan authoring and action validation
+-> guard-pair mining -> four-suite train/development estimation pilot
+-> review estimates and structural shortfalls
 ```
 
 Guard-pair mining comprises the train/development observation and pair-freeze
-steps above. Ecological and E5 results remain secondary/development analyses;
-E4 uses its independently frozen held-out contract where applicable.
+steps above. Under the current action-representable protocol, no sample-size
+freeze or held-out phase is permitted. Ecological and E5 results remain
+secondary/development analyses.
 
 Retained KV-cache closure is `not_evaluated` unless the actual model backend
 exposes and reuses a cache. Operators must provide credible immutable local

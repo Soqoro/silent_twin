@@ -45,7 +45,12 @@ from .config import (
     stable_hash,
 )
 from .freeze import UpstreamBindings, validate_agentdojo_sample_size_freeze
-from .pair_mining import monitor_pair_binding
+from .action_eligibility import ESTIMATION_ONLY_DISPOSITION, pilot_scenario_ids
+from .pair_mining import (
+    PairMiningError,
+    monitor_pair_binding,
+    validate_pair_registry,
+)
 
 
 GRID_SCHEMA_VERSION = "silenttwin.agentdojo.grid.v1"
@@ -195,6 +200,18 @@ def load_frozen_inputs(
         "split_manifest_hash"
     ) != split_hash or pairs.get("candidate_strategy_catalog_hash") != strategy_hash:
         raise AgentDojoGridError("pair registry uses another upstream chain")
+    if pairs.get("protocol_disposition") == ESTIMATION_ONLY_DISPOSITION:
+        try:
+            validate_pair_registry(
+                pairs,
+                catalog=catalog,
+                split_manifest=splits,
+                strategy_catalog=strategies,
+            )
+        except (PairMiningError, ValueError) as exc:
+            raise AgentDojoGridError(
+                f"pair registry validation failed: {exc}"
+            ) from exc
     if strategies.get("frozen_before_development_pair_validation") is not True:
         raise AgentDojoGridError(
             "candidate strategies were not frozen before development validation"
@@ -310,7 +327,12 @@ def load_frozen_inputs(
         for row in test_instantiations
         if isinstance(row, Mapping)
     }
-    if observed_test_rows != expected_test_rows:
+    if pairs.get("protocol_disposition") == ESTIMATION_ONLY_DISPOSITION:
+        if observed_test_rows:
+            raise AgentDojoGridError(
+                "estimation-only pair registry instantiates held-out scenarios"
+            )
+    elif observed_test_rows != expected_test_rows:
         raise AgentDojoGridError(
             "pair registry must instantiate every frozen test scenario without filtering"
         )
@@ -423,6 +445,7 @@ def scenario_bundles(
     dataset_split: str,
     groups_per_bundle: int,
     selected_group_ids: Sequence[str] | None = None,
+    eligible_scenario_ids: Sequence[str] | None = None,
 ) -> tuple[ScenarioBundle, ...]:
     if groups_per_bundle <= 0:
         raise AgentDojoGridError("groups_per_bundle must be positive")
@@ -433,6 +456,23 @@ def scenario_bundles(
         for row in inputs.scenarios
         if row["suite"] == suite and str(row["structural_group_id"]) in allowed
     ]
+    if eligible_scenario_ids is not None:
+        eligible = tuple(str(item) for item in eligible_scenario_ids)
+        if len(eligible) != len(set(eligible)):
+            raise AgentDojoGridError("eligible scenario IDs are not unique")
+        split_scenario_ids = {
+            str(row["scenario_id"])
+            for row in inputs.scenarios
+            if row["dataset_split"] == dataset_split
+        }
+        if not set(eligible) <= split_scenario_ids:
+            raise AgentDojoGridError(
+                "eligible scenario IDs are outside the selected structural split"
+            )
+        eligible_set = set(eligible)
+        suite_rows = [
+            row for row in suite_rows if str(row["scenario_id"]) in eligible_set
+        ]
     suite_groups = sorted({str(row["structural_group_id"]) for row in suite_rows})
     if selected_group_ids is not None:
         requested = tuple(str(item) for item in selected_group_ids)
@@ -506,6 +546,28 @@ class AgentDojoGrid:
     tasks: tuple[GridTask, ...]
     upstream_binding_hash: str
     heldout_freeze_binding: Mapping[str, Any] | None = None
+    protocol_disposition: str = "legacy_full_catalog"
+    action_eligibility_manifest_hash: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.protocol_disposition not in {
+            "legacy_full_catalog",
+            ESTIMATION_ONLY_DISPOSITION,
+        }:
+            raise AgentDojoGridError("grid has an unknown protocol disposition")
+        if self.protocol_disposition == ESTIMATION_ONLY_DISPOSITION:
+            require_hash(
+                "action_eligibility_manifest_hash",
+                str(self.action_eligibility_manifest_hash),
+            )
+            if self.dataset_split == "test" or self.heldout_freeze_binding is not None:
+                raise AgentDojoGridError(
+                    "estimation-only grids cannot contain held-out execution"
+                )
+        elif self.action_eligibility_manifest_hash is not None:
+            raise AgentDojoGridError(
+                "legacy grid has an unbound action-eligibility hash"
+            )
 
     @property
     def cells(self) -> tuple[GridCell, ...]:
@@ -520,6 +582,10 @@ class AgentDojoGrid:
                 "tier2_track": self.tier2_track,
                 "dataset_split": self.dataset_split,
                 "upstream_binding_hash": self.upstream_binding_hash,
+                "protocol_disposition": self.protocol_disposition,
+                "action_eligibility_manifest_hash": (
+                    self.action_eligibility_manifest_hash
+                ),
                 "heldout_freeze_binding": (
                     dict(self.heldout_freeze_binding)
                     if self.heldout_freeze_binding is not None
@@ -544,6 +610,10 @@ class AgentDojoGrid:
     def metadata(self) -> dict[str, Any]:
         observed_suites = {task.suite for task in self.tasks}
         full_suite_coverage = observed_suites == set(AGENTDOJO_SUITES)
+        estimation_only = (
+            self.protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+        )
+        confirmatory_coverage = full_suite_coverage and not estimation_only
         return {
             "record_type": "grid_metadata",
             "schema_version": GRID_SCHEMA_VERSION,
@@ -553,15 +623,21 @@ class AgentDojoGrid:
             "dataset_split": self.dataset_split,
             "suite_order": list(AGENTDOJO_SUITES),
             "suite_coverage_status": (
-                "full_four_suite"
+                "full_four_suite_estimation_only"
+                if full_suite_coverage and estimation_only
+                else "full_four_suite"
                 if full_suite_coverage
                 else "development_subset_nonconfirmatory"
             ),
-            "confirmatory_suite_coverage_eligible": full_suite_coverage,
+            "confirmatory_suite_coverage_eligible": confirmatory_coverage,
             "total_tasks": len(self.tasks),
             "total_configurations": len(self.cells),
             "valid_array_range": f"0-{len(self.tasks) - 1}",
             "upstream_binding_hash": self.upstream_binding_hash,
+            "protocol_disposition": self.protocol_disposition,
+            "action_eligibility_manifest_hash": (
+                self.action_eligibility_manifest_hash
+            ),
             "heldout_status": (
                 "freeze_bound_before_test"
                 if self.heldout_freeze_binding is not None
@@ -1093,16 +1169,25 @@ def validate_grid_manifest_coverage(
         str(member["configuration"]["agentdojo_suite"]) for member in members
     }
     full_suite_coverage = observed_suites == set(AGENTDOJO_SUITES)
-    if metadata.get("confirmatory_suite_coverage_eligible") is not full_suite_coverage:
+    estimation_only = (
+        metadata.get("protocol_disposition") == ESTIMATION_ONLY_DISPOSITION
+    )
+    confirmatory_coverage = full_suite_coverage and not estimation_only
+    if (
+        metadata.get("confirmatory_suite_coverage_eligible")
+        is not confirmatory_coverage
+    ):
         raise AgentDojoGridError("grid suite coverage changed after manifest creation")
     return {
         "cell_coverage_status": "exact_preregistered_matrix",
         "suite_coverage_status": (
-            "full_four_suite"
+            "full_four_suite_estimation_only"
+            if full_suite_coverage and estimation_only
+            else "full_four_suite"
             if full_suite_coverage
             else "development_subset_nonconfirmatory"
         ),
-        "confirmatory_suite_coverage_eligible": full_suite_coverage,
+        "confirmatory_suite_coverage_eligible": confirmatory_coverage,
     }
 
 
@@ -1124,6 +1209,34 @@ def build_grid(
         raise AgentDojoGridError(f"unknown AgentDojo experiment {experiment_id!r}")
     if dataset_split not in {"train", "development", "test"}:
         raise AgentDojoGridError(f"unknown AgentDojo dataset split {dataset_split!r}")
+    pair_disposition = inputs.pair_registry.get(
+        "protocol_disposition", "legacy_full_catalog"
+    )
+    estimation_only = pair_disposition == ESTIMATION_ONLY_DISPOSITION
+    action_eligibility_hash: str | None = None
+    eligible_scenarios: tuple[str, ...] | None = None
+    if estimation_only:
+        action_eligibility_hash = str(
+            inputs.pair_registry.get("action_eligibility_manifest_hash", "")
+        )
+        require_hash(
+            "action_eligibility_manifest_hash", action_eligibility_hash
+        )
+        if dataset_split == "test":
+            raise AgentDojoGridError(
+                "estimation-only action-representable protocol forbids held-out grids"
+            )
+        if tier2_track == "controlled":
+            eligible_scenarios = pilot_scenario_ids(
+                inputs.pair_registry["action_eligibility_manifest"],
+                dataset_split=dataset_split,
+            )
+            if not eligible_scenarios:
+                raise AgentDojoGridError(
+                    f"estimation-only protocol has no {dataset_split} scenarios"
+                )
+    elif pair_disposition not in {None, "legacy_full_catalog"}:
+        raise AgentDojoGridError("pair registry has an unknown protocol disposition")
     if dataset_split == "test" and experiment_id in {"e5", "ecological"}:
         raise AgentDojoGridError(
             f"{experiment_id} is development-only: no preregistered held-out "
@@ -1316,6 +1429,7 @@ def build_grid(
             dataset_split=dataset_split,
             groups_per_bundle=(frozen_count or groups_per_bundle),
             selected_group_ids=selected_groups,
+            eligible_scenario_ids=eligible_scenarios,
         )
         if dataset_split == "test":
             if len(bundles) != 1 or bundles[0].bundle_hash != selected_bundle_hash:
@@ -1393,12 +1507,18 @@ def build_grid(
     if not tasks:
         raise AgentDojoGridError("AgentDojo grid expansion produced no tasks")
     return AgentDojoGrid(
-        experiment_id,
-        tier2_track,
-        dataset_split,
-        tuple(tasks),
-        inputs.upstream.binding_hash,
-        heldout_binding,
+        experiment_id=experiment_id,
+        tier2_track=tier2_track,
+        dataset_split=dataset_split,
+        tasks=tuple(tasks),
+        upstream_binding_hash=inputs.upstream.binding_hash,
+        heldout_freeze_binding=heldout_binding,
+        protocol_disposition=(
+            ESTIMATION_ONLY_DISPOSITION
+            if estimation_only
+            else "legacy_full_catalog"
+        ),
+        action_eligibility_manifest_hash=action_eligibility_hash,
     )
 
 
@@ -1447,7 +1567,32 @@ def load_grid_manifest(path: Path | str) -> dict[str, Any]:
         "model_free"
     ) is not True:
         raise AgentDojoGridError("grid metadata lacks AgentDojo/model-free identity")
+    recorded_protocol_disposition = metadata.get("protocol_disposition")
+    protocol_disposition = (
+        "legacy_full_catalog"
+        if recorded_protocol_disposition is None
+        else recorded_protocol_disposition
+    )
+    action_eligibility_hash = metadata.get(
+        "action_eligibility_manifest_hash"
+    )
+    if protocol_disposition == ESTIMATION_ONLY_DISPOSITION:
+        require_hash(
+            "action_eligibility_manifest_hash", str(action_eligibility_hash)
+        )
+    elif (
+        protocol_disposition != "legacy_full_catalog"
+        or action_eligibility_hash is not None
+    ):
+        raise AgentDojoGridError("grid has an invalid protocol disposition")
     dataset_split = metadata.get("dataset_split")
+    if (
+        protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+        and dataset_split == "test"
+    ):
+        raise AgentDojoGridError(
+            "estimation-only grid contains held-out execution"
+        )
     heldout_binding = metadata.get("heldout_freeze_binding")
     if dataset_split == "test":
         if metadata.get("heldout_status") != "freeze_bound_before_test" or not isinstance(
@@ -1561,19 +1706,22 @@ def load_grid_manifest(path: Path | str) -> dict[str, Any]:
         raise AgentDojoGridError("grid task IDs are incomplete")
     observed_suites = {item[0] for item in task_meta if item is not None}
     full_suite_coverage = observed_suites == set(AGENTDOJO_SUITES)
+    estimation_only = protocol_disposition == ESTIMATION_ONLY_DISPOSITION
     expected_coverage_status = (
-        "full_four_suite"
+        "full_four_suite_estimation_only"
+        if full_suite_coverage and estimation_only
+        else "full_four_suite"
         if full_suite_coverage
         else "development_subset_nonconfirmatory"
     )
+    expected_confirmatory_coverage = full_suite_coverage and not estimation_only
     if metadata.get("suite_coverage_status") != expected_coverage_status or metadata.get(
         "confirmatory_suite_coverage_eligible"
-    ) is not full_suite_coverage:
+    ) is not expected_confirmatory_coverage:
         raise AgentDojoGridError("grid suite-coverage metadata is inconsistent")
     if dataset_split == "test" and not full_suite_coverage:
         raise AgentDojoGridError("held-out grid does not contain all four suites")
-    calculated = stable_hash(
-        {
+    grid_hash_payload = {
             "schema_version": GRID_SCHEMA_VERSION,
             "experiment_id": metadata["experiment_id"],
             "tier2_track": metadata["tier2_track"],
@@ -1591,7 +1739,12 @@ def load_grid_manifest(path: Path | str) -> dict[str, Any]:
                 for task_id in range(total_tasks)
             ],
         }
-    )
+    if recorded_protocol_disposition is not None:
+        grid_hash_payload["protocol_disposition"] = protocol_disposition
+        grid_hash_payload["action_eligibility_manifest_hash"] = (
+            action_eligibility_hash
+        )
+    calculated = stable_hash(grid_hash_payload)
     if metadata.get("grid_hash") != calculated:
         raise AgentDojoGridError("AgentDojo grid_hash is invalid")
     return {"metadata": metadata, "members": members}

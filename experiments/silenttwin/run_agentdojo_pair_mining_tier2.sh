@@ -33,6 +33,7 @@ case "$AGENTDOJO_STAGE" in
         printf 'catalog=%s\n' "$AGENTDOJO_CATALOG"
         printf 'splits=%s\n' "$AGENTDOJO_SPLITS"
         printf 'strategy_catalog=%s\n' "$AGENTDOJO_STRATEGY_CATALOG"
+        printf 'action_eligibility=%s\n' "$AGENTDOJO_ACTION_ELIGIBILITY"
         printf 'pair_registry_output=%s\n' "$AGENTDOJO_PAIR_REGISTRY"
         printf '%s\n' 'PAIR_MINING_ACTION=observe generates one split with the pinned live runtime'
         printf '%s\n' 'PAIR_MINING_ACTION=reduce is CPU-only and freezes train/development evidence'
@@ -42,6 +43,8 @@ case "$AGENTDOJO_STAGE" in
     run)
         agentdojo_require_scheduler_job "pair-mining run"
         agentdojo_reject_ephemeral_runtime_paths
+        [[ -f "$AGENTDOJO_ACTION_ELIGIBILITY" ]] || \
+            agentdojo_die "action-eligibility manifest is absent"
         requires_gpu="${AGENTDOJO_REQUIRES_GPU:-}"
         if [[ -z "$requires_gpu" ]]; then
             if [[ "$PAIR_MINING_ACTION" == observe ]]; then
@@ -82,6 +85,7 @@ case "$AGENTDOJO_STAGE" in
                 --catalog "$AGENTDOJO_CATALOG" \
                 --splits "$AGENTDOJO_SPLITS" \
                 --strategy-catalog "$AGENTDOJO_STRATEGY_CATALOG" \
+                --action-eligibility "$AGENTDOJO_ACTION_ELIGIBILITY" \
                 --dataset-split "$OBSERVATION_SPLIT" \
                 --observations-output "$OBSERVATIONS_OUTPUT" \
                 --observation-manifest-output "$OBSERVATION_MANIFEST_OUTPUT"
@@ -98,6 +102,7 @@ case "$AGENTDOJO_STAGE" in
             --catalog "$AGENTDOJO_CATALOG" \
             --splits "$AGENTDOJO_SPLITS" \
             --strategy-catalog "$AGENTDOJO_STRATEGY_CATALOG" \
+            --action-eligibility "$AGENTDOJO_ACTION_ELIGIBILITY" \
             --train-observations "$TRAIN_OBSERVATIONS" \
             --development-observations "$DEVELOPMENT_OBSERVATIONS" \
             --train-observation-manifest "$TRAIN_OBSERVATION_MANIFEST" \
@@ -107,10 +112,14 @@ case "$AGENTDOJO_STAGE" in
     aggregate)
         [[ -f "$AGENTDOJO_STRATEGY_CATALOG" ]] || \
             agentdojo_die "candidate-strategy catalog is absent"
+        [[ -f "$AGENTDOJO_ACTION_ELIGIBILITY" ]] || \
+            agentdojo_die "action-eligibility manifest is absent"
         [[ -f "$AGENTDOJO_PAIR_REGISTRY" ]] || agentdojo_die "pair registry is absent"
         read -r strategy_digest _ < <(sha256sum -- "$AGENTDOJO_STRATEGY_CATALOG")
+        read -r eligibility_digest _ < <(sha256sum -- "$AGENTDOJO_ACTION_ELIGIBILITY")
         read -r pair_digest _ < <(sha256sum -- "$AGENTDOJO_PAIR_REGISTRY")
         printf 'strategy_catalog_file_sha256=%s\n' "$strategy_digest"
+        printf 'action_eligibility_file_sha256=%s\n' "$eligibility_digest"
         printf 'pair_registry_file_sha256=%s\n' "$pair_digest"
         ;;
 esac

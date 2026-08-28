@@ -1340,3 +1340,72 @@ Immediate next checkpoint:
 4. only then prepare and explicitly approve the train/development
    pair-observation PBS jobs. Never reuse the engineering conformance catalog
    or report for pair selection.
+
+## Action-representable estimation protocol on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The implementation is
+present in the working tree on top of committed revision
+`378dd852d72731bc190252c4dda60213802a303d`; it has not yet been committed. No
+PBS job, model inference, pair observation, or benchmark run was submitted.
+
+- The checked model-independent eligibility freeze is
+  `configs/silenttwin/agentdojo/action-eligibility-v1.json`, with internal hash
+  `f06b32e0e8eb9d3fa632225d9f957143444d2c01ff9b2a43ec5c7e00fafdcb28`.
+  It was reproduced immutably by the CPU-only freeze command.
+- The disposition is `estimation_only_action_representable`. The pilot contains
+  134 train scenarios and 59 development scenarios, covering all four suites.
+  Its test cohort is empty. The wider audit finds 26 representable test
+  scenarios, but Slack and Travel have none, so held-out execution and every
+  confirmatory claim remain forbidden.
+- The suite/split scenario and structural-group census is frozen in the
+  manifest: workspace 28/28/18 scenarios and 20/10/10 groups; banking 24/8/8
+  and 8/4/4; Slack 30/7/0 and 11/5/0; Travel 52/16/0 and 10/5/0 for
+  train/development/test action-representable rows.
+- A scientific candidate catalog must contain exactly two strategies, set
+  `default_plan_policy` to `forbidden`, and enumerate an exact per-scenario
+  plan for all 193 pilot scenarios. Generic, suite-level, missing, or extra
+  fallback plans fail before checkpoint construction.
+- Pair-observation generation now materializes both plans per scenario,
+  compares required-argument action multisets, and rejects identical, nested,
+  optional/default-only, or ordering-only variants. It executes each plan in a
+  fresh AgentDojo environment, requires zero tool errors and released
+  attack-success `True`, and publishes a self-hashed execution-validation
+  ledger before monitor observations can become reducer evidence.
+- Observation rows, set manifests, pair IDs, and pair registries bind the
+  eligibility and action-validation hashes. Exact scenario/strategy/profile
+  Cartesian coverage is required. The pair registry contains no test
+  instantiations.
+- Controlled grids are restricted to the frozen train/development pilot IDs.
+  Test grid construction, held-out sample-size freezing, held-out assembly,
+  and confirmatory aggregation fail closed. Aggregates retain scientific
+  estimates but mark every gate nonconfirmatory and
+  `sample_size_freeze_eligible: false`.
+- The deterministic engineering-smoke fixtures remain on their legacy branch
+  and continue to validate without being relabeled as scientific evidence.
+- Final executable `source_tree_hash` for the current uncommitted tree is
+  `0c7a7f45d2f366c51520e33ec4e97a5dab6e7ac17b2621fba2e05a6c095c6b9e`.
+  The old installed learned wheel, runtime fingerprint, conformance spec, and
+  conformance report are bound to source hash
+  `7c4dc4fb5f5d417d506816626302636a40fe90de5ab198cd9083df94cfb245740`
+  and must not be used for pair-observation evidence from this implementation.
+- Verification passed `git diff --check`, Python compilation, shell syntax,
+  an exhaustive `508 passed, 79 subtests passed` repository run, and a final
+  post-review focused `113 passed` run.
+
+Immediate next checkpoint:
+
+1. review and commit the estimation-protocol diff without changing the frozen
+   eligibility artifact;
+2. build and archive a new noneditable wheel from that exact clean revision,
+   reinstall or recreate the learned Python 3.11 environment, and derive its
+   new wheel, installed-payload, source-tree, and runtime fingerprints;
+3. author the separate scientific catalog with two exact plans for every one
+   of the 193 pilot scenarios and the approved Granite profiles, then run the
+   model-free execution/released-grader audit over all 386 plans;
+4. refresh the source/runtime-bound one-H200 conformance specification and
+   report if the refreshed scientific runtime will be used;
+5. inspect and explicitly approve the resolved PBS train observation command
+   before any qsub submission, then run development only after train succeeds.
+
+Do not submit pair mining yet: the current learned runtime is source-stale and
+the separate scientific 193-scenario candidate catalog has not been authored.

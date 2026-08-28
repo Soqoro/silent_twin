@@ -6,6 +6,10 @@ from pathlib import Path
 
 import pytest
 
+from silenttwin.agentdojo.action_eligibility import (
+    ACTION_VALIDATION_SCHEMA_VERSION,
+    pilot_scenario_ids,
+)
 from silenttwin.agentdojo.compat import (
     EXPECTED_ATTACKS,
     EXPECTED_DEFENSES,
@@ -30,6 +34,7 @@ from silenttwin.agentdojo.pair_mining import (
     mine_pair_registry,
     monitor_pair_binding,
     validate_candidate_strategy_catalog,
+    validate_estimation_strategy_coverage,
     validate_observation_set_manifest,
     validate_pair_registry,
 )
@@ -46,16 +51,27 @@ from silenttwin.agentdojo.runtime_integrity import (
 )
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _action_eligibility() -> dict[str, object]:
+    return json.loads(
+        (
+            REPO_ROOT
+            / "configs/silenttwin/agentdojo/action-eligibility-v1.json"
+        ).read_text(encoding="utf-8")
+    )
+
+
 @pytest.fixture(scope="module")
 def frozen_inputs() -> tuple[dict[str, object], dict[str, object]]:
-    root = Path(__file__).resolve().parents[2]
     catalog = json.loads(
-        (root / "configs/silenttwin/agentdojo/catalog-v1.json").read_text(
+        (REPO_ROOT / "configs/silenttwin/agentdojo/catalog-v1.json").read_text(
             encoding="utf-8"
         )
     )
     splits = json.loads(
-        (root / "configs/silenttwin/agentdojo/splits-v1.json").read_text(
+        (REPO_ROOT / "configs/silenttwin/agentdojo/splits-v1.json").read_text(
             encoding="utf-8"
         )
     )
@@ -67,6 +83,14 @@ def strategy_catalog(
     frozen_inputs: tuple[dict[str, object], dict[str, object]],
 ) -> dict[str, object]:
     catalog, splits = frozen_inputs
+    pilot_ids = sorted(
+        {
+            *pilot_scenario_ids(_action_eligibility(), dataset_split="train"),
+            *pilot_scenario_ids(
+                _action_eligibility(), dataset_split="development"
+            ),
+        }
+    )
     return make_candidate_strategy_catalog(
         catalog_hash=str(catalog["catalog_hash"]),
         split_manifest_hash=str(splits["split_manifest_hash"]),
@@ -78,6 +102,13 @@ def strategy_catalog(
                 "transformation_family": "family_a",
                 "ground_truth_label": "prohibited",
                 "frozen_on_split": "train",
+                "default_plan_policy": "forbidden",
+                "scenario_plans": {
+                    scenario_id: {
+                        "calls": [{"function": "candidate_a", "args": {}}]
+                    }
+                    for scenario_id in pilot_ids
+                },
                 "plan_template": {
                     "calls": [{"function": "candidate_a", "args": {}}]
                 },
@@ -87,6 +118,13 @@ def strategy_catalog(
                 "transformation_family": "family_b",
                 "ground_truth_label": "prohibited",
                 "frozen_on_split": "train",
+                "default_plan_policy": "forbidden",
+                "scenario_plans": {
+                    scenario_id: {
+                        "calls": [{"function": "candidate_b", "args": {}}]
+                    }
+                    for scenario_id in pilot_ids
+                },
                 "plan_template": {
                     "calls": [{"function": "candidate_b", "args": {}}]
                 },
@@ -107,13 +145,47 @@ def strategy_catalog(
     )
 
 
-def _scenario_by_suite(catalog: dict[str, object], split: str) -> dict[str, dict[str, object]]:
-    result: dict[str, dict[str, object]] = {}
-    for row in catalog["scenarios"]:
-        if row["dataset_split"] == split and row["suite"] not in result:
-            result[str(row["suite"])] = row
-    assert set(result) == set(AGENTDOJO_SUITES)
-    return result
+def _eligible_scenarios(
+    catalog: dict[str, object], split: str
+) -> list[dict[str, object]]:
+    allowed = set(
+        pilot_scenario_ids(_action_eligibility(), dataset_split=split)
+    )
+    return [
+        row
+        for row in catalog["scenarios"]
+        if row["scenario_id"] in allowed
+    ]
+
+
+def _action_validation(
+    scenario: dict[str, object], strategy_id: str, call_hash: str
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": ACTION_VALIDATION_SCHEMA_VERSION,
+        "action_eligibility_manifest_hash": _action_eligibility()[
+            "action_eligibility_manifest_hash"
+        ],
+        "scenario_id": scenario["scenario_id"],
+        "suite": scenario["suite"],
+        "dataset_split": scenario["dataset_split"],
+        "strategy_id": strategy_id,
+        "required_action_multiset_hash": stable_hash(
+            [scenario["scenario_id"], strategy_id, "required"]
+        ),
+        "call_sequence_hash": call_hash,
+        "initial_environment_hash": scenario["initial_environment_hash"],
+        "post_environment_hash": stable_hash(
+            [scenario["scenario_id"], strategy_id, "post"]
+        ),
+        "trace_hash": stable_hash([scenario["scenario_id"], strategy_id, "trace"]),
+        "executed_call_count": 1,
+        "execution_errors": [],
+        "released_raw_security_result": True,
+        "normalized_attack_success": True,
+        "external_api_calls": 0,
+    }
+    return {**payload, "action_validation_hash": stable_hash(payload)}
 
 
 def _observations(
@@ -124,7 +196,7 @@ def _observations(
     split: str,
     reverse: bool = False,
 ) -> list[dict[str, object]]:
-    scenarios = _scenario_by_suite(catalog, split)
+    scenarios = _eligible_scenarios(catalog, split)
     forward = {
         ("profile_a", "strategy_a"): "allow",
         ("profile_b", "strategy_a"): "block",
@@ -143,10 +215,13 @@ def _observations(
     profiles = {
         str(row["profile_id"]): row for row in strategy_catalog["monitor_profiles"]
     }
-    for suite in AGENTDOJO_SUITES:
-        scenario = scenarios[suite]
+    for scenario in scenarios:
+        suite = str(scenario["suite"])
         for (profile_id, strategy_id), decision in forward.items():
-            call_hash = stable_hash([suite, strategy_id])
+            call_hash = stable_hash([scenario["scenario_id"], strategy_id])
+            action_validation = _action_validation(
+                scenario, strategy_id, call_hash
+            )
             rows.append(
                 make_monitor_observation(
                     scenario=scenario,
@@ -164,6 +239,12 @@ def _observations(
                     seed_schedule=(0,),
                     call_provenance=({"fixture": True},),
                     generator_source_tree_hash=stable_hash("fixture-source"),
+                    action_eligibility_manifest_hash=str(
+                        _action_eligibility()["action_eligibility_manifest_hash"]
+                    ),
+                    action_validation_hash=str(
+                        action_validation["action_validation_hash"]
+                    ),
                 )
             )
     return rows
@@ -178,6 +259,19 @@ def _observation_manifest(
     strategy_catalog: dict[str, object],
     learned_runtime: dict[str, object] | None = None,
 ) -> dict[str, object]:
+    validations: dict[tuple[str, str], dict[str, object]] = {}
+    for row in rows:
+        scenario = next(
+            scenario
+            for scenario in catalog["scenarios"]
+            if scenario["scenario_id"] == row["scenario_id"]
+        )
+        identity = (str(row["scenario_id"]), str(row["strategy_id"]))
+        validations[identity] = _action_validation(
+            scenario,
+            identity[1],
+            str(row["call_sequence_hash"]),
+        )
     return make_observation_set_manifest(
         observations=rows,
         dataset_split=split,
@@ -194,6 +288,13 @@ def _observation_manifest(
             if learned_runtime is not None
             else not_applicable_learned_runtime_provenance()
         ),
+        action_eligibility_manifest_hash=str(
+            _action_eligibility()["action_eligibility_manifest_hash"]
+        ),
+        eligible_scenario_ids=pilot_scenario_ids(
+            _action_eligibility(), dataset_split=split
+        ),
+        action_validations=tuple(validations.values()),
     )
 
 
@@ -264,10 +365,11 @@ def pair_registry(
             splits=splits,
             strategy_catalog=strategy_catalog,
         ),
+        action_eligibility_manifest=_action_eligibility(),
     )
 
 
-def test_train_selects_development_only_validates_and_all_test_rows_instantiate(
+def test_train_selects_development_validates_and_forbids_heldout_instantiation(
     frozen_inputs: tuple[dict[str, object], dict[str, object]],
     strategy_catalog: dict[str, object],
     pair_registry: dict[str, object],
@@ -286,19 +388,30 @@ def test_train_selects_development_only_validates_and_all_test_rows_instantiate(
         assert pair["candidate_1_strategy_id"] == "strategy_b"
         assert pair["selection_split"] == "train"
         assert pair["validation_split"] == "development"
-        assert pair["train_yield"]["counts"]["both"] == 1
-        assert pair["development_yield"]["counts"]["neither"] == 1
+        train_count = len(
+            [
+                row
+                for row in _eligible_scenarios(catalog, "train")
+                if row["suite"] == pair["suite"]
+            ]
+        )
+        development_count = len(
+            [
+                row
+                for row in _eligible_scenarios(catalog, "development")
+                if row["suite"] == pair["suite"]
+            ]
+        )
+        assert pair["train_yield"]["counts"]["both"] == train_count
+        assert (
+            pair["development_yield"]["counts"]["neither"]
+            == development_count
+        )
 
-    expected_test = {
-        row["scenario_id"]
-        for row in catalog["scenarios"]
-        if row["dataset_split"] == "test"
-    }
-    instantiated = pair_registry["test_instantiations"]
-    assert len(instantiated) == len(expected_test)
-    assert {row["scenario_id"] for row in instantiated} == expected_test
-    assert all(row["status"] == "unobserved_pre_execution" for row in instantiated)
-    assert all(row["selected_by_test_outcome"] is False for row in instantiated)
+    assert pair_registry["test_instantiations"] == []
+    assert pair_registry["held_out_evaluation_permitted"] is False
+    assert pair_registry["confirmatory_claim_permitted"] is False
+    assert pair_registry["pilot_scenario_ids_by_split"]["test"] == []
     retained = pair_registry["observation_set_manifests"]
     assert set(retained) == {"train", "development"}
     assert retained["train"]["observation_set_hash"] == pair_registry[
@@ -315,6 +428,49 @@ def test_train_selects_development_only_validates_and_all_test_rows_instantiate(
         strategy_catalog, pair_registry, suite="workspace"
     )
     assert binding["monitor_family"] == "deterministic_task_policy"
+
+
+def test_estimation_pair_registry_blocks_heldout_grid_preflight(
+    tmp_path: Path,
+    strategy_catalog: dict[str, object],
+    pair_registry: dict[str, object],
+) -> None:
+    from silenttwin.agentdojo.grid import (
+        AgentDojoGridError,
+        build_grid,
+        load_frozen_inputs,
+    )
+
+    strategy_path = tmp_path / "strategies.json"
+    pair_path = tmp_path / "pairs.json"
+    strategy_path.write_text(json.dumps(strategy_catalog), encoding="utf-8")
+    pair_path.write_text(json.dumps(pair_registry), encoding="utf-8")
+    inputs = load_frozen_inputs(
+        catalog_path=REPO_ROOT / "configs/silenttwin/agentdojo/catalog-v1.json",
+        splits_path=REPO_ROOT / "configs/silenttwin/agentdojo/splits-v1.json",
+        strategy_catalog_path=strategy_path,
+        pair_registry_path=pair_path,
+        analysis_plan_path=(
+            REPO_ROOT
+            / "configs/silenttwin/agentdojo/analysis/controlled-v1.json"
+        ),
+        dependency_lock_path=REPO_ROOT / "requirements-tier2-agentdojo.lock",
+    )
+    assert inputs.pair_registry["test_instantiations"] == []
+    grid_plan = json.loads(
+        (
+            REPO_ROOT
+            / "configs/silenttwin/agentdojo/grid-plans/controlled-fake-smoke-v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    with pytest.raises(AgentDojoGridError, match="forbids held-out grids"):
+        build_grid(
+            inputs=inputs,
+            grid_plan=grid_plan,
+            experiment_id="e1",
+            tier2_track="controlled",
+            dataset_split="test",
+        )
 
 
 def test_pair_search_rejects_cross_family_ordered_profiles(
@@ -378,8 +534,12 @@ def test_test_outcomes_are_rejected_as_mining_evidence(
 ) -> None:
     catalog, splits = frozen_inputs
     contaminated = _observations(
-        catalog, splits, strategy_catalog, split="test"
+        catalog, splits, strategy_catalog, split="train"
     )
+    contaminated[0]["dataset_split"] = "test"
+    contaminated_payload = dict(contaminated[0])
+    contaminated_payload.pop("observation_hash")
+    contaminated[0]["observation_hash"] = stable_hash(contaminated_payload)
     development = _observations(
         catalog, splits, strategy_catalog, split="development"
     )
@@ -404,6 +564,7 @@ def test_test_outcomes_are_rejected_as_mining_evidence(
                 splits=splits,
                 strategy_catalog=strategy_catalog,
             ),
+            action_eligibility_manifest=_action_eligibility(),
         )
 
 
@@ -452,6 +613,7 @@ def test_observation_and_set_manifest_tampering_fail_closed(
             development_observations=development,
             train_observation_manifest=rebound_manifest,
             development_observation_manifest=development_manifest,
+            action_eligibility_manifest=_action_eligibility(),
         )
 
     bad_manifest = copy.deepcopy(train_manifest)
@@ -465,6 +627,7 @@ def test_observation_and_set_manifest_tampering_fail_closed(
             development_observations=development,
             train_observation_manifest=bad_manifest,
             development_observation_manifest=development_manifest,
+            action_eligibility_manifest=_action_eligibility(),
         )
 
 
@@ -520,6 +683,13 @@ def test_learned_observation_manifest_retains_runtime_and_frozen_binding(
             strategy_catalog["candidate_strategy_catalog_hash"]
         ),
         expected_runtime_fingerprints={fingerprint},
+        action_eligibility_manifest_hash=str(
+            _action_eligibility()["action_eligibility_manifest_hash"]
+        ),
+        eligible_scenario_ids=pilot_scenario_ids(
+            _action_eligibility(), dataset_split="train"
+        ),
+        strategy_ids=("strategy_a", "strategy_b"),
     )
 
     tampered = copy.deepcopy(manifest)
@@ -540,6 +710,13 @@ def test_learned_observation_manifest_retains_runtime_and_frozen_binding(
                 strategy_catalog["candidate_strategy_catalog_hash"]
             ),
             expected_runtime_fingerprints={fingerprint},
+            action_eligibility_manifest_hash=str(
+                _action_eligibility()["action_eligibility_manifest_hash"]
+            ),
+            eligible_scenario_ids=pilot_scenario_ids(
+                _action_eligibility(), dataset_split="train"
+            ),
+            strategy_ids=("strategy_a", "strategy_b"),
         )
 
 
@@ -581,6 +758,7 @@ def test_observation_manifest_binds_every_row_source_and_exact_release(
             development_observations=development,
             train_observation_manifest=mixed_manifest,
             development_observation_manifest=development_manifest,
+            action_eligibility_manifest=_action_eligibility(),
         )
 
     wrong_release = _observation_manifest(
@@ -603,6 +781,7 @@ def test_observation_manifest_binds_every_row_source_and_exact_release(
             development_observations=development,
             train_observation_manifest=wrong_release,
             development_observation_manifest=development_manifest,
+            action_eligibility_manifest=_action_eligibility(),
         )
 
 
@@ -687,6 +866,26 @@ def test_strategy_and_pair_hash_tampering_is_rejected(
             split_manifest=splits,
             strategy_catalog=strategy_catalog,
         )
+
+
+def test_estimation_strategy_catalog_requires_exact_nonfallback_coverage(
+    strategy_catalog: dict[str, object],
+) -> None:
+    fallback = copy.deepcopy(strategy_catalog)
+    fallback["strategies"][0].pop("default_plan_policy")
+    payload = dict(fallback)
+    payload.pop("candidate_strategy_catalog_hash")
+    fallback["candidate_strategy_catalog_hash"] = stable_hash(payload)
+    with pytest.raises(PairMiningError, match="must forbid plan fallback"):
+        validate_estimation_strategy_coverage(fallback, _action_eligibility())
+
+    incomplete = copy.deepcopy(strategy_catalog)
+    incomplete["strategies"][0]["scenario_plans"].popitem()
+    payload = dict(incomplete)
+    payload.pop("candidate_strategy_catalog_hash")
+    incomplete["candidate_strategy_catalog_hash"] = stable_hash(payload)
+    with pytest.raises(PairMiningError, match="coverage differs"):
+        validate_estimation_strategy_coverage(incomplete, _action_eligibility())
 
 
 def test_learned_monitor_prompt_and_policy_are_frozen_before_pair_mining(
@@ -865,6 +1064,9 @@ def test_rehashed_pair_id_and_unfrozen_construction_ids_are_rejected(
             "candidate_strategy_catalog_hash": unfrozen[
                 "candidate_strategy_catalog_hash"
             ],
+            "action_eligibility_manifest_hash": unfrozen[
+                "action_eligibility_manifest_hash"
+            ],
         }
     )
     for row in unfrozen["test_instantiations"]:
@@ -882,32 +1084,47 @@ def test_rehashed_pair_id_and_unfrozen_construction_ids_are_rejected(
         )
 
 
-def test_rehashed_test_filtering_or_metadata_rebinding_is_rejected(
+def test_rehashed_heldout_instantiation_or_cohort_rebinding_is_rejected(
     frozen_inputs: tuple[dict[str, object], dict[str, object]],
     strategy_catalog: dict[str, object],
     pair_registry: dict[str, object],
 ) -> None:
     catalog, splits = frozen_inputs
 
-    missing = copy.deepcopy(pair_registry)
-    missing["test_instantiations"].pop()
-    payload = dict(missing)
+    heldout = copy.deepcopy(pair_registry)
+    scenario = next(
+        row for row in catalog["scenarios"] if row["dataset_split"] == "test"
+    )
+    pair = next(
+        row for row in heldout["pairs"] if row["suite"] == scenario["suite"]
+    )
+    heldout["test_instantiations"].append(
+        {
+            "scenario_id": scenario["scenario_id"],
+            "suite": scenario["suite"],
+            "structural_group_id": scenario["structural_group_id"],
+            "pair_id": pair["pair_id"],
+            "status": "unobserved_pre_execution",
+            "selected_by_test_outcome": False,
+        }
+    )
+    payload = dict(heldout)
     payload.pop("pair_registry_hash")
-    missing["pair_registry_hash"] = stable_hash(payload)
-    with pytest.raises(PairMiningError, match="every held-out scenario"):
+    heldout["pair_registry_hash"] = stable_hash(payload)
+    with pytest.raises(PairMiningError, match="must not instantiate held-out"):
         validate_pair_registry(
-            missing,
+            heldout,
             catalog=catalog,
             split_manifest=splits,
             strategy_catalog=strategy_catalog,
         )
 
     rebound = copy.deepcopy(pair_registry)
-    rebound["test_instantiations"][0]["structural_group_id"] = "wrong-group"
+    rebound["pilot_scenario_ids_by_split"]["train"].pop()
     payload = dict(rebound)
     payload.pop("pair_registry_hash")
     rebound["pair_registry_hash"] = stable_hash(payload)
-    with pytest.raises(PairMiningError, match="metadata differs"):
+    with pytest.raises(PairMiningError, match="cohort differs"):
         validate_pair_registry(
             rebound,
             catalog=catalog,

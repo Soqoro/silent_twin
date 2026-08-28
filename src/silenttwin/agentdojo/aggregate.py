@@ -15,6 +15,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from silenttwin.schemas import canonical_json as protocol_canonical_json
 
+from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
 from .config import (
     AGENTDOJO_SUITES,
     CONTROLLED_PROMPT_TEMPLATE,
@@ -2348,6 +2349,37 @@ def _underpowered_estimation_only_gates(gates: Mapping[str, Any]) -> dict[str, A
     return result
 
 
+def _action_representable_estimation_only_gates(
+    gates: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Preserve estimates while enforcing the preregistered claim boundary."""
+
+    result = dict(gates)
+    result["confirmatory_status"] = "not_confirmatory_estimation_only_protocol"
+    result["reason"] = (
+        "the frozen action-representable protocol permits train/development "
+        "estimation only and forbids held-out or confirmatory claims"
+    )
+    for name, raw_gate in tuple(result.items()):
+        if not isinstance(raw_gate, Mapping) or "status" not in raw_gate:
+            continue
+        gate = dict(raw_gate)
+        gate["status"] = "not_confirmatory"
+        criteria = gate.get("criteria")
+        if isinstance(criteria, Mapping):
+            gate["criteria"] = {
+                criterion_name: {
+                    **dict(criterion),
+                    "status": "not_confirmatory",
+                    "reason": "action-representable estimation-only protocol",
+                }
+                for criterion_name, criterion in criteria.items()
+                if isinstance(criterion, Mapping)
+            }
+        result[name] = gate
+    return result
+
+
 def aggregate(
     *,
     input_root: Path | str,
@@ -2365,6 +2397,12 @@ def aggregate(
     )
     metadata = grid["metadata"]
     experiment = str(metadata["experiment_id"])
+    protocol_disposition = metadata.get(
+        "protocol_disposition", "legacy_full_catalog"
+    )
+    estimation_only_protocol = (
+        protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+    )
     if {leaf.configuration.experiment_id for leaf in leaves} != {experiment}:
         raise AgentDojoAggregationError("leaf experiments disagree with the grid")
     fixture_modes = {leaf.configuration.fixture_mode for leaf in leaves}
@@ -2374,7 +2412,11 @@ def aggregate(
         )
     fixture_mode = next(iter(fixture_modes))
     evidence_class = (
-        "engineering_smoke_only" if fixture_mode else "agentdojo_benchmark_execution"
+        "engineering_smoke_only"
+        if fixture_mode
+        else "agentdojo_estimation_only"
+        if estimation_only_protocol
+        else "agentdojo_benchmark_execution"
     )
     scientific_evidence_eligible = not fixture_mode
     upstream_hashes = {
@@ -2517,6 +2559,8 @@ def aggregate(
     gates = evaluate_gates(evidence, analysis_plan=plan)
     if fixture_mode:
         gates = _fixture_not_evaluable_gates(gates)
+    elif estimation_only_protocol:
+        gates = _action_representable_estimation_only_gates(gates)
     accounting = (
         attack_error_accounting(records)
         if experiment in {"e2", "e3", "e4", "e5", "ecological"}
@@ -2586,6 +2630,15 @@ def aggregate(
         paired_outcomes=paired_power_outcomes,
         heldout_binding=heldout_binding if isinstance(heldout_binding, Mapping) else None,
     )
+    if estimation_only_protocol:
+        development_power = {
+            "status": "not_applicable_estimation_only_protocol",
+            "claim_disposition": ESTIMATION_ONLY_DISPOSITION,
+            "reason": (
+                "action-representable pilot execution is restricted to "
+                "train/development estimation and cannot freeze a held-out sample"
+            ),
+        }
     if (
         metadata["dataset_split"] == "test"
         and development_power.get("claim_disposition")
@@ -2622,6 +2675,11 @@ def aggregate(
         "fixture_mode": fixture_mode,
         "evidence_class": evidence_class,
         "scientific_evidence_eligible": scientific_evidence_eligible,
+        "protocol_disposition": protocol_disposition,
+        "action_eligibility_manifest_hash": metadata.get(
+            "action_eligibility_manifest_hash"
+        ),
+        "confirmatory_claim_permitted": not estimation_only_protocol,
         "dataset_split": metadata["dataset_split"],
         "grid_hash": metadata["grid_hash"],
         "grid_validation_mode": validation_mode,
@@ -2679,6 +2737,11 @@ def aggregate(
         "fixture_mode": fixture_mode,
         "evidence_class": evidence_class,
         "scientific_evidence_eligible": scientific_evidence_eligible,
+        "protocol_disposition": protocol_disposition,
+        "action_eligibility_manifest_hash": metadata.get(
+            "action_eligibility_manifest_hash"
+        ),
+        "confirmatory_claim_permitted": not estimation_only_protocol,
         "dataset_split": metadata["dataset_split"],
         "analysis_plan_hash": plan_hash,
         "grid_hash": metadata["grid_hash"],

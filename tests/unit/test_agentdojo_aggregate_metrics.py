@@ -6,6 +6,7 @@ from pathlib import Path
 from silenttwin.agentdojo.aggregate import (
     TRANSCRIPT_DISTINGUISHER_REVISION,
     _analysis_rows,
+    _action_representable_estimation_only_gates,
     _balanced_assignments,
     _e1_evidence,
     _e2_evidence,
@@ -630,4 +631,29 @@ def test_fixture_gate_overlay_cannot_present_a_confirmatory_pass() -> None:
     assert (
         overlaid["integrity"]["criteria"]["balanced"]["status"]
         == "not_evaluable"
+    )
+
+
+def test_action_representable_overlay_cannot_present_confirmatory_pass() -> None:
+    overlaid = _action_representable_estimation_only_gates(
+        {
+            "schema_version": "silenttwin.agentdojo.gates.v1",
+            "integrity": {
+                "status": "pass",
+                "criteria": {
+                    "balanced": {
+                        "status": "pass",
+                        "observed": True,
+                        "threshold": True,
+                    }
+                },
+            },
+        }
+    )
+    assert overlaid["confirmatory_status"] == (
+        "not_confirmatory_estimation_only_protocol"
+    )
+    assert overlaid["integrity"]["status"] == "not_confirmatory"
+    assert overlaid["integrity"]["criteria"]["balanced"]["status"] == (
+        "not_confirmatory"
     )

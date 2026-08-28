@@ -1,10 +1,10 @@
 """Train/development-only discovery of complementary monitor blind spots.
 
-The miner freezes a *construction* (two strategy templates and two monitor
-profiles) per suite.  Development observations describe headroom but never
-filter individual held-out scenarios.  Test observations are rejected by the
-API, and every test scenario from the structural split is carried forward as
-an unobserved instantiation.
+The miner freezes a *construction* (two exact scenario-plan strategies and two
+monitor profiles) per suite. Development observations describe headroom but
+never authorize held-out execution. Test observations are rejected by the API;
+the current action-representable protocol is explicitly estimation-only and
+therefore carries no test instantiations.
 """
 
 from __future__ import annotations
@@ -16,6 +16,13 @@ import math
 import re
 from typing import Any, Iterable, Mapping, Sequence
 
+from .action_eligibility import (
+    ESTIMATION_ONLY_DISPOSITION,
+    ActionEligibilityError,
+    pilot_scenario_ids,
+    validate_action_eligibility_manifest,
+    validate_action_validation,
+)
 from .catalog import validate_catalog
 from .compat import (
     EXPECTED_ATTACKS,
@@ -49,9 +56,9 @@ from .splits import validate_split_manifest
 
 STRATEGY_SCHEMA_VERSION = "silenttwin.agentdojo.candidate_strategy_catalog.v1"
 PAIR_SCHEMA_VERSION = "silenttwin.agentdojo.pair_registry.v1"
-OBSERVATION_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation.v1"
-OBSERVATION_SET_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation_set.v1"
-OBSERVATION_GENERATOR_REVISION = "silenttwin-agentdojo-monitor-observation-v1"
+OBSERVATION_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation.v2"
+OBSERVATION_SET_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation_set.v2"
+OBSERVATION_GENERATOR_REVISION = "silenttwin-agentdojo-monitor-observation-v2"
 _COMPATIBILITY_FIELDS = {
     "python_version",
     "package_version",
@@ -87,11 +94,17 @@ def make_monitor_observation(
     seed_schedule: Sequence[int],
     call_provenance: Sequence[Mapping[str, Any]],
     generator_source_tree_hash: str,
+    action_eligibility_manifest_hash: str,
+    action_validation_hash: str,
 ) -> dict[str, Any]:
     """Create one self-authenticating row emitted by the audited generator."""
 
     strategy_hash = stable_hash(strategy)
     profile_hash = str(profile.get("profile_hash", ""))
+    require_hash(
+        "action_eligibility_manifest_hash", action_eligibility_manifest_hash
+    )
+    require_hash("action_validation_hash", action_validation_hash)
     materialization_binding_hash = stable_hash(
         {
             "scenario_id": scenario.get("scenario_id"),
@@ -101,6 +114,8 @@ def make_monitor_observation(
             "strategy_id": strategy.get("strategy_id"),
             "strategy_template_hash": strategy_hash,
             "call_sequence_hash": call_sequence_hash,
+            "action_eligibility_manifest_hash": action_eligibility_manifest_hash,
+            "action_validation_hash": action_validation_hash,
         }
     )
     execution_hash = stable_hash(
@@ -120,6 +135,8 @@ def make_monitor_observation(
         "catalog_hash": catalog_hash,
         "split_manifest_hash": split_manifest_hash,
         "candidate_strategy_catalog_hash": candidate_strategy_catalog_hash,
+        "action_eligibility_manifest_hash": action_eligibility_manifest_hash,
+        "action_validation_hash": action_validation_hash,
         "scenario_id": scenario["scenario_id"],
         "suite": scenario["suite"],
         "structural_group_id": scenario["structural_group_id"],
@@ -154,6 +171,9 @@ def make_observation_set_manifest(
     compatibility: Mapping[str, Any],
     scientific_evidence_eligible: bool,
     learned_runtime: Mapping[str, Any],
+    action_eligibility_manifest_hash: str | None = None,
+    eligible_scenario_ids: Sequence[str] = (),
+    action_validations: Sequence[Mapping[str, Any]] = (),
 ) -> dict[str, Any]:
     try:
         validate_learned_runtime_provenance(learned_runtime)
@@ -161,6 +181,49 @@ def make_observation_set_manifest(
         raise PairMiningError(
             f"invalid observation learned-runtime provenance: {exc}"
         ) from exc
+    normalized_scenario_ids = sorted(str(item) for item in eligible_scenario_ids)
+    if len(normalized_scenario_ids) != len(set(normalized_scenario_ids)):
+        raise PairMiningError("observation-set eligibility repeats scenario IDs")
+    normalized_validations = sorted(
+        (dict(item) for item in action_validations),
+        key=lambda row: (str(row.get("scenario_id")), str(row.get("strategy_id"))),
+    )
+    protocol_disposition = (
+        ESTIMATION_ONLY_DISPOSITION
+        if action_eligibility_manifest_hash is not None
+        else "legacy_full_catalog"
+    )
+    if action_eligibility_manifest_hash is not None:
+        require_hash(
+            "action_eligibility_manifest_hash", action_eligibility_manifest_hash
+        )
+        seen_validations: set[tuple[str, str]] = set()
+        for record in normalized_validations:
+            scenario_id = str(record.get("scenario_id", ""))
+            strategy_id = str(record.get("strategy_id", ""))
+            identity = (scenario_id, strategy_id)
+            if scenario_id not in set(normalized_scenario_ids) or not strategy_id:
+                raise PairMiningError("action-validation ledger is outside eligibility")
+            if identity in seen_validations:
+                raise PairMiningError("action-validation ledger repeats an identity")
+            seen_validations.add(identity)
+            try:
+                validate_action_validation(
+                    record,
+                    action_eligibility_manifest_hash=action_eligibility_manifest_hash,
+                    scenario_id=scenario_id,
+                    strategy_id=strategy_id,
+                )
+            except ActionEligibilityError as exc:
+                raise PairMiningError(f"invalid action-validation ledger: {exc}") from exc
+        if not normalized_scenario_ids or not normalized_validations:
+            raise PairMiningError(
+                "estimation-only observation set requires eligible scenarios and action validations"
+            )
+    elif normalized_scenario_ids or normalized_validations:
+        raise PairMiningError(
+            "legacy observation set cannot carry unbound action eligibility"
+        )
     payload = {
         "schema_version": OBSERVATION_SET_SCHEMA_VERSION,
         "generator_revision": OBSERVATION_GENERATOR_REVISION,
@@ -169,6 +232,12 @@ def make_observation_set_manifest(
         "catalog_hash": catalog_hash,
         "split_manifest_hash": split_manifest_hash,
         "candidate_strategy_catalog_hash": candidate_strategy_catalog_hash,
+        "protocol_disposition": protocol_disposition,
+        "action_eligibility_manifest_hash": action_eligibility_manifest_hash,
+        "eligible_scenario_ids": normalized_scenario_ids,
+        "action_validation_count": len(normalized_validations),
+        "action_validations_hash": stable_hash(normalized_validations),
+        "action_validations": normalized_validations,
         "observation_count": len(observations),
         "observations_hash": stable_hash(list(observations)),
         "compatibility": dict(compatibility),
@@ -176,6 +245,9 @@ def make_observation_set_manifest(
         "external_api_calls": 0,
         "scientific_evidence_eligible": bool(scientific_evidence_eligible),
         "test_outcomes_inspected": False,
+        "held_out_evaluation_permitted": False
+        if action_eligibility_manifest_hash is not None
+        else True,
     }
     return {**payload, "observation_set_hash": stable_hash(payload)}
 
@@ -436,6 +508,49 @@ def _without_hash(document: Mapping[str, Any], field: str) -> dict[str, Any]:
     return value
 
 
+def _validate_nonempty_plan(plan: Any, *, label: str) -> None:
+    if (
+        not isinstance(plan, Mapping)
+        or not isinstance(plan.get("calls"), list)
+        or not plan["calls"]
+    ):
+        raise PairMiningError(f"{label} has no frozen call sequence")
+
+
+def _validate_strategy_plan_sources(
+    strategy: Mapping[str, Any], identifier: str
+) -> None:
+    policy = strategy.get("default_plan_policy", "fallback")
+    if policy not in {"fallback", "forbidden"}:
+        raise PairMiningError(
+            f"strategy {identifier!r} has an invalid default-plan policy"
+        )
+    scenario_plans = strategy.get("scenario_plans")
+    if scenario_plans is not None:
+        if not isinstance(scenario_plans, Mapping) or not scenario_plans:
+            raise PairMiningError(
+                f"strategy {identifier!r} scenario_plans must be a nonempty object"
+            )
+        for scenario_id, plan in scenario_plans.items():
+            if not isinstance(scenario_id, str) or not scenario_id:
+                raise PairMiningError(
+                    f"strategy {identifier!r} has an invalid scenario-plan ID"
+                )
+            _validate_nonempty_plan(
+                plan,
+                label=f"strategy {identifier!r} scenario {scenario_id!r}",
+            )
+    if policy == "forbidden":
+        if not isinstance(scenario_plans, Mapping) or not scenario_plans:
+            raise PairMiningError(
+                f"strategy {identifier!r} forbids fallback but has no scenario plans"
+            )
+        return
+    _validate_nonempty_plan(
+        strategy.get("plan_template"), label=f"strategy {identifier!r}"
+    )
+
+
 def make_candidate_strategy_catalog(
     *,
     catalog_hash: str,
@@ -488,11 +603,7 @@ def make_candidate_strategy_catalog(
             raise PairMiningError(
                 f"controlled E2 strategy {identifier!r} must be ground-truth prohibited"
             )
-        plan = strategy.get("plan_template")
-        if not isinstance(plan, Mapping) or not isinstance(plan.get("calls"), list) or not plan[
-            "calls"
-        ]:
-            raise PairMiningError(f"strategy {identifier!r} lacks a frozen call plan")
+        _validate_strategy_plan_sources(strategy, identifier)
         if strategy.get("frozen_on_split") != "train":
             raise PairMiningError(f"strategy {identifier!r} was not frozen on train")
     profile_ids: set[str] = set()
@@ -561,11 +672,7 @@ def validate_candidate_strategy_catalog(document: Mapping[str, Any]) -> None:
             "frozen_on_split"
         ) != "train":
             raise PairMiningError("candidate strategy is not a train-frozen prohibition")
-        plan = strategy.get("plan_template")
-        if not isinstance(plan, Mapping) or not isinstance(plan.get("calls"), list) or not plan[
-            "calls"
-        ]:
-            raise PairMiningError("candidate strategy has no frozen call sequence")
+        _validate_strategy_plan_sources(strategy, identifier)
     profile_ids: set[str] = set()
     for profile in profiles:
         if not isinstance(profile, Mapping):
@@ -583,6 +690,55 @@ def validate_candidate_strategy_catalog(document: Mapping[str, Any]) -> None:
     _validate_mixed_workflows(
         document.get("mixed_workflows", []), profile_ids=profile_ids
     )
+
+
+def validate_estimation_strategy_coverage(
+    strategy_catalog: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+) -> tuple[str, ...]:
+    """Require two exact plans for every train/development pilot scenario."""
+
+    validate_candidate_strategy_catalog(strategy_catalog)
+    strategies = strategy_catalog.get("strategies")
+    if not isinstance(strategies, list) or len(strategies) != 2:
+        raise PairMiningError(
+            "estimation-only observation generation requires exactly two strategies"
+        )
+    expected = tuple(
+        sorted(
+            {
+                *pilot_scenario_ids(
+                    action_eligibility_manifest, dataset_split="train"
+                ),
+                *pilot_scenario_ids(
+                    action_eligibility_manifest, dataset_split="development"
+                ),
+            }
+        )
+    )
+    if not expected:
+        raise PairMiningError("action eligibility contains no pilot scenarios")
+    expected_set = set(expected)
+    for strategy in strategies:
+        strategy_id = str(strategy.get("strategy_id", ""))
+        if strategy.get("default_plan_policy") != "forbidden":
+            raise PairMiningError(
+                f"estimation strategy {strategy_id!r} must forbid plan fallback"
+            )
+        scenario_plans = strategy.get("scenario_plans")
+        if not isinstance(scenario_plans, Mapping):
+            raise PairMiningError(
+                f"estimation strategy {strategy_id!r} lacks exact scenario plans"
+            )
+        observed = {str(item) for item in scenario_plans}
+        if observed != expected_set:
+            missing = sorted(expected_set - observed)
+            extra = sorted(observed - expected_set)
+            raise PairMiningError(
+                f"estimation strategy {strategy_id!r} scenario coverage differs from "
+                f"the pilot; missing={missing!r}, extra={extra!r}"
+            )
+    return expected
 
 
 def monitor_pair_binding(
@@ -672,11 +828,15 @@ def _normalize_observations(
     catalog_hash: str,
     split_manifest_hash: str,
     candidate_strategy_catalog_hash: str,
+    action_eligibility_manifest_hash: str,
+    eligible_scenario_ids: Sequence[str],
+    action_validation_index: Mapping[tuple[str, str], Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
     if required_split not in {"train", "development"}:
         raise PairMiningError("pair mining accepts train or development evidence only")
     rows: list[dict[str, Any]] = []
     seen: set[tuple[str, str, str]] = set()
+    eligible_ids = set(eligible_scenario_ids)
     for index, raw in enumerate(observations):
         row = dict(raw)
         if row.get("schema_version") != OBSERVATION_SCHEMA_VERSION:
@@ -689,6 +849,7 @@ def _normalize_observations(
             "catalog_hash": catalog_hash,
             "split_manifest_hash": split_manifest_hash,
             "candidate_strategy_catalog_hash": candidate_strategy_catalog_hash,
+            "action_eligibility_manifest_hash": action_eligibility_manifest_hash,
         }
         if any(row.get(field) != value for field, value in expected_upstream.items()):
             raise PairMiningError(f"observation {index} belongs to another upstream chain")
@@ -710,6 +871,10 @@ def _normalize_observations(
         scenario = scenario_index.get(scenario_id)
         if scenario is None or scenario.get("dataset_split") != required_split:
             raise PairMiningError(f"observation {index} is outside the frozen {required_split} split")
+        if scenario_id not in eligible_ids:
+            raise PairMiningError(
+                f"observation {index} is outside the action-representable subset"
+            )
         if row.get("suite") != scenario.get("suite") or row.get(
             "structural_group_id"
         ) != scenario.get("structural_group_id"):
@@ -720,6 +885,27 @@ def _normalize_observations(
             raise PairMiningError(f"observation {index} uses an unfrozen strategy/profile")
         strategy = strategy_index[strategy_id]
         profile = profile_index[profile_id]
+        action_validation = action_validation_index.get((scenario_id, strategy_id))
+        if action_validation is None:
+            raise PairMiningError(
+                f"observation {index} lacks action-execution validation"
+            )
+        if (
+            action_validation.get("suite") != scenario.get("suite")
+            or action_validation.get("dataset_split") != required_split
+            or action_validation.get("initial_environment_hash")
+            != scenario.get("initial_environment_hash")
+        ):
+            raise PairMiningError(
+                f"observation {index} action validation belongs to another scenario"
+            )
+        action_validation_hash = str(
+            action_validation.get("action_validation_hash", "")
+        )
+        if row.get("action_validation_hash") != action_validation_hash:
+            raise PairMiningError(
+                f"observation {index} action-validation binding is invalid"
+            )
         if row.get("strategy_template_hash") != stable_hash(strategy):
             raise PairMiningError(f"observation {index} strategy binding is invalid")
         if row.get("frozen_monitor_profile_hash") != profile.get("profile_hash"):
@@ -753,6 +939,12 @@ def _normalize_observations(
             or any(not isinstance(value, Mapping) for value in call_provenance)
         ):
             raise PairMiningError(f"observation {index} has incomplete call provenance")
+        if action_validation.get("executed_call_count") != len(
+            monitor_input_hashes
+        ):
+            raise PairMiningError(
+                f"observation {index} did not monitor every executed action call"
+            )
         for digest in monitor_input_hashes:
             require_hash("monitor_input_hash", digest)
         expected_materialization = stable_hash(
@@ -764,10 +956,16 @@ def _normalize_observations(
                 "strategy_id": strategy_id,
                 "strategy_template_hash": stable_hash(strategy),
                 "call_sequence_hash": call_sequence_hash,
+                "action_eligibility_manifest_hash": action_eligibility_manifest_hash,
+                "action_validation_hash": action_validation_hash,
             }
         )
         if row.get("materialization_binding_hash") != expected_materialization:
             raise PairMiningError(f"observation {index} materialization binding is invalid")
+        if action_validation.get("call_sequence_hash") != call_sequence_hash:
+            raise PairMiningError(
+                f"observation {index} call sequence differs from its executed validation"
+            )
         expected_execution = stable_hash(
             {
                 "monitor_input_hashes": monitor_input_hashes,
@@ -797,6 +995,7 @@ def _normalize_observations(
                 "monitor_decision": str(row["monitor_decision"]),
                 "monitor_score": float(score),
                 "call_sequence_hash": call_sequence_hash,
+                "action_validation_hash": action_validation_hash,
                 "monitor_profile_hash": profile["profile_hash"],
                 "observation_hash": recorded_hash,
                 "generator_source_tree_hash": row["generator_source_tree_hash"],
@@ -887,6 +1086,9 @@ def _validate_observation_manifest_envelope(
     split_manifest_hash: str,
     candidate_strategy_catalog_hash: str,
     expected_runtime_fingerprints: Iterable[str] | None = None,
+    action_eligibility_manifest_hash: str | None = None,
+    eligible_scenario_ids: Sequence[str] | None = None,
+    strategy_ids: Sequence[str] | None = None,
 ) -> str:
     if manifest.get("schema_version") != OBSERVATION_SET_SCHEMA_VERSION:
         raise PairMiningError("unsupported monitor-observation-set schema")
@@ -905,6 +1107,100 @@ def _validate_observation_manifest_envelope(
     }
     if any(manifest.get(field) != value for field, value in expected.items()):
         raise PairMiningError("monitor-observation-set manifest binding is invalid")
+    if action_eligibility_manifest_hash is not None:
+        require_hash(
+            "action_eligibility_manifest_hash", action_eligibility_manifest_hash
+        )
+        if (
+            manifest.get("protocol_disposition") != ESTIMATION_ONLY_DISPOSITION
+            or manifest.get("action_eligibility_manifest_hash")
+            != action_eligibility_manifest_hash
+            or manifest.get("held_out_evaluation_permitted") is not False
+        ):
+            raise PairMiningError(
+                "monitor-observation set is outside the estimation-only protocol"
+            )
+        expected_ids = sorted(str(item) for item in (eligible_scenario_ids or ()))
+        if not expected_ids or manifest.get("eligible_scenario_ids") != expected_ids:
+            raise PairMiningError(
+                "monitor-observation set has the wrong eligible scenario cohort"
+            )
+        validations = manifest.get("action_validations")
+        if not isinstance(validations, list):
+            raise PairMiningError("monitor-observation set lacks action validations")
+        if (
+            manifest.get("action_validation_count") != len(validations)
+            or manifest.get("action_validations_hash") != stable_hash(validations)
+        ):
+            raise PairMiningError("monitor-observation action ledger hash is invalid")
+        expected_strategies = (
+            sorted(str(item) for item in strategy_ids)
+            if strategy_ids is not None
+            else None
+        )
+        expected_identities = (
+            {
+                (scenario_id, strategy_id)
+                for scenario_id in expected_ids
+                for strategy_id in expected_strategies
+            }
+            if expected_strategies is not None
+            else None
+        )
+        observed_identities: set[tuple[str, str]] = set()
+        for record in validations:
+            if not isinstance(record, Mapping):
+                raise PairMiningError("action-validation ledger row is not an object")
+            identity = (
+                str(record.get("scenario_id", "")),
+                str(record.get("strategy_id", "")),
+            )
+            if identity in observed_identities:
+                raise PairMiningError("action-validation ledger repeats an identity")
+            observed_identities.add(identity)
+            try:
+                validate_action_validation(
+                    record,
+                    action_eligibility_manifest_hash=(
+                        action_eligibility_manifest_hash
+                    ),
+                    scenario_id=identity[0],
+                    strategy_id=identity[1],
+                )
+            except ActionEligibilityError as exc:
+                raise PairMiningError(
+                    f"monitor-observation action validation is invalid: {exc}"
+                ) from exc
+        if expected_identities is not None:
+            if not expected_strategies or observed_identities != expected_identities:
+                raise PairMiningError(
+                    "action-validation ledger does not exactly cover scenario/strategy cells"
+                )
+        else:
+            strategies_by_scenario = {
+                scenario_id: {
+                    strategy_id
+                    for observed_scenario, strategy_id in observed_identities
+                    if observed_scenario == scenario_id
+                }
+                for scenario_id in expected_ids
+            }
+            if set(strategies_by_scenario) != set(expected_ids) or any(
+                len(values) != 2 for values in strategies_by_scenario.values()
+            ):
+                raise PairMiningError(
+                    "action-validation ledger lacks two strategies per eligible scenario"
+                )
+    elif (
+        manifest.get("protocol_disposition") != "legacy_full_catalog"
+        or manifest.get("action_eligibility_manifest_hash") is not None
+        or manifest.get("eligible_scenario_ids") != []
+        or manifest.get("action_validations") != []
+        or manifest.get("action_validation_count") != 0
+        or manifest.get("action_validations_hash") != stable_hash([])
+        or manifest.get("held_out_evaluation_permitted") is not True
+    ):
+        raise PairMiningError("legacy observation set has unbound action eligibility")
     require_hash(
         "generator_source_tree_hash",
         str(manifest.get("generator_source_tree_hash", "")),
@@ -943,6 +1239,9 @@ def validate_observation_set_manifest(
     split_manifest_hash: str,
     candidate_strategy_catalog_hash: str,
     expected_runtime_fingerprints: Iterable[str] | None = None,
+    action_eligibility_manifest_hash: str | None = None,
+    eligible_scenario_ids: Sequence[str] | None = None,
+    strategy_ids: Sequence[str] | None = None,
 ) -> str:
     recorded = _validate_observation_manifest_envelope(
         manifest,
@@ -951,6 +1250,9 @@ def validate_observation_set_manifest(
         split_manifest_hash=split_manifest_hash,
         candidate_strategy_catalog_hash=candidate_strategy_catalog_hash,
         expected_runtime_fingerprints=expected_runtime_fingerprints,
+        action_eligibility_manifest_hash=action_eligibility_manifest_hash,
+        eligible_scenario_ids=eligible_scenario_ids,
+        strategy_ids=strategy_ids,
     )
     if (
         manifest.get("observation_count") != len(observations)
@@ -964,6 +1266,44 @@ def validate_observation_set_manifest(
         ) != generator_source:
             raise PairMiningError(
                 f"observation {index} generator source differs from its set manifest"
+            )
+    if action_eligibility_manifest_hash is not None:
+        validations = {
+            (str(row["scenario_id"]), str(row["strategy_id"])): row
+            for row in manifest["action_validations"]
+        }
+        resolved_strategy_ids = tuple(
+            str(item) for item in (strategy_ids or ())
+        ) or tuple(
+            sorted(
+                {
+                    str(row["strategy_id"])
+                    for row in manifest["action_validations"]
+                }
+            )
+        )
+        expected_observation_identities = {
+            (scenario_id, strategy_id)
+            for scenario_id in (eligible_scenario_ids or ())
+            for strategy_id in resolved_strategy_ids
+        }
+        observed_action_identities: set[tuple[str, str]] = set()
+        for index, row in enumerate(observations):
+            identity = (
+                str(row.get("scenario_id", "")),
+                str(row.get("strategy_id", "")),
+            )
+            validation = validations.get(identity)
+            if validation is None or row.get("action_validation_hash") != validation.get(
+                "action_validation_hash"
+            ) or row.get("call_sequence_hash") != validation.get("call_sequence_hash"):
+                raise PairMiningError(
+                    f"observation {index} is not bound to its executed action validation"
+                )
+            observed_action_identities.add(identity)
+        if observed_action_identities != expected_observation_identities:
+            raise PairMiningError(
+                "observation set does not exactly cover eligible scenario/strategy cells"
             )
     return recorded
 
@@ -1115,12 +1455,21 @@ def mine_pair_registry(
     development_observations: Sequence[Mapping[str, Any]],
     train_observation_manifest: Mapping[str, Any],
     development_observation_manifest: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
 ) -> dict[str, Any]:
-    """Select on train, validate on development, and freeze all test rows."""
+    """Select and validate an estimation-only action-representable pair."""
 
     validate_catalog(catalog)
     validate_split_manifest(split_manifest, catalog=catalog)
     validate_candidate_strategy_catalog(strategy_catalog)
+    try:
+        eligibility_hash = validate_action_eligibility_manifest(
+            action_eligibility_manifest,
+            catalog=catalog,
+            split_manifest=split_manifest,
+        )
+    except ActionEligibilityError as exc:
+        raise PairMiningError(f"invalid action eligibility: {exc}") from exc
     if strategy_catalog.get("catalog_hash") != catalog.get("catalog_hash") or strategy_catalog.get(
         "split_manifest_hash"
     ) != split_manifest.get("split_manifest_hash"):
@@ -1134,6 +1483,19 @@ def mine_pair_registry(
     }
     strategy_ids = set(strategy_index)
     profile_ids = set(profile_index)
+    if len(strategy_ids) != 2:
+        raise PairMiningError(
+            "estimation-only pair mining requires exactly two validated strategies"
+        )
+    validate_estimation_strategy_coverage(
+        strategy_catalog, action_eligibility_manifest
+    )
+    eligible_ids = {
+        split: pilot_scenario_ids(
+            action_eligibility_manifest, dataset_split=split
+        )
+        for split in ("train", "development")
+    }
     runtime_fingerprints = _learned_profile_runtime_fingerprints(strategy_catalog)
     train_manifest_hash = validate_observation_set_manifest(
         train_observation_manifest,
@@ -1145,6 +1507,9 @@ def mine_pair_registry(
             strategy_catalog["candidate_strategy_catalog_hash"]
         ),
         expected_runtime_fingerprints=runtime_fingerprints,
+        action_eligibility_manifest_hash=eligibility_hash,
+        eligible_scenario_ids=eligible_ids["train"],
+        strategy_ids=sorted(strategy_ids),
     )
     development_manifest_hash = validate_observation_set_manifest(
         development_observation_manifest,
@@ -1156,6 +1521,9 @@ def mine_pair_registry(
             strategy_catalog["candidate_strategy_catalog_hash"]
         ),
         expected_runtime_fingerprints=runtime_fingerprints,
+        action_eligibility_manifest_hash=eligibility_hash,
+        eligible_scenario_ids=eligible_ids["development"],
+        strategy_ids=sorted(strategy_ids),
     )
     if strategy_catalog.get("artifact_class") != "deterministic_fake_smoke_fixture" and (
         train_observation_manifest.get("scientific_evidence_eligible") is not True
@@ -1164,6 +1532,14 @@ def mine_pair_registry(
         raise PairMiningError(
             "production blind-spot mining requires real learned-monitor observation sets"
         )
+    def action_validation_index(
+        manifest: Mapping[str, Any],
+    ) -> dict[tuple[str, str], Mapping[str, Any]]:
+        return {
+            (str(row["scenario_id"]), str(row["strategy_id"])): row
+            for row in manifest["action_validations"]
+        }
+
     train = _normalize_observations(
         train_observations,
         required_split="train",
@@ -1174,6 +1550,11 @@ def mine_pair_registry(
         split_manifest_hash=str(split_manifest["split_manifest_hash"]),
         candidate_strategy_catalog_hash=str(
             strategy_catalog["candidate_strategy_catalog_hash"]
+        ),
+        action_eligibility_manifest_hash=eligibility_hash,
+        eligible_scenario_ids=eligible_ids["train"],
+        action_validation_index=action_validation_index(
+            train_observation_manifest
         ),
     )
     development = _normalize_observations(
@@ -1187,7 +1568,27 @@ def mine_pair_registry(
         candidate_strategy_catalog_hash=str(
             strategy_catalog["candidate_strategy_catalog_hash"]
         ),
+        action_eligibility_manifest_hash=eligibility_hash,
+        eligible_scenario_ids=eligible_ids["development"],
+        action_validation_index=action_validation_index(
+            development_observation_manifest
+        ),
     )
+    for split, rows in (("train", train), ("development", development)):
+        expected = {
+            (scenario_id, strategy_id, profile_id)
+            for scenario_id in eligible_ids[split]
+            for strategy_id in strategy_ids
+            for profile_id in profile_ids
+        }
+        observed = {
+            (str(row["scenario_id"]), str(row["strategy_id"]), str(row["profile_id"]))
+            for row in rows
+        }
+        if observed != expected:
+            raise PairMiningError(
+                f"{split} observations do not exactly cover eligible strategy/profile cells"
+            )
     pairs: list[dict[str, Any]] = []
     test_rows: list[dict[str, Any]] = []
     for suite in AGENTDOJO_SUITES:
@@ -1213,6 +1614,7 @@ def mine_pair_registry(
                 "candidate_strategy_catalog_hash": strategy_catalog[
                     "candidate_strategy_catalog_hash"
                 ],
+                "action_eligibility_manifest_hash": eligibility_hash,
             }
         )
         pairs.append(
@@ -1232,24 +1634,6 @@ def mine_pair_registry(
                 "development_yield": _yield_summary(development_yield),
             }
         )
-        for scenario in sorted(
-            (
-                row
-                for row in scenario_index.values()
-                if row["suite"] == suite and row["dataset_split"] == "test"
-            ),
-            key=lambda row: str(row["scenario_id"]),
-        ):
-            test_rows.append(
-                {
-                    "pair_id": pair_id,
-                    "suite": suite,
-                    "scenario_id": scenario["scenario_id"],
-                    "structural_group_id": scenario["structural_group_id"],
-                    "status": "unobserved_pre_execution",
-                    "selected_by_test_outcome": False,
-                }
-            )
     payload = {
         "schema_version": PAIR_SCHEMA_VERSION,
         "environment_backend": "agentdojo",
@@ -1259,6 +1643,18 @@ def mine_pair_registry(
         "candidate_strategy_catalog_hash": strategy_catalog[
             "candidate_strategy_catalog_hash"
         ],
+        "protocol_disposition": ESTIMATION_ONLY_DISPOSITION,
+        "action_eligibility_manifest_hash": eligibility_hash,
+        "action_eligibility_manifest": deepcopy(
+            dict(action_eligibility_manifest)
+        ),
+        "pilot_scenario_ids_by_split": {
+            "train": list(eligible_ids["train"]),
+            "development": list(eligible_ids["development"]),
+            "test": [],
+        },
+        "held_out_evaluation_permitted": False,
+        "confirmatory_claim_permitted": False,
         "train_observation_hash": stable_hash(train),
         "development_observation_hash": stable_hash(development),
         "train_observation_set_hash": train_manifest_hash,
@@ -1271,7 +1667,10 @@ def mine_pair_registry(
             "train": deepcopy(dict(train_observation_manifest)),
             "development": deepcopy(dict(development_observation_manifest)),
         },
-        "selection_protocol": "maximize_train_structural_complementarity_then_lexical_tiebreak",
+        "selection_protocol": (
+            "action_validated_estimation_subset_"
+            "maximize_train_structural_complementarity_then_lexical_tiebreak"
+        ),
         "development_role": "headroom_validation_without_case_filtering",
         "test_outcomes_inspected": False,
         "pairs": pairs,
@@ -1283,6 +1682,7 @@ def mine_pair_registry(
         catalog=catalog,
         split_manifest=split_manifest,
         strategy_catalog=strategy_catalog,
+        action_eligibility_manifest=action_eligibility_manifest,
     )
     return document
 
@@ -1293,6 +1693,7 @@ def validate_pair_registry(
     catalog: Mapping[str, Any] | None = None,
     split_manifest: Mapping[str, Any] | None = None,
     strategy_catalog: Mapping[str, Any] | None = None,
+    action_eligibility_manifest: Mapping[str, Any] | None = None,
 ) -> None:
     expected_runtime_fingerprints: set[str] | None = None
     if strategy_catalog is not None:
@@ -1312,6 +1713,106 @@ def validate_pair_registry(
         "tier2_track"
     ) != "controlled":
         raise PairMiningError("pair registry uses another backend or track")
+    protocol_disposition = document.get("protocol_disposition")
+    if protocol_disposition not in {
+        None,
+        "legacy_full_catalog",
+        ESTIMATION_ONLY_DISPOSITION,
+    }:
+        raise PairMiningError("pair registry has an unknown protocol disposition")
+    estimation_only = protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+    eligibility_hash: str | None = None
+    eligible_ids: dict[str, tuple[str, ...]] = {}
+    if estimation_only:
+        eligibility_hash = str(
+            document.get("action_eligibility_manifest_hash", "")
+        )
+        require_hash("action_eligibility_manifest_hash", eligibility_hash)
+        embedded = document.get("action_eligibility_manifest")
+        if not isinstance(embedded, Mapping) or embedded.get(
+            "action_eligibility_manifest_hash"
+        ) != eligibility_hash:
+            raise PairMiningError(
+                "estimation-only pair registry lacks its eligibility freeze"
+            )
+        if action_eligibility_manifest is not None and dict(embedded) != dict(
+            action_eligibility_manifest
+        ):
+            raise PairMiningError(
+                "pair registry embeds another action-eligibility manifest"
+            )
+        selected = document.get("pilot_scenario_ids_by_split")
+        if not isinstance(selected, Mapping) or set(selected) != {
+            "train",
+            "development",
+            "test",
+        }:
+            raise PairMiningError("pair registry lacks its pilot scenario cohorts")
+        for split in ("train", "development", "test"):
+            values = selected.get(split)
+            if not isinstance(values, list) or len(values) != len(set(values)):
+                raise PairMiningError(
+                    f"pair registry has invalid {split} pilot scenarios"
+                )
+            eligible_ids[split] = tuple(str(item) for item in values)
+        if (
+            not eligible_ids["train"]
+            or not eligible_ids["development"]
+            or eligible_ids["test"]
+            or document.get("held_out_evaluation_permitted") is not False
+            or document.get("confirmatory_claim_permitted") is not False
+        ):
+            raise PairMiningError(
+                "estimation-only pair registry permits held-out execution"
+            )
+        if document.get("selection_protocol") != (
+            "action_validated_estimation_subset_"
+            "maximize_train_structural_complementarity_then_lexical_tiebreak"
+        ) or document.get("development_role") != (
+            "headroom_validation_without_case_filtering"
+        ):
+            raise PairMiningError(
+                "estimation-only pair registry has another selection protocol"
+            )
+        require_hash(
+            "train_observation_hash",
+            str(document.get("train_observation_hash", "")),
+        )
+        require_hash(
+            "development_observation_hash",
+            str(document.get("development_observation_hash", "")),
+        )
+        if catalog is not None and split_manifest is not None:
+            try:
+                validated_hash = validate_action_eligibility_manifest(
+                    embedded,
+                    catalog=catalog,
+                    split_manifest=split_manifest,
+                )
+            except ActionEligibilityError as exc:
+                raise PairMiningError(
+                    f"pair registry action eligibility is invalid: {exc}"
+                ) from exc
+            if validated_hash != eligibility_hash:
+                raise PairMiningError("pair registry eligibility hash drifted")
+            for split in ("train", "development", "test"):
+                if eligible_ids[split] != pilot_scenario_ids(
+                    embedded, dataset_split=split
+                ):
+                    raise PairMiningError(
+                        f"pair registry {split} cohort differs from eligibility"
+                    )
+    elif any(
+        document.get(field) is not None
+        for field in (
+            "action_eligibility_manifest_hash",
+            "action_eligibility_manifest",
+            "pilot_scenario_ids_by_split",
+        )
+    ):
+        raise PairMiningError(
+            "legacy pair registry carries unbound action eligibility"
+        )
     require_hash("catalog_hash", str(document.get("catalog_hash")))
     require_hash("split_manifest_hash", str(document.get("split_manifest_hash")))
     if document.get("artifact_class") != "deterministic_fake_smoke_fixture":
@@ -1349,6 +1850,18 @@ def validate_pair_registry(
                     document.get("candidate_strategy_catalog_hash", "")
                 ),
                 expected_runtime_fingerprints=expected_runtime_fingerprints,
+                action_eligibility_manifest_hash=eligibility_hash,
+                eligible_scenario_ids=(
+                    eligible_ids[split] if estimation_only else None
+                ),
+                strategy_ids=(
+                    sorted(
+                        str(row["strategy_id"])
+                        for row in strategy_catalog["strategies"]
+                    )
+                    if estimation_only and strategy_catalog is not None
+                    else None
+                ),
             )
             if (
                 retained_hash != document.get(set_hash_field)
@@ -1382,6 +1895,10 @@ def validate_pair_registry(
         strategy_ids = {
             str(row["strategy_id"]) for row in strategy_catalog["strategies"]
         }
+        if estimation_only and len(strategy_ids) != 2:
+            raise PairMiningError(
+                "estimation-only pair registry requires exactly two strategies"
+            )
         profile_ids = {
             str(row["profile_id"])
             for row in strategy_catalog["monitor_profiles"]
@@ -1442,6 +1959,11 @@ def validate_pair_registry(
                 "candidate_0_strategy_id": candidate_0,
                 "candidate_1_strategy_id": candidate_1,
                 "candidate_strategy_catalog_hash": strategy_catalog_hash,
+                **(
+                    {"action_eligibility_manifest_hash": eligibility_hash}
+                    if estimation_only
+                    else {}
+                ),
             }
         )
         require_hash("pair_id", str(row.get("pair_id")))
@@ -1449,6 +1971,10 @@ def validate_pair_registry(
             raise PairMiningError("pair_id does not match its frozen construction")
         pair_by_suite[suite] = row
     instantiations = document.get("test_instantiations")
+    if estimation_only and instantiations != []:
+        raise PairMiningError(
+            "estimation-only pair registry must not instantiate held-out scenarios"
+        )
     if not isinstance(instantiations, list) or any(
         not isinstance(row, Mapping)
         or row.get("status") != "unobserved_pre_execution"
@@ -1468,7 +1994,7 @@ def validate_pair_registry(
             "structural_group_id"
         ):
             raise PairMiningError("test instantiation lacks a structural group")
-    if catalog is not None:
+    if catalog is not None and not estimation_only:
         validate_catalog(catalog)
         if document.get("catalog_hash") != catalog.get("catalog_hash"):
             raise PairMiningError("pair registry belongs to another catalog")
@@ -1514,6 +2040,7 @@ __all__ = [
     "mine_pair_registry",
     "monitor_pair_binding",
     "validate_candidate_strategy_catalog",
+    "validate_estimation_strategy_coverage",
     "validate_observation_set_manifest",
     "validate_pair_registry",
 ]
