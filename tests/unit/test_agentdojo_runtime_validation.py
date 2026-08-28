@@ -325,3 +325,125 @@ def test_pair_observation_preflight_requires_checkpoint_before_model_constructio
             },
             dependency_lock_path=LOCK,
         )
+
+
+def test_generate_pair_observations_cli_forwards_action_eligibility(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    from silenttwin.agentdojo import (
+        action_eligibility,
+        catalog,
+        compat,
+        pair_mining,
+        runner,
+        splits,
+    )
+
+    documents = {
+        "catalog.json": {
+            "agentdojo_source_revision": "pinned-source",
+            "agentdojo_benchmark_version": "pinned-benchmark",
+        },
+        "splits.json": {},
+        "strategies.json": {"monitor_profiles": []},
+        "eligibility.json": {"sentinel": "checked-eligibility"},
+    }
+    paths: dict[str, Path] = {}
+    for name, document in documents.items():
+        path = tmp_path / name
+        path.write_text(json.dumps(document), encoding="utf-8")
+        paths[name] = path
+
+    monkeypatch.setattr(catalog, "validate_catalog", lambda _: None)
+    monkeypatch.setattr(splits, "validate_split_manifest", lambda *_, **__: None)
+    monkeypatch.setattr(
+        action_eligibility,
+        "validate_action_eligibility_manifest",
+        lambda *_, **__: "a" * 64,
+    )
+    monkeypatch.setattr(
+        pair_mining, "validate_candidate_strategy_catalog", lambda _: None
+    )
+    monkeypatch.setattr(
+        pair_mining, "validate_estimation_strategy_coverage", lambda *_, **__: None
+    )
+    monkeypatch.setattr(compat, "assert_compatible", lambda *_, **__: None)
+    monkeypatch.setattr(
+        runner,
+        "_preflight_pair_observation_environment",
+        lambda **_: {"status": "captured"},
+    )
+    monkeypatch.setattr(
+        runner,
+        "collect_provenance",
+        lambda: {"source_tree_hash": "b" * 64},
+    )
+
+    captured: dict[str, object] = {}
+    published: dict[str, object] = {}
+
+    def checked_generator(
+        *, action_eligibility_manifest: object, **kwargs: object
+    ) -> tuple[list[dict[str, object]], dict[str, object]]:
+        captured["action_eligibility_manifest"] = action_eligibility_manifest
+        captured.update(kwargs)
+        return [], {
+            "observation_set_hash": "c" * 64,
+            "protocol_disposition": "estimation_only_action_representable",
+            "action_eligibility_manifest_hash": "a" * 64,
+        }
+
+    monkeypatch.setattr(runner, "generate_pair_observation_set", checked_generator)
+    monkeypatch.setattr(
+        runner,
+        "atomic_write_jsonl",
+        lambda path, rows: published.update(
+            {"observations_path": path, "observations": rows}
+        ),
+    )
+    monkeypatch.setattr(
+        runner,
+        "atomic_write_json",
+        lambda path, document: published.update(
+            {"manifest_path": path, "manifest": document}
+        ),
+    )
+    observations = tmp_path / "train.jsonl"
+    manifest = tmp_path / "train.manifest.json"
+    assert runner.main(
+        [
+            "generate-pair-observations",
+            "--catalog",
+            str(paths["catalog.json"]),
+            "--splits",
+            str(paths["splits.json"]),
+            "--strategy-catalog",
+            str(paths["strategies.json"]),
+            "--action-eligibility",
+            str(paths["eligibility.json"]),
+            "--dependency-lock",
+            str(tmp_path / "requirements.lock"),
+            "--dataset-split",
+            "train",
+            "--observations-output",
+            str(observations),
+            "--observation-manifest-output",
+            str(manifest),
+        ]
+    ) == 0
+
+    assert captured["action_eligibility_manifest"] == documents[
+        "eligibility.json"
+    ]
+    assert captured["dataset_split"] == "train"
+    assert published["observations_path"] == observations
+    assert published["observations"] == []
+    assert published["manifest_path"] == manifest
+    assert published["manifest"] == {
+        "observation_set_hash": "c" * 64,
+        "protocol_disposition": "estimation_only_action_representable",
+        "action_eligibility_manifest_hash": "a" * 64,
+    }
+    assert json.loads(capsys.readouterr().out)["observation_count"] == 0

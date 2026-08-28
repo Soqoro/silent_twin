@@ -1522,3 +1522,61 @@ qsub -P fs_ccds_asysong \
 Do not submit pair observation yet. The refreshed H200 conformance report must
 pass first, and the exact train command still requires separate operator
 approval.
+
+## Train pair-observation entrypoint repair on 2026-08-29
+
+This section supersedes the immediate checkpoint above. V2 conformance PBS job
+`54160.gaas` finished with exit status zero in 78 seconds. Its report passed all
+8 checks, retained source tree hash
+`0c7a7f45d2f366c51520e33ec4e97a5dab6e7ac17b2621fba2e05a6c095c6b9e`
+and runtime fingerprint
+`sha256:76b337594fb9bb6271581ff2c0edec0f3e35931dd43a52a46a540f991e7a7bd3`,
+and recorded the expected engineering-only evidence boundary.
+
+The explicitly approved train observation PBS job `54174.gaas` then loaded
+both pinned Granite monitor clients on one H200, but exited with status one
+after 45 seconds. The scheduler observed a 31,072 MB peak GPU allocation. The
+failure was a local entrypoint wiring error, not a checkpoint, protocol, GPU,
+or scheduler failure:
+
+```text
+TypeError: generate_pair_observation_set() missing 1 required keyword-only
+argument: 'action_eligibility_manifest'
+```
+
+No `train.jsonl`, `train.manifest.json`, or pair registry was published. The
+retry therefore has no partial scientific artifact to reuse or delete.
+
+The working tree now passes the already-validated eligibility object from
+`runner._generate_pair_observations` into `generate_pair_observation_set`. A
+CLI-dispatch regression requires and inspects that exact keyword before
+capturing publication, so the production traceback occurs under the old code
+and passes under the repaired code.
+
+Verification passed `git diff --check`, the focused action/pair/runtime/
+conformance/runner/shell set (`101 passed in 22.51s`), the exhaustive complete
+catalog test (`1 passed in 625.04s`), and every other collected repository test
+(`508 passed, 1 deselected, 79 subtests passed in 799.58s`). Together these
+cover all 509 collected tests. The repaired executable source tree hash is
+`cabca299bb5271b3362c9b23e651b2248d12843948693466717cdbd380817b4a`.
+
+The repair and this handoff record are not yet committed. No replacement
+wheel, learned-runtime fingerprint, scientific catalog/action audit,
+engineering conformance catalog/spec/report, or pair observation has been
+created. All v2 source/runtime-bound artifacts are now stale for retry.
+
+Immediate next checkpoint:
+
+1. review and commit the runner fix, CLI regression, and this handoff record;
+2. from that exact clean revision, rebuild and reproduce the offline wheel,
+   archive it under the new source hash, force-reinstall it into the learned
+   Python 3.11 environment, and derive the replacement runtime fingerprint;
+3. rebind and revalidate the 193-scenario scientific catalog, rerun/rebind the
+   386-plan model-free action audit, and create a new engineering-only
+   conformance catalog/spec without overwriting v2;
+4. submit and pass the new one-H200 conformance job only after explicit
+   approval;
+5. resolve and separately approve a no-clobber train observation retry.
+
+Do not resubmit train observation from the current dirty tree or with any v2
+source/runtime-bound artifact. Development observation remains blocked.

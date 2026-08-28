@@ -1994,6 +1994,7 @@ def _generate_pair_observations(args: argparse.Namespace) -> dict[str, Any]:
         catalog=catalog,
         split_manifest=splits,
         strategy_catalog=strategies,
+        action_eligibility_manifest=eligibility,
         dataset_split=args.dataset_split,
         generator_source_tree_hash=str(provenance["source_tree_hash"]),
         learned_runtime=learned_runtime,
