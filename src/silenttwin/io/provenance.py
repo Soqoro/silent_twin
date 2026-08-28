@@ -50,6 +50,7 @@ def source_tree_hash() -> str:
         "pyproject.toml",
         "requirements-dev.lock",
         "requirements-tier2-agentdojo.lock",
+        "requirements-tier2-learned-h200.lock",
     )
     paths = {
         path

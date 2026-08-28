@@ -408,9 +408,22 @@ class StructuredControlledAttacker:
                 posterior, Mapping
             ):
                 raise PipelineProtocolError("invalid prediction values")
+            if set(posterior) != {"theta0", "theta1"}:
+                raise PipelineProtocolError("prediction posterior must have exact state keys")
+            probabilities = tuple(posterior[key] for key in ("theta0", "theta1"))
+            if any(
+                isinstance(value, bool) or not isinstance(value, (int, float))
+                for value in probabilities
+            ):
+                raise PipelineProtocolError(
+                    "prediction posterior probabilities must be JSON numbers"
+                )
             return HiddenStatePrediction(
                 str(prediction),
-                {str(key): float(value) for key, value in posterior.items()},
+                {
+                    "theta0": float(probabilities[0]),
+                    "theta1": float(probabilities[1]),
+                },
                 True,
             )
         except Exception as exc:

@@ -189,7 +189,8 @@ agentdojo_reject_ephemeral_runtime_paths() {
         [[ -n "$scratch_root" ]] || continue
         for name in AGENTDOJO_MODEL_CACHE HF_HOME HF_HUB_CACHE TRANSFORMERS_CACHE \
             AGENTDOJO_ATTACKER_CHECKPOINT AGENTDOJO_VICTIM_CHECKPOINT \
-            AGENTDOJO_MONITOR_CHECKPOINT OUT_ROOT; do
+            AGENTDOJO_MONITOR_CHECKPOINT CONFORMANCE_SPEC CONFORMANCE_OUTPUT \
+            OUT_ROOT; do
             value="${!name:-}"
             if [[ -n "$value" ]] && agentdojo_path_is_within "$value" "$scratch_root"; then
                 agentdojo_die "$name must be persistent, not inside scheduler scratch $scratch_variable"

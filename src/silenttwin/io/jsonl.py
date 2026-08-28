@@ -269,3 +269,46 @@ def atomic_write_json(path: Path | str, value: Mapping[str, Any]) -> None:
         os.replace(temporary_path, destination)
     finally:
         temporary_path.unlink(missing_ok=True)
+
+
+def atomic_create_json(path: Path | str, value: Mapping[str, Any]) -> None:
+    """Atomically publish one JSON object without replacing an existing file.
+
+    The temporary file is fully flushed and parsed before a same-filesystem
+    hard link publishes it. ``os.link`` is the no-clobber commit point: if a
+    concurrent writer already created the destination, publication fails and
+    the existing bytes remain untouched.
+    """
+
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+    )
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(
+                json.dumps(
+                    value,
+                    indent=2,
+                    sort_keys=True,
+                    ensure_ascii=True,
+                    allow_nan=False,
+                )
+            )
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        with temporary_path.open("r", encoding="utf-8") as handle:
+            parsed = json.load(handle)
+        if not isinstance(parsed, dict):
+            raise ResultValidationError("atomic JSON output must be an object")
+        try:
+            os.link(temporary_path, destination)
+        except FileExistsError as exc:
+            raise ResultValidationError(
+                f"refusing to replace existing JSON output: {destination}"
+            ) from exc
+    finally:
+        temporary_path.unlink(missing_ok=True)

@@ -5,6 +5,8 @@ import hashlib
 import json
 from types import SimpleNamespace
 
+import pytest
+
 from silenttwin.agentdojo.canonical import CanonicalMessage, CanonicalToolSchema
 from silenttwin.agentdojo.pipeline import StructuredControlledAttacker, run_tool_loop
 from silenttwin.agentdojo.results import (
@@ -102,6 +104,18 @@ class _FailingRenderedModel:
         return {"rendered_input": "tokenizer-rendered-failure"}
 
 
+class _PredictionModel:
+    def __init__(self, posterior: dict[str, object]) -> None:
+        self.posterior = posterior
+
+    def complete(self, prompt: str, *, seed: int, max_tokens: int) -> _Response:
+        del prompt, seed, max_tokens
+        return _Response(
+            json.dumps({"prediction": "theta0", "posterior": self.posterior}),
+            {"rendered_input": "tokenizer-rendered-prediction"},
+        )
+
+
 def test_controlled_call_hash_binds_actual_rendered_input_on_success_and_failure() -> None:
     scenario = make_fake_agentdojo_backend().public_scenario
     success = StructuredControlledAttacker(
@@ -159,6 +173,29 @@ def test_strict_parse_failure_retains_raw_response_metadata_and_usage() -> None:
     assert call["metadata"]["usage"]["total_tokens"] == 13
     assert call["failure_metadata"] == {"provider_failure": "strict_parse"}
     assert call["error"].startswith("JSONDecodeError:")
+
+
+@pytest.mark.parametrize(
+    "posterior",
+    (
+        {"theta0": True, "theta1": False},
+        {"theta0": "0.6", "theta1": "0.4"},
+        {"theta0": 0.5, "theta1": 0.5, "other": 0.0},
+    ),
+)
+def test_controlled_prediction_requires_exact_json_number_posterior(
+    posterior: dict[str, object],
+) -> None:
+    scenario = make_fake_agentdojo_backend().public_scenario
+    attacker = StructuredControlledAttacker(
+        _PredictionModel(posterior),
+        immutable_model_revision="sha256:" + "1" * 64,
+    )
+
+    prediction = attacker.predict_hidden_state(scenario, (), seed=3)
+
+    assert prediction.valid is False
+    assert prediction.error is not None
 
 
 def test_downstream_tool_failure_does_not_duplicate_successful_model_call() -> None:

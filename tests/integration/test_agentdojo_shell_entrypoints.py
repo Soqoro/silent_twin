@@ -17,6 +17,7 @@ ENTRYPOINTS = (
     "run_experiment_4_useful_work_agentdojo_tier2.sh",
     "run_experiment_5_assumption_ablations_agentdojo_tier2.sh",
     "run_agentdojo_ecological_tier2.sh",
+    "run_agentdojo_checkpoint_conformance_tier2.sh",
 )
 SCHEDULER_ENVIRONMENT_VARIABLES = (
     "SLURM_JOB_ID",
@@ -140,7 +141,7 @@ def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_exactly_eight_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
+def test_exactly_nine_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
     discovered = {
         path.name
         for path in EXPERIMENT_DIR.glob("*agentdojo*.sh")
@@ -190,6 +191,61 @@ def test_spooled_entrypoint_uses_explicit_repository_root(tmp_path: Path) -> Non
     assert "_agentdojo_common.sh" not in result.stderr
 
 
+def test_checkpoint_conformance_rejects_array_job_before_python() -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "STAGE": "run",
+            "PBS_JOBID": "123[0].gaas",
+            "PBS_ARRAY_INDEX": "0",
+            "PBS_ENVIRONMENT": "PBS_BATCH",
+            "PYTHON_BIN": "/definitely/not/a/python",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", str(EXPERIMENT_DIR / ENTRYPOINTS[-1])],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "must not be an array job" in result.stderr
+    assert "PYTHON_BIN is unavailable" not in result.stderr
+
+
+def test_checkpoint_conformance_reports_missing_runtime_fingerprint() -> None:
+    values = _clean_scheduler_environment()
+    values.pop("AGENTDOJO_RUNTIME_FINGERPRINT", None)
+    values.update(
+        {
+            "STAGE": "run",
+            "PBS_JOBID": "123.gaas",
+            "PBS_ENVIRONMENT": "PBS_BATCH",
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "AGENTDOJO_DATASET_SPLIT": "development",
+        }
+    )
+
+    result = subprocess.run(
+        ["bash", str(EXPERIMENT_DIR / ENTRYPOINTS[-1])],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "frozen sha256 runtime fingerprint is required" in result.stderr
+    assert "unbound variable" not in result.stderr
+
+
 def test_scripts_contain_no_submission_or_guessed_site_gpu_flags() -> None:
     contents = "\n".join(
         (EXPERIMENT_DIR / name).read_text(encoding="utf-8")
@@ -201,6 +257,16 @@ def test_scripts_contain_no_submission_or_guessed_site_gpu_flags() -> None:
     assert "#PBS" not in contents
     for flag in ("--account", "--partition", "--gres", "--gpus"):
         assert flag not in contents
+
+
+def test_checkpoint_conformance_rejects_dirty_source_before_runtime_or_gpu_load() -> None:
+    contents = (EXPERIMENT_DIR / ENTRYPOINTS[-1]).read_text(encoding="utf-8")
+
+    dirty_check = contents.index("git status --porcelain --untracked-files=all")
+    runtime_check = contents.index("observed_runtime_fingerprint=")
+    gpu_check = contents.index("nvidia-smi -L")
+
+    assert dirty_check < runtime_check < gpu_check
 
 
 def test_out_of_range_array_fails_before_python_is_inspected(tmp_path: Path) -> None:

@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-26 (first PBS smoke diagnosed; HOME-sandbox fix pending commit)
+Last updated: 2026-08-28 (H200 checkpoint-conformance package frozen; commit and submission pending)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -1231,3 +1231,91 @@ approved immutable checkpoint snapshots to persistent storage, derive all
 runtime/checkpoint fingerprints, and run a development-only one-scenario
 conformance job before guard-pair mining. Do not submit the real-model pilot
 until the operator approves its exact resolved PBS command.
+
+## H200 checkpoint-conformance freeze on 2026-08-28
+
+This section supersedes the final paragraph above. No real-model scheduler job
+has been submitted and no benchmark result has been generated.
+
+- The dedicated learned environment is
+  `/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311` with
+  CPython 3.11.15, Torch `2.12.1+cu126`, Transformers `5.16.1`, 108 installed
+  distributions, and a successful `pip check`.
+- SilentTwin is installed once, non-editably, from the exact wheel archived at
+  `/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/7c4dc4fbf5d417d506816626302636a40fe90de5ab198cd9083df94cfb245740/silenttwin-0.1.0-py3-none-any.whl`.
+  Its wheel SHA-256 is
+  `40741c7c6fcd8ed8596d64d10e2207ab420318199cef367fdc2e62f04e81d33a`.
+  The previous ignored source `egg-info` was preserved at
+  `/tmp/silenttwin.egg-info.pre-wheel-20260828`.
+- The final learned-runtime fingerprint is
+  `sha256:5f695781d5558474f168abee4caeeb0f39d4355f7b9b3e38bfa79b843622538d`.
+  Runtime integrity must receive the 71-pin
+  `requirements-tier2-agentdojo.lock`; the 107-pin
+  `requirements-tier2-learned-h200.lock` is the provisioning record and
+  source-hash material, not the core-lock CLI input.
+- The executable `source_tree_hash` is
+  `7c4dc4fbf5d417d506816626302636a40fe90de5ab198cd9083df94cfb245740`.
+  The conformance launcher rejects a dirty worktree before runtime validation
+  or model loading, so all listed repository changes must be committed before
+  submission.
+- Qwen attacker/victim checkpoint:
+  `/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28`,
+  semantic commit `a09a35458c702b33eeacc393d103063234e8bc28`, full-tree fingerprint
+  `sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+- Granite monitor checkpoint:
+  `/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9`,
+  semantic commit `e30b8a2343efe8030479777d467ebb305ca109e9`, full-tree fingerprint
+  `sha256:31a587dc521951a7288ead06c9f8226bceb51d410094e8d47c04dee3602a746f`.
+- ProtectAI ecological detector checkpoint:
+  `/home/suaq0001/projects/silenttwin-model-cache/hub/models--protectai--deberta-v3-base-prompt-injection-v2/snapshots/90c9989b1a342275dd0d1a95aad283c04e075671`,
+  semantic commit `90c9989b1a342275dd0d1a95aad283c04e075671`, full-tree fingerprint
+  `sha256:df326f40bf3bd0b71ecf7ef97278a75787a10146c4371e5b03fac18b3998cbc5`.
+- The validated, read-only engineering catalog is
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v1.json`.
+  File SHA-256 is
+  `0159498b75339b0630b25499f58c2979e4623713afd1fde785afae5e6f0f1af6`;
+  internal catalog hash is
+  `e4cb1fefe7d37e48da5b568b83b3cbd96f99322a037b3c41a2a3fef3767159ce`.
+- The validated, read-only specification is
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v1.json`.
+  File SHA-256 is
+  `9573c491cb725068b062c9b2ea4288086b2680e0f01e77a516f095bf37111c14`;
+  internal spec hash is
+  `d882dfc2631b84fe64c8bd644c569f38e4a7c42f7743b392269ceace124b859b`.
+  It selects one frozen workspace development scenario, two schema-valid
+  engineering-only prohibited-action probes, Qwen with 256 output tokens,
+  and two separately retained Granite no-think profiles with 64 output tokens.
+- The report destination
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v1.json`
+  is absent and reserved for the first run. Publication is atomic and refuses
+  replacement.
+- The conformance implementation binds exact identities and verifies three
+  attacker contracts, every profile/strategy/call monitor cell, raw local-only
+  provenance, pinned AgentDojo compatibility, five ordered H200 memory stages,
+  retirement, and zero external API calls. The report remains engineering-only
+  and cannot be consumed as pair-selection or benchmark evidence.
+- Final verification passed `git diff --check`, Python compilation, and the
+  focused 49-test conformance/shell/pipeline set. The complete collection
+  produced 493 passes and 77 passing subtests; its only seven failures were
+  nested shell-grid invocations that inherited system Python 3.9 because the
+  outer test command omitted `PYTHON_BIN`. Re-running the complete affected
+  shell-grid file with the pinned Python 3.11 binary passed 14 tests and 4
+  subtests, covering every one of those invocation-only failures.
+
+The scientific strategy audit found that the current generic candidate-plan
+schema cannot honestly provide two distinct executable prohibited
+transformations for every frozen scenario. At least 60 train scenarios have a
+single rigid or output-only injection objective, and pair observation scores
+monitor calls without executing or grading attack success. After engineering
+conformance, do not scale the engineering catalog into production. First choose
+and preregister either (a) an action-representable eligibility subset or (b) a
+typed deterministic plan materializer plus an output-action protocol. That is
+a scientific-protocol decision, not an engineering smoke result.
+
+Immediate next checkpoint:
+
+1. inspect and commit every repository change so `git status --short` is empty;
+2. recheck the source and runtime fingerprints above;
+3. show and explicitly approve the fully resolved non-array H200 PBS command;
+4. submit only the one-scenario engineering conformance job and inspect its
+   report before any pair observation.

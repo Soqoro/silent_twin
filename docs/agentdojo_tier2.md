@@ -276,6 +276,17 @@ and require zero transport/protocol failures. Retain the exact structured
 messages, tokenizer-rendered text, raw output, and hashes already captured by
 the monitor provenance record.
 
+Use `experiments/silenttwin/run_agentdojo_checkpoint_conformance_tier2.sh`
+for that gate. It is a single, non-array scheduler job and deliberately keeps
+one Qwen attacker plus two distinct Granite profile clients resident on one
+H200, matching the pair-observation memory topology. The launcher requires a
+clean committed worktree, exact runtime/source/checkpoint identities, offline
+local inference, and a new no-clobber output path. Its report is explicitly
+`engineering_conformance_only`, with both `scientific_evidence_eligible` and
+`pair_selection_eligible` false. It tests transport, strict output contracts,
+and memory fit; it neither executes candidate actions nor demonstrates attack
+success and must never be supplied to the pair reducer.
+
 ## Strict aggregation
 
 After the array succeeds, aggregate on CPU:
