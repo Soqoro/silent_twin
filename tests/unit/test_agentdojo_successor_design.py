@@ -6,11 +6,18 @@ import pytest
 
 from silenttwin.agentdojo.action_eligibility import ACTION_VALIDATION_SCHEMA_VERSION
 from silenttwin.agentdojo.config import stable_hash
+from silenttwin.agentdojo.pair_mining import (
+    PairMiningError,
+    estimation_scenario_ids,
+    validate_candidate_strategy_catalog,
+    validate_estimation_strategy_coverage,
+)
 from silenttwin.agentdojo.successor_design import (
     COMMON_GROUND_TRUTH_SAFETY_OBJECTIVE,
     SCIENTIFIC_V5_INLINE_STRATEGY_ID,
     SCIENTIFIC_V5_STAGED_STRATEGY_ID,
     SuccessorDesignError,
+    _scientific_v5_candidate_catalog_from_validated_census,
     _normalize_action_validation,
     _validate_normalized_action_validation,
     _validate_protocol_amendment,
@@ -304,4 +311,110 @@ def test_v5_excluded_task_has_no_candidate_pair() -> None:
                 baseline_calls=[{"function": "send_direct_message", "arguments": {}}],
                 alternate_calls=[{"function": "send_direct_message", "arguments": {}}],
             ),
+        )
+
+
+def test_v5_catalog_freezes_subset_and_partitions_action_eligibility() -> None:
+    amendment = scientific_v5_protocol_amendment()
+    eligibility_hash = stable_hash("eligibility")
+    selected = {
+        "train": ["train-selected"],
+        "development": ["development-selected"],
+        "test": [],
+    }
+    excluded = {
+        "train": ["train-excluded"],
+        "development": ["development-excluded"],
+        "test": [],
+    }
+    templates = []
+    for raw in amendment["monitor_profile_templates"]:
+        templates.append(
+            {
+                **copy.deepcopy(raw),
+                "family": "deterministic_task_policy",
+                "frozen_on_split": "train",
+                "policy_hash": stable_hash(raw["policy_text"]),
+            }
+        )
+    scenario_ids = selected["train"] + selected["development"]
+    census = {
+        "schema_version": "silenttwin.agentdojo.scientific_v5_representability_census.v1",
+        "scientific_v5_representability_hash": stable_hash("census"),
+        "catalog_hash": stable_hash("catalog"),
+        "split_manifest_hash": stable_hash("splits"),
+        "action_eligibility_manifest_hash": eligibility_hash,
+        "predecessor_train_pair_design_audit_hash": stable_hash("train-audit"),
+        "protocol_amendment": amendment,
+        "candidate_strategies": [
+            {
+                "strategy_id": strategy_id,
+                "ground_truth_label": "prohibited",
+                "frozen_on_split": "train",
+                "default_plan_policy": "forbidden",
+                "scenario_plans": {
+                    scenario_id: {
+                        "calls": [
+                            {
+                                "function": f"fixture_{index}",
+                                "arguments": {},
+                            }
+                        ]
+                    }
+                    for scenario_id in scenario_ids
+                },
+            }
+            for index, strategy_id in enumerate(
+                (
+                    SCIENTIFIC_V5_INLINE_STRATEGY_ID,
+                    SCIENTIFIC_V5_STAGED_STRATEGY_ID,
+                )
+            )
+        ],
+        "monitor_profile_templates": templates,
+        "selected_scenario_ids_by_split": selected,
+        "excluded_scenario_ids_by_split": excluded,
+        "task_audit_rows": [],
+        "scenario_mechanism_rows": [],
+        "action_validations_hash": stable_hash([]),
+        "claim_boundary": amendment["claim_boundary"],
+    }
+    action_eligibility = {
+        "action_eligibility_manifest_hash": eligibility_hash,
+        "pilot_scenario_ids_by_split": {
+            "train": ["train-selected", "train-excluded"],
+            "development": [
+                "development-selected",
+                "development-excluded",
+            ],
+            "test": [],
+        },
+    }
+    strategy_catalog = _scientific_v5_candidate_catalog_from_validated_census(
+        census,
+        authoring_source_tree_hash=stable_hash("source"),
+    )
+
+    validate_candidate_strategy_catalog(strategy_catalog)
+    assert estimation_scenario_ids(
+        strategy_catalog, action_eligibility, dataset_split="train"
+    ) == ("train-selected",)
+    assert validate_estimation_strategy_coverage(
+        strategy_catalog, action_eligibility
+    ) == ("development-selected", "train-selected")
+
+    tampered = copy.deepcopy(strategy_catalog)
+    tampered["scenario_cohort"]["selected_scenario_ids_by_split"]["train"] = [
+        "train-selected",
+        "unregistered",
+    ]
+    cohort_payload = dict(tampered["scenario_cohort"])
+    cohort_payload.pop("cohort_hash")
+    tampered["scenario_cohort"]["cohort_hash"] = stable_hash(cohort_payload)
+    catalog_payload = dict(tampered)
+    catalog_payload.pop("candidate_strategy_catalog_hash")
+    tampered["candidate_strategy_catalog_hash"] = stable_hash(catalog_payload)
+    with pytest.raises(PairMiningError, match="does not exactly partition"):
+        estimation_scenario_ids(
+            tampered, action_eligibility, dataset_split="train"
         )

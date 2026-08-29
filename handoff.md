@@ -2671,3 +2671,93 @@ Immediate next checkpoint:
    is separately reviewed and explicitly approved. Development remains blocked
    unless a future v5 train feasibility report preserves the within-scenario
    gate and sets `development_submission_permitted:true`.
+
+## Scientific-v5 subset catalog and monitor-input freeze on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The scientific-v5
+protocol amendment and representability census implementation was committed at
+`7fbb934` (`Freeze scientific v5 representability census`), and the worktree
+was clean before this checkpoint began. No PBS job, H200 allocation, learned
+checkpoint load, learned-model inference, external API call, development
+monitor-outcome inspection, test-outcome inspection, pair reduction, or
+benchmark grid occurred.
+
+Candidate-strategy catalog schema v2 is now subset-aware while schema v1
+retains its existing full-pilot behavior. A v2 catalog carries a self-hashed
+selected/excluded cohort that binds the representability census, protocol
+amendment, action-eligibility manifest, task audit, mechanism rows, and
+model-free action validations. The runtime observation, train-feasibility,
+train-design-audit, pair reducer, pair-registry validator, and grid builder now
+resolve scenario membership through the versioned catalog. For scientific v5
+that is exactly 93 train scenarios, 51 public development scenarios, and zero
+test scenarios; the 41 train and 8 development exclusions remain explicit.
+Each of the two strategies contains exactly all 144 selected scenario plans.
+
+The v5 monitor input is now materialized once per candidate plan before either
+hidden profile runs. Every current-call input contains the complete ordered
+candidate call sequence and current numeric index. The monitor-visible proposed
+call uses neutral IDs `candidate-call-<index>`; trusted call IDs that contain a
+strategy name are retained only for execution/provenance. No profile or
+strategy identifier is rendered in the canonical monitor input. Catalog v1
+continues to use the old constant call-only summary, preserving prior artifact
+semantics. Regression tests cover full-plan visibility, neutral IDs,
+deterministic reconstruction, identifier absence, v1 compatibility, exact
+subset coverage, and rejection of a self-rehashed cohort that no longer
+partitions action eligibility.
+
+The CPU command `freeze-scientific-v5-candidate-catalog` validates the complete
+frozen census and predecessor evidence chain, derives the catalog without task
+or model execution, verifies exact cohort/strategy coverage, and refuses to
+replace a conflicting output. Two independent full derivations were
+byte-identical. The immutable published artifact is mode `0444` at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v5.json`.
+It is 217,424 bytes with file SHA-256
+`658d021d576288048d8da622d4baf13e44ff5e51c757032e4c6edbbef5a63165`,
+internal candidate-catalog hash
+`ef6734e4cd4b4e348129c2a51955b070dfd94630a99bc893e92ff7666964fe90`,
+scenario-cohort hash
+`ac4b46e0377e9c9f393ec4beb3e0257fd3006d8a7d7cc8fb2141504e236bf230`,
+and authoring source-tree hash
+`5574e25b2cfae3804db090349f1ca3667550e7f673607e353ed2e7c74fdc9ace`.
+A direct second invocation revalidated the full first-party chain and reused
+the existing freeze byte-for-object.
+
+The two exact profile identities are:
+
+- `effect-authorization-guardian-v1`, profile hash
+  `dd3c326f950407605c5b70f2940b95c9dfbb9a286e9a90b3dc9f4f58dd4885fe`;
+- `provenance-composition-guardian-v1`, profile hash
+  `ca82511cc390c3fc7a41b2d2c9105d0e9b1dcc9553df6cdfb8ccc5ab3523b9fd`.
+
+They retain the exact common objective, policies, Granite checkpoint, native
+prompt, deterministic decoding, and distinct detection mechanisms frozen in
+the census. Because the wheel containing this new observation implementation
+does not exist yet, both templates necessarily retain the predecessor learned
+runtime fingerprint
+`sha256:eb63f7a9ff8533223bdef7d52a0a06d7eda1dfafbebfb126963b01d1e07dc7c6`.
+That inherited fingerprint is not authorization to execute v5. A replacement
+wheel/runtime identity and a separately hash-bound runtime/conformance catalog
+are mandatory before any H200 command.
+
+The focused and broader CPU regression set passes 148 tests in 55.46 seconds.
+Python compilation, CLI help discovery, exact real-artifact derivation,
+independent byte comparison, published-object reuse validation, source-hash
+comparison, and `git diff --check` pass. The catalog disposition is
+`candidate_catalog_frozen_for_engineering_conformance` and only the learned
+wheel build is permitted. It explicitly sets
+`h200_submission_permitted:false`, `development_submission_permitted:false`,
+and `pair_reduction_permitted:false`.
+
+Immediate next checkpoint:
+
+1. review and commit the schema, runner, tests, operator guide, and this
+   handoff record;
+2. only from that clean commit, reproducibly build the SilentTwin wheel and
+   freeze the replacement learned-runtime fingerprint;
+3. derive and validate a runtime-bound v5 conformance catalog while preserving
+   byte-for-object the current cohort, plans, common objective, policy texts,
+   checkpoint identity, decoding, and monitor-input protocol;
+4. prepare and review the exact H200 engineering-conformance command, but do
+   not call `qsub` without separate explicit approval; and
+5. keep train observation, development observation, pair reduction, and every
+   benchmark grid blocked until their respective gates authorize them.

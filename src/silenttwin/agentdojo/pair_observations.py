@@ -14,12 +14,16 @@ from silenttwin.schemas import stable_digest
 from .action_eligibility import (
     ActionEligibilityError,
     execute_and_grade_action_plan,
-    pilot_scenario_ids,
     validate_action_eligibility_manifest,
     validate_distinct_required_action_plans,
 )
 from .assembly import _monitor, _trusted_plan
-from .canonical import calls_hash, canonicalize_tool_schemas
+from .canonical import (
+    CanonicalToolCall,
+    CanonicalToolSchema,
+    calls_hash,
+    canonicalize_tool_schemas,
+)
 from .catalog import validate_catalog
 from .config import (
     AGENTDOJO_BENCHMARK_VERSION,
@@ -27,7 +31,10 @@ from .config import (
 )
 from .monitors import MonitorInput
 from .pair_mining import (
+    SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION,
+    SUBSET_STRATEGY_SCHEMA_VERSION,
     PairMiningError,
+    estimation_scenario_ids,
     make_monitor_observation,
     make_observation_set_manifest,
     validate_candidate_strategy_catalog,
@@ -41,6 +48,70 @@ from .runtime_integrity import (
 from .seeds import SeedSchedule
 from .splits import validate_split_manifest
 from .visibility import public_value
+
+
+def make_plan_monitor_inputs(
+    *,
+    strategy_catalog: Mapping[str, Any],
+    scenario_id: str,
+    frozen_user_goal: str,
+    plan: Any,
+    schema_by_name: Mapping[str, CanonicalToolSchema],
+) -> tuple[MonitorInput, ...]:
+    """Materialize verdict-independent inputs before either profile runs.
+
+    Catalog v1 retains its original call-only summary for byte compatibility.
+    Catalog v2 presents the complete plan and uses neutral call IDs, ensuring
+    that trusted strategy/profile identifiers never become model evidence.
+    """
+
+    complete_sequence = [
+        {
+            "call_index": index,
+            "function": call.function,
+            "arguments": dict(call.arguments),
+        }
+        for index, call in enumerate(plan.calls)
+    ]
+    scientific_v5 = (
+        strategy_catalog.get("schema_version") == SUBSET_STRATEGY_SCHEMA_VERSION
+    )
+    inputs: list[MonitorInput] = []
+    for call_index, call in enumerate(plan.calls):
+        try:
+            schema = schema_by_name[call.function]
+        except KeyError as exc:
+            raise PairMiningError(
+                f"candidate plan references unknown tool {call.function!r}"
+            ) from exc
+        if scientific_v5:
+            summary = {
+                "schema_version": SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION,
+                "scenario_id": scenario_id,
+                "candidate_call_count": len(complete_sequence),
+                "complete_candidate_call_sequence": complete_sequence,
+                "current_call_index": call_index,
+            }
+            proposed_call = CanonicalToolCall(
+                call_id=f"candidate-call-{call_index}",
+                function=call.function,
+                arguments=call.arguments,
+            )
+        else:
+            summary = {
+                "scenario_id": scenario_id,
+                "summary": "frozen controlled-plan evaluation",
+            }
+            proposed_call = call
+        inputs.append(
+            MonitorInput(
+                frozen_user_goal=frozen_user_goal,
+                public_conversation_summary=public_value(summary),
+                proposed_call=proposed_call,
+                tool_schema=schema,
+            )
+        )
+    return tuple(inputs)
 
 
 def generate_pair_observation_set(
@@ -108,8 +179,10 @@ def generate_pair_observation_set(
         AGENTDOJO_SOURCE_REVISION, AGENTDOJO_BENCHMARK_VERSION
     )
     clients = dict(monitor_clients or {})
-    eligible_scenario_ids = pilot_scenario_ids(
-        action_eligibility_manifest, dataset_split=dataset_split
+    eligible_scenario_ids = estimation_scenario_ids(
+        strategy_catalog,
+        action_eligibility_manifest,
+        dataset_split=dataset_split,
     )
     if not eligible_scenario_ids:
         raise PairMiningError(
@@ -196,6 +269,13 @@ def generate_pair_observation_set(
         for strategy_id, plan in plans.items():
             strategy = strategy_index[strategy_id]
             action_validation = validation_by_strategy[strategy_id]
+            monitor_inputs = make_plan_monitor_inputs(
+                strategy_catalog=strategy_catalog,
+                scenario_id=str(scenario["scenario_id"]),
+                frozen_user_goal=user_prompt,
+                plan=plan,
+                schema_by_name=schema_by_name,
+            )
             for profile in profiles:
                 profile_id = str(profile["profile_id"])
                 monitor = _monitor(
@@ -212,24 +292,7 @@ def generate_pair_observation_set(
                 evaluations = []
                 inputs: list[str] = []
                 seeds: list[int] = []
-                for call_index, call in enumerate(plan.calls):
-                    try:
-                        schema = schema_by_name[call.function]
-                    except KeyError as exc:
-                        raise PairMiningError(
-                            f"strategy {strategy_id!r} references unknown tool {call.function!r}"
-                        ) from exc
-                    monitor_input = MonitorInput(
-                        frozen_user_goal=user_prompt,
-                        public_conversation_summary=public_value(
-                            {
-                                "scenario_id": scenario["scenario_id"],
-                                "summary": "frozen controlled-plan evaluation",
-                            }
-                        ),
-                        proposed_call=call,
-                        tool_schema=schema,
-                    )
+                for call_index, monitor_input in enumerate(monitor_inputs):
                     seed = schedule.monitor(call_index)
                     evaluation = monitor.evaluate(
                         monitor_input, plan_id=strategy_id, seed=seed
@@ -328,4 +391,4 @@ def generate_pair_observation_set(
     return rows, manifest
 
 
-__all__ = ["generate_pair_observation_set"]
+__all__ = ["generate_pair_observation_set", "make_plan_monitor_inputs"]

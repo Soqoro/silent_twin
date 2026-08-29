@@ -33,9 +33,13 @@ from .canonical import canonicalize_tool_call, canonicalize_tool_schemas
 from .catalog import validate_catalog
 from .config import AGENTDOJO_SUITES, require_hash, stable_hash
 from .pair_mining import (
+    SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION,
+    SUBSET_STRATEGY_SCHEMA_VERSION,
     TRAIN_PAIR_DESIGN_AUDIT_SCHEMA_VERSION,
     PairMiningError,
+    scientific_v5_monitor_input_protocol,
     validate_candidate_strategy_catalog,
+    validate_estimation_strategy_coverage,
 )
 from .splits import validate_split_manifest
 
@@ -1377,6 +1381,202 @@ def validate_scientific_v5_representability_census(
     return recorded
 
 
+def _scientific_v5_candidate_catalog_from_validated_census(
+    census: Mapping[str, Any],
+    *,
+    authoring_source_tree_hash: str,
+) -> dict[str, Any]:
+    """Derive the deployable catalog without re-running any model or task."""
+
+    require_hash("authoring_source_tree_hash", authoring_source_tree_hash)
+    amendment = deepcopy(dict(census["protocol_amendment"]))
+    path_templates = {
+        str(row["strategy_id"]): row
+        for row in amendment["candidate_path_templates"]
+    }
+    strategies: list[dict[str, Any]] = []
+    for raw in census["candidate_strategies"]:
+        strategy_id = str(raw["strategy_id"])
+        path_template = path_templates[strategy_id]
+        strategies.append(
+            {
+                **deepcopy(dict(raw)),
+                "transformation_family": str(path_template["mechanism"]),
+                "mechanism_description": str(path_template["description"]),
+                "scientific_protocol_revision": str(
+                    amendment["protocol_revision"]
+                ),
+            }
+        )
+    strategies.sort(key=lambda row: str(row["strategy_id"]))
+
+    profiles: list[dict[str, Any]] = []
+    for raw in census["monitor_profile_templates"]:
+        profile = deepcopy(dict(raw))
+        profile_id = str(profile.pop("profile_template_id"))
+        profile.update(
+            {
+                "profile_id": profile_id,
+                "conformance_only": False,
+                "scientific_evidence_eligible": True,
+            }
+        )
+        profiles.append({**profile, "profile_hash": stable_hash(profile)})
+    profiles.sort(key=lambda row: str(row["profile_id"]))
+
+    cohort_payload = {
+        "schema_version": SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION,
+        "representability_census_schema_version": census["schema_version"],
+        "representability_census_hash": census[
+            "scientific_v5_representability_hash"
+        ],
+        "protocol_amendment_hash": amendment["protocol_amendment_hash"],
+        "action_eligibility_manifest_hash": census[
+            "action_eligibility_manifest_hash"
+        ],
+        "task_audit_rows_hash": stable_hash(census["task_audit_rows"]),
+        "scenario_mechanism_rows_hash": stable_hash(
+            census["scenario_mechanism_rows"]
+        ),
+        "action_validations_hash": census["action_validations_hash"],
+        "selected_scenario_ids_by_split": deepcopy(
+            census["selected_scenario_ids_by_split"]
+        ),
+        "excluded_scenario_ids_by_split": deepcopy(
+            census["excluded_scenario_ids_by_split"]
+        ),
+        "selection_rule": deepcopy(amendment["selection_rule"]),
+        "selection_used_predecessor_train_monitor_outcomes": True,
+        "development_monitor_outcomes_inspected": False,
+        "test_outcomes_inspected": False,
+    }
+    cohort = {**cohort_payload, "cohort_hash": stable_hash(cohort_payload)}
+    payload = {
+        "schema_version": SUBSET_STRATEGY_SCHEMA_VERSION,
+        "environment_backend": "agentdojo",
+        "tier2_track": "controlled",
+        "evidence_class": "scientific_v5_candidate_strategy_catalog",
+        "catalog_hash": census["catalog_hash"],
+        "split_manifest_hash": census["split_manifest_hash"],
+        "transformation_family_revision": amendment["protocol_revision"],
+        "train_evidence_hash": census[
+            "predecessor_train_pair_design_audit_hash"
+        ],
+        "authoring_source_tree_hash": authoring_source_tree_hash,
+        "representability_census_hash": census[
+            "scientific_v5_representability_hash"
+        ],
+        "scientific_protocol_amendment": amendment,
+        "scenario_cohort": cohort,
+        "monitor_input_protocol": scientific_v5_monitor_input_protocol(),
+        "frozen_before_development_pair_validation": True,
+        "strategies": strategies,
+        "monitor_profiles": profiles,
+        "mixed_workflows": [],
+        "overall_disposition": (
+            "candidate_catalog_frozen_for_engineering_conformance"
+        ),
+        "learned_wheel_build_permitted": True,
+        "h200_submission_permitted": False,
+        "development_submission_permitted": False,
+        "pair_reduction_permitted": False,
+        "development_monitor_outcomes_inspected": False,
+        "test_outcomes_inspected": False,
+        "learned_model_inference_performed": False,
+        "adaptive_design_disclosure": census["protocol_amendment"][
+            "adaptive_design_disclosure"
+        ],
+        "claim_boundary": census["claim_boundary"],
+    }
+    return {**payload, "candidate_strategy_catalog_hash": stable_hash(payload)}
+
+
+def make_scientific_v5_candidate_strategy_catalog(
+    *,
+    census: Mapping[str, Any],
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    predecessor_strategy_catalog: Mapping[str, Any],
+    predecessor_train_design_audit: Mapping[str, Any],
+    authoring_source_tree_hash: str,
+) -> dict[str, Any]:
+    """Freeze the exact subset-aware scientific-v5 execution catalog."""
+
+    validate_scientific_v5_representability_census(
+        census,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        predecessor_strategy_catalog=predecessor_strategy_catalog,
+        predecessor_train_design_audit=predecessor_train_design_audit,
+    )
+    if census.get("successor_catalog_authoring_permitted") is not True:
+        raise SuccessorDesignError(
+            "scientific-v5 census does not permit catalog authoring"
+        )
+    document = _scientific_v5_candidate_catalog_from_validated_census(
+        census,
+        authoring_source_tree_hash=authoring_source_tree_hash,
+    )
+    validate_scientific_v5_candidate_strategy_catalog(
+        document,
+        census=census,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        predecessor_strategy_catalog=predecessor_strategy_catalog,
+        predecessor_train_design_audit=predecessor_train_design_audit,
+    )
+    return document
+
+
+def validate_scientific_v5_candidate_strategy_catalog(
+    document: Mapping[str, Any],
+    *,
+    census: Mapping[str, Any],
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    predecessor_strategy_catalog: Mapping[str, Any],
+    predecessor_train_design_audit: Mapping[str, Any],
+) -> str:
+    """Reproduce the v5 catalog byte-for-object from its frozen census."""
+
+    census_hash = validate_scientific_v5_representability_census(
+        census,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        predecessor_strategy_catalog=predecessor_strategy_catalog,
+        predecessor_train_design_audit=predecessor_train_design_audit,
+    )
+    try:
+        validate_candidate_strategy_catalog(document)
+        validate_estimation_strategy_coverage(
+            document, action_eligibility_manifest
+        )
+    except PairMiningError as exc:
+        raise SuccessorDesignError(
+            f"scientific-v5 candidate catalog is invalid: {exc}"
+        ) from exc
+    if document.get("representability_census_hash") != census_hash:
+        raise SuccessorDesignError(
+            "scientific-v5 candidate catalog binds another census"
+        )
+    source_hash = str(document.get("authoring_source_tree_hash", ""))
+    require_hash("authoring_source_tree_hash", source_hash)
+    expected = _scientific_v5_candidate_catalog_from_validated_census(
+        census,
+        authoring_source_tree_hash=source_hash,
+    )
+    if dict(document) != expected:
+        raise SuccessorDesignError(
+            "scientific-v5 candidate catalog does not exactly derive from the census"
+        )
+    return str(document["candidate_strategy_catalog_hash"])
+
+
 def scientific_v5_task_rule_summary() -> dict[str, Any]:
     """Return a compact, testable view of the task-family decision."""
 
@@ -1405,8 +1605,10 @@ __all__ = [
     "SCIENTIFIC_V5_STAGED_STRATEGY_ID",
     "SuccessorDesignError",
     "make_scientific_v5_candidate_calls",
+    "make_scientific_v5_candidate_strategy_catalog",
     "make_scientific_v5_representability_census",
     "scientific_v5_protocol_amendment",
     "scientific_v5_task_rule_summary",
     "validate_scientific_v5_representability_census",
+    "validate_scientific_v5_candidate_strategy_catalog",
 ]

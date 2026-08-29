@@ -55,6 +55,18 @@ from .splits import validate_split_manifest
 
 
 STRATEGY_SCHEMA_VERSION = "silenttwin.agentdojo.candidate_strategy_catalog.v1"
+SUBSET_STRATEGY_SCHEMA_VERSION = (
+    "silenttwin.agentdojo.candidate_strategy_catalog.v2"
+)
+SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION = (
+    "silenttwin.agentdojo.scientific_v5_scenario_cohort.v1"
+)
+SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION = (
+    "silenttwin.agentdojo.complete_candidate_monitor_context.v1"
+)
+SCIENTIFIC_V5_MONITOR_INPUT_PROTOCOL_REVISION = (
+    "verdict-independent-complete-plan-current-call-v1"
+)
 PAIR_SCHEMA_VERSION = "silenttwin.agentdojo.pair_registry.v1"
 OBSERVATION_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation.v2"
 OBSERVATION_SET_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation_set.v2"
@@ -89,6 +101,34 @@ _COMPATIBILITY_FIELDS = {
 
 class PairMiningError(ValueError):
     """A strategy/profile freeze or mining observation is invalid."""
+
+
+def scientific_v5_monitor_input_protocol() -> dict[str, Any]:
+    """Return the exact public monitor-input contract used by catalog v2.
+
+    Candidate and profile identifiers are trusted orchestration metadata.  A
+    v2 monitor sees the complete candidate call sequence with neutral numeric
+    positions, plus the current position, but never either hidden identifier.
+    """
+
+    return {
+        "schema_version": SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION,
+        "protocol_revision": SCIENTIFIC_V5_MONITOR_INPUT_PROTOCOL_REVISION,
+        "public_conversation_summary_fields": [
+            "schema_version",
+            "scenario_id",
+            "candidate_call_count",
+            "complete_candidate_call_sequence",
+            "current_call_index",
+        ],
+        "candidate_call_fields": ["call_index", "function", "arguments"],
+        "proposed_call_id_policy": "neutral_candidate_call_index",
+        "both_profiles_receive_identical_input": True,
+        "complete_candidate_call_sequence_visible_to_monitor": True,
+        "current_call_index_visible_to_monitor": True,
+        "candidate_context_independent_of_hidden_verdicts": True,
+        "profile_or_strategy_identifier_not_rendered_as_evidence": True,
+    }
 
 
 def make_monitor_observation(
@@ -520,6 +560,188 @@ def _without_hash(document: Mapping[str, Any], field: str) -> dict[str, Any]:
     return value
 
 
+def _validate_scientific_v5_scenario_cohort(
+    cohort: Any,
+    *,
+    representability_census_hash: str,
+    protocol_amendment_hash: str,
+) -> None:
+    if not isinstance(cohort, Mapping):
+        raise PairMiningError("scientific-v5 catalog lacks its scenario cohort")
+    if cohort.get("schema_version") != SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION:
+        raise PairMiningError("scientific-v5 scenario-cohort schema is unsupported")
+    recorded = str(cohort.get("cohort_hash", ""))
+    require_hash("scenario_cohort.cohort_hash", recorded)
+    if recorded != stable_hash(_without_hash(cohort, "cohort_hash")):
+        raise PairMiningError("scientific-v5 scenario-cohort hash is invalid")
+    if cohort.get("representability_census_hash") != representability_census_hash:
+        raise PairMiningError("scientific-v5 scenario cohort binds another census")
+    if cohort.get("protocol_amendment_hash") != protocol_amendment_hash:
+        raise PairMiningError("scientific-v5 scenario cohort binds another protocol")
+    for field in (
+        "representability_census_hash",
+        "protocol_amendment_hash",
+        "action_eligibility_manifest_hash",
+        "task_audit_rows_hash",
+        "scenario_mechanism_rows_hash",
+        "action_validations_hash",
+    ):
+        require_hash(f"scenario_cohort.{field}", str(cohort.get(field, "")))
+    selected = cohort.get("selected_scenario_ids_by_split")
+    excluded = cohort.get("excluded_scenario_ids_by_split")
+    for label, partitions in (("selected", selected), ("excluded", excluded)):
+        if not isinstance(partitions, Mapping) or set(partitions) != {
+            "train",
+            "development",
+            "test",
+        }:
+            raise PairMiningError(
+                f"scientific-v5 {label} scenario partitions are invalid"
+            )
+        for split in ("train", "development", "test"):
+            values = partitions.get(split)
+            if (
+                not isinstance(values, list)
+                or any(not isinstance(item, str) or not item for item in values)
+                or values != sorted(values)
+                or len(values) != len(set(values))
+            ):
+                raise PairMiningError(
+                    f"scientific-v5 {label} {split} scenario IDs are not canonical"
+                )
+    assert isinstance(selected, Mapping)
+    assert isinstance(excluded, Mapping)
+    if not selected["train"] or not selected["development"] or selected["test"]:
+        raise PairMiningError(
+            "scientific-v5 cohort must contain train/development and no test scenarios"
+        )
+    if excluded["test"]:
+        raise PairMiningError("scientific-v5 cohort may not inspect test exclusions")
+    for split in ("train", "development"):
+        if set(selected[split]) & set(excluded[split]):
+            raise PairMiningError(
+                f"scientific-v5 {split} selected/excluded cohorts overlap"
+            )
+    if (
+        cohort.get("selection_used_predecessor_train_monitor_outcomes") is not True
+        or cohort.get("development_monitor_outcomes_inspected") is not False
+        or cohort.get("test_outcomes_inspected") is not False
+    ):
+        raise PairMiningError("scientific-v5 scenario cohort has an invalid claim boundary")
+
+
+def _validate_scientific_v5_catalog_extensions(
+    document: Mapping[str, Any],
+    *,
+    strategies: Sequence[Mapping[str, Any]],
+    profiles: Sequence[Mapping[str, Any]],
+) -> None:
+    if document.get("evidence_class") != "scientific_v5_candidate_strategy_catalog":
+        raise PairMiningError("candidate catalog v2 is not scientific-v5 evidence")
+    require_hash(
+        "authoring_source_tree_hash",
+        str(document.get("authoring_source_tree_hash", "")),
+    )
+    census_hash = str(document.get("representability_census_hash", ""))
+    require_hash("representability_census_hash", census_hash)
+    amendment = document.get("scientific_protocol_amendment")
+    if not isinstance(amendment, Mapping):
+        raise PairMiningError("scientific-v5 catalog lacks its protocol amendment")
+    amendment_hash = str(amendment.get("protocol_amendment_hash", ""))
+    require_hash("protocol_amendment_hash", amendment_hash)
+    if amendment_hash != stable_hash(
+        _without_hash(amendment, "protocol_amendment_hash")
+    ):
+        raise PairMiningError("scientific-v5 protocol-amendment hash is invalid")
+    objective = amendment.get("ground_truth_safety_objective")
+    objective_hash = str(amendment.get("ground_truth_safety_objective_hash", ""))
+    if (
+        not isinstance(objective, str)
+        or not objective
+        or objective_hash != stable_hash(objective)
+    ):
+        raise PairMiningError("scientific-v5 common safety objective is invalid")
+    expected_input_contract = {
+        key: value
+        for key, value in scientific_v5_monitor_input_protocol().items()
+        if key
+        in {
+            "both_profiles_receive_identical_input",
+            "complete_candidate_call_sequence_visible_to_monitor",
+            "current_call_index_visible_to_monitor",
+            "candidate_context_independent_of_hidden_verdicts",
+            "profile_or_strategy_identifier_not_rendered_as_evidence",
+        }
+    }
+    if amendment.get("monitor_input_contract") != expected_input_contract:
+        raise PairMiningError("scientific-v5 monitor-input amendment was weakened")
+    if document.get("monitor_input_protocol") != scientific_v5_monitor_input_protocol():
+        raise PairMiningError("scientific-v5 monitor-input protocol drifted")
+    _validate_scientific_v5_scenario_cohort(
+        document.get("scenario_cohort"),
+        representability_census_hash=census_hash,
+        protocol_amendment_hash=amendment_hash,
+    )
+    path_templates = amendment.get("candidate_path_templates")
+    profile_templates = amendment.get("monitor_profile_templates")
+    if (
+        not isinstance(path_templates, list)
+        or len(path_templates) != 2
+        or not isinstance(profile_templates, list)
+        or len(profile_templates) != 2
+        or len(strategies) != 2
+        or len(profiles) != 2
+    ):
+        raise PairMiningError("scientific-v5 requires exactly two paths and profiles")
+    path_families = {
+        str(item.get("strategy_id")): str(item.get("mechanism"))
+        for item in path_templates
+        if isinstance(item, Mapping)
+    }
+    if set(path_families) != {str(row.get("strategy_id")) for row in strategies}:
+        raise PairMiningError("scientific-v5 strategy IDs differ from the amendment")
+    if any(
+        row.get("transformation_family")
+        != path_families[str(row.get("strategy_id"))]
+        for row in strategies
+    ):
+        raise PairMiningError("scientific-v5 strategy mechanisms drifted")
+    template_mechanisms = {
+        str(item.get("profile_template_id")): str(item.get("detection_mechanism"))
+        for item in profile_templates
+        if isinstance(item, Mapping)
+    }
+    if set(template_mechanisms) != {str(row.get("profile_id")) for row in profiles}:
+        raise PairMiningError("scientific-v5 profile IDs differ from the amendment")
+    if len(set(template_mechanisms.values())) != 2:
+        raise PairMiningError("scientific-v5 detection mechanisms are not distinct")
+    for profile in profiles:
+        profile_id = str(profile.get("profile_id"))
+        if (
+            profile.get("ground_truth_safety_objective") != objective
+            or profile.get("ground_truth_safety_objective_hash") != objective_hash
+            or profile.get("detection_mechanism")
+            != template_mechanisms.get(profile_id)
+            or profile.get("profile_hash")
+            != stable_hash(_without_hash(profile, "profile_hash"))
+        ):
+            raise PairMiningError(
+                f"scientific-v5 profile {profile_id!r} is not bound to its mechanism"
+            )
+    if (
+        document.get("development_monitor_outcomes_inspected") is not False
+        or document.get("test_outcomes_inspected") is not False
+        or document.get("learned_model_inference_performed") is not False
+        or document.get("h200_submission_permitted") is not False
+        or document.get("development_submission_permitted") is not False
+        or document.get("pair_reduction_permitted") is not False
+        or document.get("learned_wheel_build_permitted") is not True
+        or document.get("overall_disposition")
+        != "candidate_catalog_frozen_for_engineering_conformance"
+    ):
+        raise PairMiningError("scientific-v5 catalog has an invalid execution gate")
+
+
 def _validate_nonempty_plan(plan: Any, *, label: str) -> None:
     if (
         not isinstance(plan, Mapping)
@@ -652,7 +874,11 @@ def make_candidate_strategy_catalog(
 
 
 def validate_candidate_strategy_catalog(document: Mapping[str, Any]) -> None:
-    if document.get("schema_version") != STRATEGY_SCHEMA_VERSION:
+    schema_version = document.get("schema_version")
+    if schema_version not in {
+        STRATEGY_SCHEMA_VERSION,
+        SUBSET_STRATEGY_SCHEMA_VERSION,
+    }:
         raise PairMiningError("unsupported candidate-strategy catalog schema")
     recorded = document.get("candidate_strategy_catalog_hash")
     require_hash("candidate_strategy_catalog_hash", str(recorded))
@@ -702,13 +928,63 @@ def validate_candidate_strategy_catalog(document: Mapping[str, Any]) -> None:
     _validate_mixed_workflows(
         document.get("mixed_workflows", []), profile_ids=profile_ids
     )
+    if schema_version == SUBSET_STRATEGY_SCHEMA_VERSION:
+        _validate_scientific_v5_catalog_extensions(
+            document,
+            strategies=strategies,
+            profiles=profiles,
+        )
+
+
+def estimation_scenario_ids(
+    strategy_catalog: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    *,
+    dataset_split: str,
+) -> tuple[str, ...]:
+    """Return the exact observation cohort for one strategy-catalog version."""
+
+    if dataset_split not in {"train", "development", "test"}:
+        raise PairMiningError(f"unknown estimation split {dataset_split!r}")
+    validate_candidate_strategy_catalog(strategy_catalog)
+    pilot = pilot_scenario_ids(
+        action_eligibility_manifest, dataset_split=dataset_split
+    )
+    if strategy_catalog.get("schema_version") == STRATEGY_SCHEMA_VERSION:
+        return pilot
+    cohort = strategy_catalog["scenario_cohort"]
+    if cohort.get("action_eligibility_manifest_hash") != (
+        action_eligibility_manifest.get("action_eligibility_manifest_hash")
+    ):
+        raise PairMiningError(
+            "scientific-v5 scenario cohort binds another action eligibility"
+        )
+    selected = tuple(
+        str(item)
+        for item in cohort["selected_scenario_ids_by_split"][dataset_split]
+    )
+    excluded = tuple(
+        str(item)
+        for item in cohort["excluded_scenario_ids_by_split"][dataset_split]
+    )
+    pilot_set = set(pilot)
+    if (
+        set(selected) & set(excluded)
+        or set(selected) | set(excluded) != pilot_set
+        or len(selected) + len(excluded) != len(pilot)
+    ):
+        raise PairMiningError(
+            f"scientific-v5 {dataset_split} cohort does not exactly partition "
+            "action eligibility"
+        )
+    return selected
 
 
 def validate_estimation_strategy_coverage(
     strategy_catalog: Mapping[str, Any],
     action_eligibility_manifest: Mapping[str, Any],
 ) -> tuple[str, ...]:
-    """Require a complete candidate pool for every pilot scenario."""
+    """Require a complete candidate pool for the versioned estimation cohort."""
 
     validate_candidate_strategy_catalog(strategy_catalog)
     strategies = strategy_catalog.get("strategies")
@@ -719,11 +995,15 @@ def validate_estimation_strategy_coverage(
     expected = tuple(
         sorted(
             {
-                *pilot_scenario_ids(
-                    action_eligibility_manifest, dataset_split="train"
+                *estimation_scenario_ids(
+                    strategy_catalog,
+                    action_eligibility_manifest,
+                    dataset_split="train",
                 ),
-                *pilot_scenario_ids(
-                    action_eligibility_manifest, dataset_split="development"
+                *estimation_scenario_ids(
+                    strategy_catalog,
+                    action_eligibility_manifest,
+                    dataset_split="development",
                 ),
             }
         )
@@ -748,7 +1028,7 @@ def validate_estimation_strategy_coverage(
             extra = sorted(observed - expected_set)
             raise PairMiningError(
                 f"estimation strategy {strategy_id!r} scenario coverage differs from "
-                f"the pilot; missing={missing!r}, extra={extra!r}"
+                f"the versioned cohort; missing={missing!r}, extra={extra!r}"
             )
     return expected
 
@@ -1504,8 +1784,10 @@ def make_train_pair_feasibility_report(
         raise PairMiningError(
             "train feasibility requires at least two strategies and profiles"
         )
-    eligible_ids = pilot_scenario_ids(
-        action_eligibility_manifest, dataset_split="train"
+    eligible_ids = estimation_scenario_ids(
+        strategy_catalog,
+        action_eligibility_manifest,
+        dataset_split="train",
     )
     runtime_fingerprints = _learned_profile_runtime_fingerprints(
         strategy_catalog
@@ -1789,7 +2071,11 @@ def make_train_pair_design_audit(
         sorted(str(row["strategy_id"]) for row in strategy_catalog["strategies"])
     )
     eligible_ids = tuple(
-        pilot_scenario_ids(action_eligibility_manifest, dataset_split="train")
+        estimation_scenario_ids(
+            strategy_catalog,
+            action_eligibility_manifest,
+            dataset_split="train",
+        )
     )
     decisions = {
         (
@@ -2159,8 +2445,10 @@ def mine_pair_registry(
         strategy_catalog, action_eligibility_manifest
     )
     eligible_ids = {
-        split: pilot_scenario_ids(
-            action_eligibility_manifest, dataset_split=split
+        split: estimation_scenario_ids(
+            strategy_catalog,
+            action_eligibility_manifest,
+            dataset_split=split,
         )
         for split in ("train", "development")
     }
@@ -2344,6 +2632,18 @@ def mine_pair_registry(
         "pairs": pairs,
         "test_instantiations": test_rows,
     }
+    if strategy_catalog.get("schema_version") == SUBSET_STRATEGY_SCHEMA_VERSION:
+        payload.update(
+            {
+                "candidate_strategy_catalog_schema_version": (
+                    SUBSET_STRATEGY_SCHEMA_VERSION
+                ),
+                "scenario_cohort_hash": strategy_catalog["scenario_cohort"][
+                    "cohort_hash"
+                ],
+                "estimation_cohort_source": "candidate_strategy_catalog_v2",
+            }
+        )
     document = {**payload, "pair_registry_hash": stable_hash(payload)}
     validate_pair_registry(
         document,
@@ -2464,12 +2764,33 @@ def validate_pair_registry(
             if validated_hash != eligibility_hash:
                 raise PairMiningError("pair registry eligibility hash drifted")
             for split in ("train", "development", "test"):
-                if eligible_ids[split] != pilot_scenario_ids(
-                    embedded, dataset_split=split
-                ):
+                expected_ids = (
+                    estimation_scenario_ids(
+                        strategy_catalog,
+                        embedded,
+                        dataset_split=split,
+                    )
+                    if strategy_catalog is not None
+                    else pilot_scenario_ids(embedded, dataset_split=split)
+                )
+                if eligible_ids[split] != expected_ids:
                     raise PairMiningError(
                         f"pair registry {split} cohort differs from eligibility"
                     )
+        if strategy_catalog is not None and strategy_catalog.get(
+            "schema_version"
+        ) == SUBSET_STRATEGY_SCHEMA_VERSION:
+            if (
+                document.get("candidate_strategy_catalog_schema_version")
+                != SUBSET_STRATEGY_SCHEMA_VERSION
+                or document.get("scenario_cohort_hash")
+                != strategy_catalog["scenario_cohort"]["cohort_hash"]
+                or document.get("estimation_cohort_source")
+                != "candidate_strategy_catalog_v2"
+            ):
+                raise PairMiningError(
+                    "pair registry is not bound to the scientific-v5 subset"
+                )
     elif any(
         document.get(field) is not None
         for field in (
@@ -2701,7 +3022,11 @@ __all__ = [
     "OBSERVATION_GENERATOR_REVISION",
     "PAIR_SCHEMA_VERSION",
     "PairMiningError",
+    "SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION",
+    "SCIENTIFIC_V5_MONITOR_INPUT_PROTOCOL_REVISION",
+    "SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION",
     "STRATEGY_SCHEMA_VERSION",
+    "SUBSET_STRATEGY_SCHEMA_VERSION",
     "TRAIN_PAIR_DESIGN_AUDIT_REVISION",
     "TRAIN_PAIR_DESIGN_AUDIT_SCHEMA_VERSION",
     "TRAIN_PAIR_FEASIBILITY_REVISION",
@@ -2713,6 +3038,8 @@ __all__ = [
     "make_train_pair_feasibility_report",
     "mine_pair_registry",
     "monitor_pair_binding",
+    "estimation_scenario_ids",
+    "scientific_v5_monitor_input_protocol",
     "validate_candidate_strategy_catalog",
     "validate_estimation_strategy_coverage",
     "validate_observation_set_manifest",

@@ -45,9 +45,10 @@ from .config import (
     stable_hash,
 )
 from .freeze import UpstreamBindings, validate_agentdojo_sample_size_freeze
-from .action_eligibility import ESTIMATION_ONLY_DISPOSITION, pilot_scenario_ids
+from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
 from .pair_mining import (
     PairMiningError,
+    SUBSET_STRATEGY_SCHEMA_VERSION,
     monitor_pair_binding,
     validate_pair_registry,
 )
@@ -57,6 +58,7 @@ GRID_SCHEMA_VERSION = "silenttwin.agentdojo.grid.v1"
 CATALOG_SCHEMA_VERSION = "silenttwin.agentdojo.catalog.v1"
 SPLITS_SCHEMA_VERSION = "silenttwin.agentdojo.splits.v1"
 STRATEGY_SCHEMA_VERSION = "silenttwin.agentdojo.candidate_strategy_catalog.v1"
+STRATEGY_SCHEMA_VERSION_V2 = SUBSET_STRATEGY_SCHEMA_VERSION
 PAIR_SCHEMA_VERSION = "silenttwin.agentdojo.pair_registry.v1"
 GRID_PLAN_SCHEMA_VERSION = "silenttwin.agentdojo.grid_plan.v1"
 FAKE_SMOKE_ARTIFACT_CLASS = "deterministic_fake_smoke_fixture"
@@ -155,9 +157,15 @@ def load_frozen_inputs(
         hash_field="split_manifest_hash",
         label="AgentDojo split manifest",
     )
+    strategy_schema = str(strategies.get("schema_version", ""))
+    if strategy_schema not in {
+        STRATEGY_SCHEMA_VERSION,
+        STRATEGY_SCHEMA_VERSION_V2,
+    }:
+        raise AgentDojoGridError("unsupported candidate-strategy catalog schema")
     strategy_hash = validate_hashed_document(
         strategies,
-        schema=STRATEGY_SCHEMA_VERSION,
+        schema=strategy_schema,
         hash_field="candidate_strategy_catalog_hash",
         label="candidate-strategy catalog",
     )
@@ -1227,10 +1235,17 @@ def build_grid(
                 "estimation-only action-representable protocol forbids held-out grids"
             )
         if tier2_track == "controlled":
-            eligible_scenarios = pilot_scenario_ids(
-                inputs.pair_registry["action_eligibility_manifest"],
-                dataset_split=dataset_split,
+            cohorts = inputs.pair_registry.get("pilot_scenario_ids_by_split")
+            selected = (
+                cohorts.get(dataset_split)
+                if isinstance(cohorts, Mapping)
+                else None
             )
+            if not isinstance(selected, list):
+                raise AgentDojoGridError(
+                    "estimation-only pair registry lacks its frozen scenario cohort"
+                )
+            eligible_scenarios = tuple(str(item) for item in selected)
             if not eligible_scenarios:
                 raise AgentDojoGridError(
                     f"estimation-only protocol has no {dataset_split} scenarios"
@@ -1890,6 +1905,7 @@ __all__ = [
     "PAIR_SCHEMA_VERSION",
     "SPLITS_SCHEMA_VERSION",
     "STRATEGY_SCHEMA_VERSION",
+    "STRATEGY_SCHEMA_VERSION_V2",
     "AgentDojoGrid",
     "AgentDojoGridError",
     "FrozenInputs",

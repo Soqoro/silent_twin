@@ -316,6 +316,57 @@ def _census_scientific_v5_representability(
     }
 
 
+def _freeze_scientific_v5_candidate_catalog(
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    from silenttwin.io.provenance import source_tree_hash
+
+    from .successor_design import make_scientific_v5_candidate_strategy_catalog
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "scientific-v5 catalog freeze requires the development/test-"
+            "uninspected assertion"
+        )
+    report = make_scientific_v5_candidate_strategy_catalog(
+        census=_read_object(args.representability_census),
+        catalog=_read_object(args.catalog),
+        split_manifest=_read_object(args.splits),
+        action_eligibility_manifest=_read_object(args.action_eligibility),
+        predecessor_strategy_catalog=_read_object(
+            args.predecessor_strategy_catalog
+        ),
+        predecessor_train_design_audit=_read_object(
+            args.predecessor_train_design_audit
+        ),
+        authoring_source_tree_hash=source_tree_hash(),
+    )
+    reused = _atomic_write_immutable(args.output, report)
+    cohort = report["scenario_cohort"]["selected_scenario_ids_by_split"]
+    return {
+        "candidate_strategy_catalog_hash": report[
+            "candidate_strategy_catalog_hash"
+        ],
+        "representability_census_hash": report[
+            "representability_census_hash"
+        ],
+        "scenario_cohort_hash": report["scenario_cohort"]["cohort_hash"],
+        "train_scenario_count": len(cohort["train"]),
+        "development_scenario_count": len(cohort["development"]),
+        "test_scenario_count": len(cohort["test"]),
+        "overall_disposition": report["overall_disposition"],
+        "learned_wheel_build_permitted": report[
+            "learned_wheel_build_permitted"
+        ],
+        "h200_submission_permitted": False,
+        "development_submission_permitted": False,
+        "development_monitor_outcomes_inspected": False,
+        "test_outcomes_inspected": False,
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+    }
+
+
 def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
     from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
     from .config import AGENTDOJO_SUITES, bundle_hash
@@ -624,6 +675,45 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     v5_census.set_defaults(handler=_census_scientific_v5_representability)
+
+    v5_catalog = commands.add_parser(
+        "freeze-scientific-v5-candidate-catalog",
+        help=(
+            "derive and immutably freeze the subset-aware scientific-v5 "
+            "candidate catalog"
+        ),
+    )
+    v5_catalog.add_argument(
+        "--catalog", type=Path, default=DEFAULT_CATALOG_PATH
+    )
+    v5_catalog.add_argument(
+        "--splits", type=Path, default=DEFAULT_SPLITS_PATH
+    )
+    v5_catalog.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    v5_catalog.add_argument(
+        "--representability-census", type=Path, required=True
+    )
+    v5_catalog.add_argument(
+        "--predecessor-strategy-catalog", type=Path, required=True
+    )
+    v5_catalog.add_argument(
+        "--predecessor-train-design-audit", type=Path, required=True
+    )
+    v5_catalog.add_argument("--output", type=Path, required=True)
+    v5_catalog.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that no development or held-out monitor outcome "
+            "informed the catalog freeze"
+        ),
+    )
+    v5_catalog.set_defaults(handler=_freeze_scientific_v5_candidate_catalog)
 
     sample = commands.add_parser(
         "freeze-sample-size",

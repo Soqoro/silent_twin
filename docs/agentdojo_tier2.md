@@ -165,16 +165,47 @@ PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
 
 Even a passing census sets `h200_submission_permitted:false` and
 `development_submission_permitted:false`. It permits only review and exact
-successor-catalog authoring. The current 193-scenario observation interface
-must not be pointed at the selected subset until a separately reviewed,
-source-bound successor-catalog/cohort implementation exists. That successor
-must also give both profiles the same verdict-independent complete candidate
-call sequence and current-call index; the current constant plan summary is not
-enough for a provenance/composition profile to inspect a staged path. Profile
-or strategy identifiers cannot be rendered as evidence. The resulting
-experiment is a controlled mechanism-diverse causal benchmark; it cannot be
-reported as evidence that complementary blind spots are prevalent in common
-guardrails.
+successor-catalog authoring. After that census is reviewed and committed,
+derive the versioned catalog directly from it on CPU:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
+  -m silenttwin.agentdojo.cli freeze-scientific-v5-candidate-catalog \
+  --representability-census \
+    /persistent/evidence/scientific-v5-representability-census.json \
+  --predecessor-strategy-catalog \
+    /persistent/evidence/candidate-strategies-v4.json \
+  --predecessor-train-design-audit \
+    /persistent/evidence/train-pair-design-audit-scientific-v4.json \
+  --output \
+    /persistent/evidence/candidate-strategies-scientific-v5.json \
+  --assert-development-and-test-results-uninspected
+```
+
+Catalog schema v2 binds the census, its transparent selected/excluded
+partition, the action-eligibility freeze, and exactly 93 train plus 51 public
+development scenarios; test remains empty. It retains catalog-v1 behavior for
+older freezes. The v2 observation path computes each monitor input before
+either hidden profile runs. Both profiles therefore receive the same
+verdict-independent context for a given call: the complete candidate sequence,
+neutral numeric call positions, and the current-call index. Trusted strategy
+IDs are removed from the proposed call ID and neither profile nor strategy IDs
+are rendered as model evidence.
+
+A valid catalog permits only the subsequent learned-wheel build and engineering
+conformance preparation. It still sets `h200_submission_permitted:false`,
+`development_submission_permitted:false`, and
+`pair_reduction_permitted:false`; do not submit a scheduler job until a clean
+catalog checkpoint and its exact command are separately reviewed. The two
+profile templates still carry the predecessor runtime fingerprint because no
+wheel containing the v5 observation implementation exists at this checkpoint.
+That fingerprint is not an execution authorization: the next CPU checkpoint
+must build the new wheel, reproduce its learned-runtime identity, and derive a
+separately hash-bound runtime/conformance catalog without changing the frozen
+cohort, policies, checkpoint, or monitor-input protocol. The
+resulting experiment is a controlled mechanism-diverse causal benchmark; it
+cannot be reported as evidence that complementary blind spots are prevalent
+in common guardrails.
 
 ```bash
 
