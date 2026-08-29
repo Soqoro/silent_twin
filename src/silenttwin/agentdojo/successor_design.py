@@ -34,12 +34,18 @@ from .catalog import validate_catalog
 from .config import AGENTDOJO_SUITES, require_hash, stable_hash
 from .pair_mining import (
     SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION,
+    SCIENTIFIC_V5_RUNTIME_BINDING_SCHEMA_VERSION,
     SUBSET_STRATEGY_SCHEMA_VERSION,
     TRAIN_PAIR_DESIGN_AUDIT_SCHEMA_VERSION,
     PairMiningError,
+    scientific_v5_catalog_content_hash,
     scientific_v5_monitor_input_protocol,
     validate_candidate_strategy_catalog,
     validate_estimation_strategy_coverage,
+)
+from .runtime_integrity import (
+    RuntimeIntegrityError,
+    validate_learned_runtime_provenance,
 )
 from .splits import validate_split_manifest
 
@@ -1577,6 +1583,191 @@ def validate_scientific_v5_candidate_strategy_catalog(
     return str(document["candidate_strategy_catalog_hash"])
 
 
+def _runtime_bound_scientific_v5_catalog_from_validated_design(
+    design_catalog: Mapping[str, Any],
+    *,
+    runtime_source_tree_hash: str,
+    learned_runtime_provenance: Mapping[str, Any],
+    installed_wheel_verification: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Rebind only operational runtime identity, preserving scientific content."""
+
+    require_hash("runtime_source_tree_hash", runtime_source_tree_hash)
+    design_hash = str(design_catalog.get("candidate_strategy_catalog_hash", ""))
+    require_hash("design_candidate_strategy_catalog_hash", design_hash)
+    design_source_hash = str(design_catalog.get("authoring_source_tree_hash", ""))
+    require_hash("design_authoring_source_tree_hash", design_source_hash)
+    try:
+        runtime_fingerprint = validate_learned_runtime_provenance(
+            learned_runtime_provenance
+        )
+    except RuntimeIntegrityError as exc:
+        raise SuccessorDesignError(
+            f"scientific-v5 learned runtime is invalid: {exc}"
+        ) from exc
+    if not runtime_fingerprint.startswith("sha256:"):
+        raise SuccessorDesignError(
+            "scientific-v5 runtime binding requires a learned runtime"
+        )
+
+    scientific_content_hash = scientific_v5_catalog_content_hash(design_catalog)
+    payload = deepcopy(dict(design_catalog))
+    payload.pop("candidate_strategy_catalog_hash", None)
+    if payload.get("runtime_binding") is not None:
+        raise SuccessorDesignError(
+            "scientific-v5 design catalog is already runtime-bound"
+        )
+    rebound_profiles: list[dict[str, Any]] = []
+    for raw in payload["monitor_profiles"]:
+        profile = deepcopy(dict(raw))
+        profile.pop("profile_hash", None)
+        profile["runtime_fingerprint"] = runtime_fingerprint
+        rebound_profiles.append(
+            {**profile, "profile_hash": stable_hash(profile)}
+        )
+    payload["monitor_profiles"] = rebound_profiles
+    binding_payload = {
+        "schema_version": SCIENTIFIC_V5_RUNTIME_BINDING_SCHEMA_VERSION,
+        "design_candidate_strategy_catalog_hash": design_hash,
+        "design_authoring_source_tree_hash": design_source_hash,
+        "runtime_source_tree_hash": runtime_source_tree_hash,
+        "learned_runtime_fingerprint": runtime_fingerprint,
+        "learned_runtime_provenance": deepcopy(
+            dict(learned_runtime_provenance)
+        ),
+        "installed_wheel_verification": deepcopy(
+            dict(installed_wheel_verification)
+        ),
+        "scientific_content_hash": scientific_content_hash,
+    }
+    payload["runtime_binding"] = {
+        **binding_payload,
+        "runtime_binding_hash": stable_hash(binding_payload),
+    }
+    payload["overall_disposition"] = (
+        "runtime_bound_candidate_catalog_frozen_pending_conformance_review"
+    )
+    payload["learned_wheel_build_permitted"] = False
+    payload["engineering_conformance_spec_authoring_permitted"] = True
+    document = {
+        **payload,
+        "candidate_strategy_catalog_hash": stable_hash(payload),
+    }
+    if scientific_v5_catalog_content_hash(document) != scientific_content_hash:
+        raise SuccessorDesignError(
+            "scientific-v5 runtime binding changed scientific content"
+        )
+    return document
+
+
+def make_runtime_bound_scientific_v5_candidate_strategy_catalog(
+    *,
+    design_catalog: Mapping[str, Any],
+    census: Mapping[str, Any],
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    predecessor_strategy_catalog: Mapping[str, Any],
+    predecessor_train_design_audit: Mapping[str, Any],
+    runtime_source_tree_hash: str,
+    learned_runtime_provenance: Mapping[str, Any],
+    installed_wheel_verification: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Freeze a wheel-verified runtime identity onto the reviewed v5 design."""
+
+    validate_scientific_v5_candidate_strategy_catalog(
+        design_catalog,
+        census=census,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        predecessor_strategy_catalog=predecessor_strategy_catalog,
+        predecessor_train_design_audit=predecessor_train_design_audit,
+    )
+    if design_catalog.get("learned_wheel_build_permitted") is not True:
+        raise SuccessorDesignError(
+            "scientific-v5 design catalog does not permit a learned wheel build"
+        )
+    document = _runtime_bound_scientific_v5_catalog_from_validated_design(
+        design_catalog,
+        runtime_source_tree_hash=runtime_source_tree_hash,
+        learned_runtime_provenance=learned_runtime_provenance,
+        installed_wheel_verification=installed_wheel_verification,
+    )
+    validate_runtime_bound_scientific_v5_candidate_strategy_catalog(
+        document,
+        design_catalog=design_catalog,
+        census=census,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        predecessor_strategy_catalog=predecessor_strategy_catalog,
+        predecessor_train_design_audit=predecessor_train_design_audit,
+        runtime_source_tree_hash=runtime_source_tree_hash,
+    )
+    return document
+
+
+def validate_runtime_bound_scientific_v5_candidate_strategy_catalog(
+    document: Mapping[str, Any],
+    *,
+    design_catalog: Mapping[str, Any],
+    census: Mapping[str, Any],
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    predecessor_strategy_catalog: Mapping[str, Any],
+    predecessor_train_design_audit: Mapping[str, Any],
+    runtime_source_tree_hash: str,
+) -> str:
+    """Reproduce a runtime-bound v5 catalog from its reviewed design freeze."""
+
+    design_hash = validate_scientific_v5_candidate_strategy_catalog(
+        design_catalog,
+        census=census,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        predecessor_strategy_catalog=predecessor_strategy_catalog,
+        predecessor_train_design_audit=predecessor_train_design_audit,
+    )
+    require_hash("runtime_source_tree_hash", runtime_source_tree_hash)
+    try:
+        validate_candidate_strategy_catalog(document)
+        validate_estimation_strategy_coverage(
+            document, action_eligibility_manifest
+        )
+    except PairMiningError as exc:
+        raise SuccessorDesignError(
+            f"runtime-bound scientific-v5 catalog is invalid: {exc}"
+        ) from exc
+    binding = document.get("runtime_binding")
+    if not isinstance(binding, Mapping):
+        raise SuccessorDesignError(
+            "runtime-bound scientific-v5 catalog lacks its runtime binding"
+        )
+    if (
+        binding.get("design_candidate_strategy_catalog_hash") != design_hash
+        or binding.get("design_authoring_source_tree_hash")
+        != design_catalog.get("authoring_source_tree_hash")
+        or binding.get("runtime_source_tree_hash") != runtime_source_tree_hash
+    ):
+        raise SuccessorDesignError(
+            "runtime-bound scientific-v5 catalog binds another design or source"
+        )
+    expected = _runtime_bound_scientific_v5_catalog_from_validated_design(
+        design_catalog,
+        runtime_source_tree_hash=runtime_source_tree_hash,
+        learned_runtime_provenance=binding["learned_runtime_provenance"],
+        installed_wheel_verification=binding["installed_wheel_verification"],
+    )
+    if dict(document) != expected:
+        raise SuccessorDesignError(
+            "runtime-bound scientific-v5 catalog does not exactly derive from design"
+        )
+    return str(document["candidate_strategy_catalog_hash"])
+
+
 def scientific_v5_task_rule_summary() -> dict[str, Any]:
     """Return a compact, testable view of the task-family decision."""
 
@@ -1604,6 +1795,7 @@ __all__ = [
     "SCIENTIFIC_V5_REPRESENTABILITY_SCHEMA_VERSION",
     "SCIENTIFIC_V5_STAGED_STRATEGY_ID",
     "SuccessorDesignError",
+    "make_runtime_bound_scientific_v5_candidate_strategy_catalog",
     "make_scientific_v5_candidate_calls",
     "make_scientific_v5_candidate_strategy_catalog",
     "make_scientific_v5_representability_census",
@@ -1611,4 +1803,5 @@ __all__ = [
     "scientific_v5_task_rule_summary",
     "validate_scientific_v5_representability_census",
     "validate_scientific_v5_candidate_strategy_catalog",
+    "validate_runtime_bound_scientific_v5_candidate_strategy_catalog",
 ]

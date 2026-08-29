@@ -9,14 +9,22 @@ from silenttwin.agentdojo.config import stable_hash
 from silenttwin.agentdojo.pair_mining import (
     PairMiningError,
     estimation_scenario_ids,
+    scientific_v5_catalog_content_hash,
     validate_candidate_strategy_catalog,
     validate_estimation_strategy_coverage,
+)
+from silenttwin.agentdojo.runtime_integrity import (
+    INSTALLED_WHEEL_VERIFICATION_SCHEMA,
+    RUNTIME_FINGERPRINT_SCHEMA,
+    RUNTIME_PROVENANCE_SCHEMA,
+    learned_runtime_manifest_fingerprint,
 )
 from silenttwin.agentdojo.successor_design import (
     COMMON_GROUND_TRUTH_SAFETY_OBJECTIVE,
     SCIENTIFIC_V5_INLINE_STRATEGY_ID,
     SCIENTIFIC_V5_STAGED_STRATEGY_ID,
     SuccessorDesignError,
+    _runtime_bound_scientific_v5_catalog_from_validated_design,
     _scientific_v5_candidate_catalog_from_validated_census,
     _normalize_action_validation,
     _validate_normalized_action_validation,
@@ -314,7 +322,7 @@ def test_v5_excluded_task_has_no_candidate_pair() -> None:
         )
 
 
-def test_v5_catalog_freezes_subset_and_partitions_action_eligibility() -> None:
+def _minimal_v5_design_fixture() -> tuple[dict, dict, dict]:
     amendment = scientific_v5_protocol_amendment()
     eligibility_hash = stable_hash("eligibility")
     selected = {
@@ -394,6 +402,11 @@ def test_v5_catalog_freezes_subset_and_partitions_action_eligibility() -> None:
         census,
         authoring_source_tree_hash=stable_hash("source"),
     )
+    return census, action_eligibility, strategy_catalog
+
+
+def test_v5_catalog_freezes_subset_and_partitions_action_eligibility() -> None:
+    _, action_eligibility, strategy_catalog = _minimal_v5_design_fixture()
 
     validate_candidate_strategy_catalog(strategy_catalog)
     assert estimation_scenario_ids(
@@ -418,3 +431,94 @@ def test_v5_catalog_freezes_subset_and_partitions_action_eligibility() -> None:
         estimation_scenario_ids(
             tampered, action_eligibility, dataset_split="train"
         )
+
+
+def _runtime_binding_fixture() -> tuple[dict, dict]:
+    record_identity = "1" * 64
+    manifest = {
+        "schema_version": RUNTIME_FINGERPRINT_SCHEMA,
+        "python": {
+            "implementation": "cpython",
+            "version": [3, 11, 15],
+            "cache_tag": "cpython-311",
+            "abi_flags": "",
+            "soabi": "cpython-311-x86_64-linux-gnu",
+            "byteorder": "little",
+            "system": "Linux",
+            "machine": "x86_64",
+        },
+        "locked_core": [{"name": "torch", "version": "2.7.1"}],
+        "installed_distributions": [
+            {
+                "name": "silenttwin",
+                "version": "0.1.0",
+                "record_identity": record_identity,
+            },
+            {
+                "name": "torch",
+                "version": "2.7.1",
+                "record_identity": "2" * 64,
+            },
+            {
+                "name": "transformers",
+                "version": "4.55.0",
+                "record_identity": "3" * 64,
+            },
+        ],
+    }
+    runtime_fingerprint = learned_runtime_manifest_fingerprint(manifest)
+    provenance = {
+        "schema_version": RUNTIME_PROVENANCE_SCHEMA,
+        "status": "captured",
+        "runtime_fingerprint": runtime_fingerprint,
+        "distribution_count": 3,
+        "manifest": manifest,
+    }
+    wheel_payload = {
+        "schema_version": INSTALLED_WHEEL_VERIFICATION_SCHEMA,
+        "distribution_name": "silenttwin",
+        "distribution_version": "0.1.0",
+        "wheel_filename": "silenttwin-0.1.0-py3-none-any.whl",
+        "wheel_sha256": "4" * 64,
+        "immutable_payload_file_count": 12,
+        "immutable_payload_manifest_sha256": "5" * 64,
+        "installed_record_identity": record_identity,
+        "installed_payload_matches_wheel": True,
+    }
+    wheel = {**wheel_payload, "verification_hash": stable_hash(wheel_payload)}
+    return provenance, wheel
+
+
+def test_v5_runtime_binding_changes_only_operational_identity() -> None:
+    _, action_eligibility, design = _minimal_v5_design_fixture()
+    provenance, wheel = _runtime_binding_fixture()
+    content_hash = scientific_v5_catalog_content_hash(design)
+
+    runtime_catalog = _runtime_bound_scientific_v5_catalog_from_validated_design(
+        design,
+        runtime_source_tree_hash=stable_hash("runtime-source"),
+        learned_runtime_provenance=provenance,
+        installed_wheel_verification=wheel,
+    )
+
+    validate_candidate_strategy_catalog(runtime_catalog)
+    validate_estimation_strategy_coverage(runtime_catalog, action_eligibility)
+    assert scientific_v5_catalog_content_hash(runtime_catalog) == content_hash
+    assert runtime_catalog["learned_wheel_build_permitted"] is False
+    assert runtime_catalog[
+        "engineering_conformance_spec_authoring_permitted"
+    ] is True
+    assert {
+        profile["runtime_fingerprint"]
+        for profile in runtime_catalog["monitor_profiles"]
+    } == {provenance["runtime_fingerprint"]}
+
+    tampered = copy.deepcopy(runtime_catalog)
+    tampered["strategies"][0]["scenario_plans"]["train-selected"]["calls"][
+        0
+    ]["arguments"] = {"tampered": True}
+    catalog_payload = dict(tampered)
+    catalog_payload.pop("candidate_strategy_catalog_hash")
+    tampered["candidate_strategy_catalog_hash"] = stable_hash(catalog_payload)
+    with pytest.raises(PairMiningError, match="changed scientific content"):
+        validate_candidate_strategy_catalog(tampered)

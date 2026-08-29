@@ -192,19 +192,70 @@ neutral numeric call positions, and the current-call index. Trusted strategy
 IDs are removed from the proposed call ID and neither profile nor strategy IDs
 are rendered as model evidence.
 
-A valid catalog permits only the subsequent learned-wheel build and engineering
-conformance preparation. It still sets `h200_submission_permitted:false`,
+A valid design catalog permits only the subsequent learned-wheel build. It
+still sets `h200_submission_permitted:false`,
 `development_submission_permitted:false`, and
-`pair_reduction_permitted:false`; do not submit a scheduler job until a clean
-catalog checkpoint and its exact command are separately reviewed. The two
-profile templates still carry the predecessor runtime fingerprint because no
-wheel containing the v5 observation implementation exists at this checkpoint.
-That fingerprint is not an execution authorization: the next CPU checkpoint
-must build the new wheel, reproduce its learned-runtime identity, and derive a
-separately hash-bound runtime/conformance catalog without changing the frozen
-cohort, policies, checkpoint, or monitor-input protocol. The
-resulting experiment is a controlled mechanism-diverse causal benchmark; it
-cannot be reported as evidence that complementary blind spots are prevalent
+`pair_reduction_permitted:false`. Its profile templates retain the predecessor
+runtime identity deliberately and must not be executed. From the reviewed clean
+commit, build the wheel twice with the same source archive and
+`SOURCE_DATE_EPOCH`, require byte-identical archives, install that exact wheel
+into the learned environment, and run `pip check` before binding it.
+
+The binding command revalidates the complete design/census/predecessor chain,
+derives the active learned-runtime fingerprint from the exact lock, compares
+every immutable installed SilentTwin payload byte with the supplied wheel, and
+binds both identities to the current source-tree hash. It changes only profile
+runtime fingerprints and operational gates; a separate scientific-content
+hash proves that the cohort, plans, objective, policies, checkpoint identity,
+decoding, and monitor-input protocol did not change:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo-learned/bin/python3.11 \
+  -m silenttwin.agentdojo.cli bind-scientific-v5-runtime \
+  --representability-census \
+    /persistent/evidence/scientific-v5-representability-census.json \
+  --predecessor-strategy-catalog \
+    /persistent/evidence/candidate-strategies-v4.json \
+  --predecessor-train-design-audit \
+    /persistent/evidence/train-pair-design-audit-scientific-v4.json \
+  --design-strategy-catalog \
+    /persistent/evidence/candidate-strategies-scientific-v5.json \
+  --dependency-lock requirements-tier2-learned-h200.lock \
+  --wheel-artifact \
+    /persistent/runtime-artifacts/<source-hash>/silenttwin-0.1.0-py3-none-any.whl \
+  --output \
+    /persistent/conformance/candidate-strategies-scientific-v5-runtime.json \
+  --assert-development-and-test-results-uninspected \
+  --assert-wheel-built-from-current-clean-commit
+```
+
+Then freeze exactly one development-only engineering spec. The selector is
+deterministic and prefers the selected scenario with the largest candidate
+call count, ensuring the conformance job exercises complete-plan visibility:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo-learned/bin/python3.11 \
+  -m silenttwin.agentdojo.cli freeze-scientific-v5-conformance-spec \
+  --representability-census \
+    /persistent/evidence/scientific-v5-representability-census.json \
+  --predecessor-strategy-catalog \
+    /persistent/evidence/candidate-strategies-v4.json \
+  --predecessor-train-design-audit \
+    /persistent/evidence/train-pair-design-audit-scientific-v4.json \
+  --design-strategy-catalog \
+    /persistent/evidence/candidate-strategies-scientific-v5.json \
+  --runtime-strategy-catalog \
+    /persistent/conformance/candidate-strategies-scientific-v5-runtime.json \
+  --output \
+    /persistent/conformance/scientific-v5-conformance-spec.json \
+  --assert-development-and-test-results-uninspected
+```
+
+Both artifacts remain non-authorizing:
+`h200_submission_permitted:false`. Review their hashes and the fully resolved
+site-specific `qsub` command separately before submitting one scalar H200 job.
+The resulting experiment is a controlled mechanism-diverse causal benchmark;
+it cannot be reported as evidence that complementary blind spots are prevalent
 in common guardrails.
 
 ```bash

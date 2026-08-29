@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import asdict, dataclass
+from email.parser import BytesParser
 import hashlib
 from importlib import metadata
 import json
@@ -46,6 +47,9 @@ EXPECTED_PYTHON = (3, 11)
 RUNTIME_FINGERPRINT_SCHEMA = "silenttwin.agentdojo.learned-runtime/v1"
 RUNTIME_PROVENANCE_SCHEMA = (
     "silenttwin.agentdojo.learned-runtime-provenance/v1"
+)
+INSTALLED_WHEEL_VERIFICATION_SCHEMA = (
+    "silenttwin.agentdojo.installed-wheel-verification/v1"
 )
 _EXACT_REQUIREMENT = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([^\s;]+)$")
 _LEARNED_RUNTIME_MINIMUM = frozenset({"torch", "transformers"})
@@ -389,6 +393,192 @@ def _record_identity(distribution: Any) -> str:
         )
     rows.sort(key=lambda row: str(row["path"]))
     return _canonical_json_sha256(rows)
+
+
+def verify_installed_distribution_against_wheel(
+    *,
+    wheel_artifact: Path | str,
+    distribution_name: str,
+    expected_version: str,
+    distribution: Any | None = None,
+) -> dict[str, Any]:
+    """Compare every immutable wheel payload byte with one installation.
+
+    RECORD and installer-generated state are excluded because installers
+    legitimately rewrite or add them.  The wheel archive hash, installed
+    RECORD identity, and a canonical path/byte manifest remain separate
+    identities in the returned self-hashed report.
+    """
+
+    wheel_path = Path(wheel_artifact).expanduser()
+    if wheel_path.is_symlink() or not wheel_path.is_file():
+        raise RuntimeIntegrityError("wheel artifact must be a local regular file")
+    installed = (
+        distribution
+        if distribution is not None
+        else metadata.distribution(distribution_name)
+    )
+    observed_name = installed.metadata.get("Name")
+    if (
+        not isinstance(observed_name, str)
+        or _normalize_name(observed_name) != _normalize_name(distribution_name)
+        or str(installed.version) != expected_version
+    ):
+        raise RuntimeIntegrityError(
+            "installed distribution name/version differs from the wheel contract"
+        )
+    rows: list[dict[str, Any]] = []
+    observed: set[str] = set()
+    excluded_names = {"RECORD", "INSTALLER", "REQUESTED", "direct_url.json"}
+    try:
+        with zipfile.ZipFile(wheel_path) as archive:
+            members = archive.infolist()
+            metadata_members = [
+                member
+                for member in members
+                if not member.is_dir()
+                and PurePosixPath(member.filename).name == "METADATA"
+                and PurePosixPath(member.filename).parent.name.endswith(
+                    ".dist-info"
+                )
+            ]
+            if len(metadata_members) != 1:
+                raise RuntimeIntegrityError(
+                    "wheel must contain exactly one distribution METADATA file"
+                )
+            metadata_member = metadata_members[0]
+            wheel_metadata = BytesParser().parsebytes(
+                archive.read(metadata_member)
+            )
+            if (
+                _normalize_name(str(wheel_metadata.get("Name", "")))
+                != _normalize_name(distribution_name)
+                or str(wheel_metadata.get("Version", "")) != expected_version
+            ):
+                raise RuntimeIntegrityError(
+                    "wheel metadata differs from the distribution contract"
+                )
+            dist_info = PurePosixPath(metadata_member.filename).parent
+            record_name = (dist_info / "RECORD").as_posix()
+            if sum(member.filename == record_name for member in members) != 1:
+                raise RuntimeIntegrityError(
+                    "wheel must contain exactly one matching RECORD file"
+                )
+            for member in members:
+                path = PurePosixPath(member.filename)
+                relative = path.as_posix()
+                if member.is_dir() or path.name in excluded_names:
+                    continue
+                if path.is_absolute() or ".." in path.parts or not path.parts:
+                    raise RuntimeIntegrityError(
+                        f"unsafe wheel payload path {relative!r}"
+                    )
+                if relative in observed:
+                    raise RuntimeIntegrityError(
+                        f"duplicate wheel payload path {relative!r}"
+                    )
+                observed.add(relative)
+                wheel_bytes = archive.read(member)
+                installed_path = Path(installed.locate_file(relative))
+                if installed_path.is_symlink() or not installed_path.is_file():
+                    raise RuntimeIntegrityError(
+                        f"installed wheel payload is missing or non-regular: {relative}"
+                    )
+                installed_bytes = installed_path.read_bytes()
+                if installed_bytes != wheel_bytes:
+                    raise RuntimeIntegrityError(
+                        f"installed payload differs from wheel at {relative}"
+                    )
+                rows.append(_manifest_entry(relative, wheel_bytes))
+    except (OSError, zipfile.BadZipFile, KeyError) as exc:
+        raise RuntimeIntegrityError(f"cannot verify installed wheel: {exc}") from exc
+    rows.sort(key=lambda row: str(row["path"]))
+    if not rows:
+        raise RuntimeIntegrityError("wheel contains no immutable payload files")
+    payload = {
+        "schema_version": INSTALLED_WHEEL_VERIFICATION_SCHEMA,
+        "distribution_name": _normalize_name(distribution_name),
+        "distribution_version": expected_version,
+        "wheel_filename": wheel_path.name,
+        "wheel_sha256": _file_sha256(wheel_path),
+        "immutable_payload_file_count": len(rows),
+        "immutable_payload_manifest_sha256": _canonical_json_sha256(rows),
+        "installed_record_identity": _record_identity(installed),
+        "installed_payload_matches_wheel": True,
+    }
+    report = {**payload, "verification_hash": _canonical_json_sha256(payload)}
+    validate_installed_wheel_verification(
+        report,
+        expected_distribution_name=distribution_name,
+        expected_version=expected_version,
+    )
+    return report
+
+
+def validate_installed_wheel_verification(
+    report: Mapping[str, Any],
+    *,
+    expected_distribution_name: str,
+    expected_version: str,
+) -> str:
+    """Validate the exact self-hashed installed-wheel verification envelope."""
+
+    expected_fields = {
+        "schema_version",
+        "distribution_name",
+        "distribution_version",
+        "wheel_filename",
+        "wheel_sha256",
+        "immutable_payload_file_count",
+        "immutable_payload_manifest_sha256",
+        "installed_record_identity",
+        "installed_payload_matches_wheel",
+        "verification_hash",
+    }
+    if set(report) != expected_fields:
+        raise RuntimeIntegrityError(
+            "installed-wheel verification fields are not exact"
+        )
+    if report.get("schema_version") != INSTALLED_WHEEL_VERIFICATION_SCHEMA:
+        raise RuntimeIntegrityError(
+            "unsupported installed-wheel verification schema"
+        )
+    normalized_name = _normalize_name(expected_distribution_name)
+    count = report.get("immutable_payload_file_count")
+    filename = report.get("wheel_filename")
+    if (
+        report.get("distribution_name") != normalized_name
+        or report.get("distribution_version") != expected_version
+        or not isinstance(filename, str)
+        or not filename.endswith(".whl")
+        or Path(filename).name != filename
+        or isinstance(count, bool)
+        or not isinstance(count, int)
+        or count <= 0
+        or report.get("installed_payload_matches_wheel") is not True
+    ):
+        raise RuntimeIntegrityError(
+            "installed-wheel verification does not satisfy its distribution contract"
+        )
+    for field in (
+        "wheel_sha256",
+        "immutable_payload_manifest_sha256",
+        "installed_record_identity",
+        "verification_hash",
+    ):
+        value = report.get(field)
+        if not isinstance(value, str) or _HEX_SHA256.fullmatch(value) is None:
+            raise RuntimeIntegrityError(
+                f"installed-wheel verification has invalid {field}"
+            )
+    recorded = str(report["verification_hash"])
+    payload = dict(report)
+    payload.pop("verification_hash")
+    if recorded != _canonical_json_sha256(payload):
+        raise RuntimeIntegrityError(
+            "installed-wheel verification hash does not match its payload"
+        )
+    return recorded
 
 
 def _default_python_identity() -> dict[str, Any]:
@@ -781,6 +971,7 @@ __all__ = [
     "EXPECTED_PYTHON",
     "EXPECTED_SDIST_SHA256",
     "EXPECTED_WHEEL_SHA256",
+    "INSTALLED_WHEEL_VERIFICATION_SCHEMA",
     "LearnedRuntimeReport",
     "LockedEnvironmentReport",
     "RUNTIME_FINGERPRINT_SCHEMA",
@@ -795,7 +986,9 @@ __all__ = [
     "not_applicable_learned_runtime_provenance",
     "parse_exact_lock",
     "validate_learned_runtime_provenance",
+    "validate_installed_wheel_verification",
     "validate_locked_distributions",
     "verify_agentdojo_distribution",
+    "verify_installed_distribution_against_wheel",
     "verify_runtime_environment",
 ]

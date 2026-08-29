@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-28 (H200 checkpoint-conformance package frozen; commit and submission pending)
+Last updated: 2026-08-30 (scientific-v5 runtime-binding source gate pending commit)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -2761,3 +2761,111 @@ Immediate next checkpoint:
    not call `qsub` without separate explicit approval; and
 5. keep train observation, development observation, pair reduction, and every
    benchmark grid blocked until their respective gates authorize them.
+
+## Scientific-v5 runtime-binding source gate on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The subset catalog and
+monitor-input freeze was committed at `1b7cbc4b3402da5bb270dbed9452a6cbb7fd4d2a`
+(`Freeze scientific v5 subset catalog`), and the worktree was clean before this
+checkpoint began. No PBS job, H200 allocation, checkpoint load, learned-model
+inference, external API call, development/test outcome inspection, pair
+reduction, or benchmark grid occurred.
+
+Before changing source, the historical deterministic wheel recipe was replayed
+against its old source commit and reproduced the archived wheel byte-for-byte.
+The same recipe then built commit `1b7cbc4` twice from independent source
+archives. Both archives were 458,589 bytes with SHA-256
+`81294dba4f92a07e035abe42940a51a11699e534b33460448006c54cf5f1b41d`
+and passed ZIP integrity checks. One copy is archived read-only at
+`/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/5574e25b2cfae3804db090349f1ca3667550e7f673607e353ed2e7c74fdc9ace/silenttwin-0.1.0-py3-none-any.whl`.
+It was installed into the dedicated learned environment and `pip check`
+passed. Its 112 immutable payload files matched the wheel exactly, with payload
+manifest hash
+`f7a745adf3dc7f6f5d1b766278c58caf3154b76d51d818e41eb25d9f3f5f046b`,
+installed RECORD identity
+`80c2fde12802422ba98e8f5d4c247f8486a99959a3d47f1980c87299f3398997`,
+installed-wheel verification hash
+`f24879b478f9427f93f73e84d574d006f38ae46623bc02dd79962fc170e8aefc`,
+and learned-runtime fingerprint
+`sha256:ec461b347127aac6970342d3b9eacbdabf52e52dba5e6cc08a78f78abc0e3a28`.
+
+Those wheel/runtime identities are now explicitly **superseded and
+non-executable**. The audit found that checkpoint conformance still constructed
+its own legacy call-only `MonitorInput`, so it would not have exercised the
+scientific-v5 complete-plan, current-index, neutral-ID contract. Correcting
+that shared-path gap changed executable source after the intermediate wheel was
+built. The archived wheel must not be used for runtime binding, conformance, or
+observation.
+
+The repository now routes checkpoint conformance through the same
+`make_plan_monitor_inputs` materializer used by pair observation. Inputs are
+materialized once per plan before either profile runs. Catalog-v2 conformance
+therefore exercises the complete ordered sequence, current call index, and
+neutral `candidate-call-<index>` IDs; the two hidden profiles receive identical
+verdict-independent evidence.
+
+Runtime binding is now a first-party, fail-closed artifact transition:
+
+- `verify_installed_distribution_against_wheel` compares every immutable
+  SilentTwin wheel member byte-for-byte with the active installation and emits
+  an exact self-hashed verification envelope;
+- the runtime-bound catalog contains the complete validated learned-runtime
+  provenance, wheel archive/payload/RECORD identities, design catalog and
+  design-source hashes, current runtime-source hash, and a separate scientific
+  content hash;
+- the installed SilentTwin version and RECORD identity must agree between the
+  wheel verification and the learned-runtime manifest;
+- rebinding recomputes only profile hashes/runtime fingerprints and operational
+  gates. Exact derivation from the reviewed design is reproduced by the
+  first-party validator, while cohort, plans, objective, policy texts,
+  checkpoint identity, decoding, and monitor-input protocol remain unchanged;
+  and
+- the runtime catalog sets `learned_wheel_build_permitted:false`, permits only
+  engineering conformance-spec authoring, and retains
+  `h200_submission_permitted:false`, `development_submission_permitted:false`,
+  and `pair_reduction_permitted:false`.
+
+The CPU commands `bind-scientific-v5-runtime` and
+`freeze-scientific-v5-conformance-spec` expose these transitions with
+immutable/no-clobber outputs and explicit development/test-uninspected
+assertions. The latter revalidates the full design chain and deterministically
+chooses the selected development scenario with the largest candidate call
+count so the engineering run exercises multi-call plan context. The spec is
+still `engineering_conformance_only`, cannot select pairs, and does not itself
+authorize `qsub`.
+
+The exact published scientific-v5 design chain was revalidated directly and
+reproduced catalog hash
+`ef6734e4cd4b4e348129c2a51955b070dfd94630a99bc893e92ff7666964fe90`.
+The focused and broader relevant regression set passes 153 tests in 54.65
+seconds, including action eligibility, configuration freeze, runtime
+integrity/validation, pair mining/observation, conformance, grid, useful-work
+runner, successor design, and shell entrypoints. Python compilation, CLI help
+for both new commands, real-artifact validation, and `git diff --check` pass.
+An unrestricted 528-test invocation was stopped without a failure after 28
+passes in the slow pinned-release integration segment; the complete relevant
+regression group above finished normally.
+
+Both runtime-artifact commands also reject a dirty Git worktree. The current
+uncommitted executable source-tree hash is
+`e0cf93521972f5fa5eac6ce2bfa41206efa28dea36b967e6901ecc4742de6571`.
+Documentation and tests are excluded from that hash. It is not a frozen runtime
+identity until these source changes are reviewed and committed, a final wheel
+is reproduced from that clean commit, and the learned environment is reinstalled
+from that exact final wheel.
+
+Immediate next checkpoint:
+
+1. review and commit the runtime-binding implementation, shared conformance
+   path, tests, operator guide, and this handoff record;
+2. only from that clean commit, rebuild the wheel twice, require byte identity,
+   archive the final wheel under the new source hash, reinstall the learned
+   environment, and run `pip check`;
+3. run `bind-scientific-v5-runtime` and
+   `freeze-scientific-v5-conformance-spec` to publish new immutable artifacts,
+   then independently revalidate their hashes and gates;
+4. prepare the fully resolved scalar H200 `qsub` command for review, but do not
+   submit it without a separate explicit approval; and
+5. keep train/development observation, pair reduction, and all benchmark grids
+   blocked until engineering conformance passes and the next scientific gate
+   explicitly authorizes them.

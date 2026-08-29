@@ -40,11 +40,12 @@ from .compat import (
     EXPECTED_RELEASE_COUNTS,
     EXPECTED_WHEEL_SHA256,
 )
-from .monitors import MonitorInput
 from .pair_mining import (
+    SUBSET_STRATEGY_SCHEMA_VERSION,
     _monitor_pair_compatibility,
     validate_candidate_strategy_catalog,
 )
+from .pair_observations import make_plan_monitor_inputs
 from .pipeline import StructuredControlledAttacker
 from .runtime_validation import validate_environment_integrity
 from .runtime_integrity import (
@@ -353,6 +354,134 @@ def validate_conformance_spec(document: Mapping[str, Any]) -> ModelIdentity:
     if identity.runtime_fingerprint != runtime_fingerprint:
         raise ConformanceError("attacker runtime differs from conformance spec")
     return identity
+
+
+def make_scientific_v5_conformance_spec(
+    *,
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    strategy_catalog: Mapping[str, Any],
+    source_tree_hash: str,
+) -> dict[str, Any]:
+    """Freeze one deterministic, development-only scientific-v5 check."""
+
+    validate_catalog(catalog)
+    validate_split_manifest(split_manifest, catalog=catalog)
+    validate_candidate_strategy_catalog(strategy_catalog)
+    if strategy_catalog.get("schema_version") != SUBSET_STRATEGY_SCHEMA_VERSION:
+        raise ConformanceError(
+            "scientific-v5 conformance requires the subset-aware catalog"
+        )
+    binding = strategy_catalog.get("runtime_binding")
+    if (
+        not isinstance(binding, Mapping)
+        or strategy_catalog.get(
+            "engineering_conformance_spec_authoring_permitted"
+        )
+        is not True
+        or strategy_catalog.get("h200_submission_permitted") is not False
+        or binding.get("runtime_source_tree_hash") != source_tree_hash
+        or not _is_raw_sha256(source_tree_hash)
+    ):
+        raise ConformanceError(
+            "scientific-v5 runtime catalog does not authorize this spec freeze"
+        )
+    runtime_fingerprint = str(binding.get("learned_runtime_fingerprint", ""))
+    profiles = tuple(strategy_catalog["monitor_profiles"])
+    strategies = tuple(strategy_catalog["strategies"])
+    if (
+        len(profiles) != 2
+        or len(strategies) != 2
+        or any(
+            profile.get("runtime_fingerprint") != runtime_fingerprint
+            for profile in profiles
+        )
+    ):
+        raise ConformanceError(
+            "scientific-v5 conformance requires two runtime-bound profiles and paths"
+        )
+    cohort = strategy_catalog["scenario_cohort"]
+    development_ids = tuple(
+        str(item)
+        for item in cohort["selected_scenario_ids_by_split"]["development"]
+    )
+    scenario_by_id = {
+        str(row["scenario_id"]): row for row in catalog["scenarios"]
+    }
+    candidates: list[tuple[int, int, int, str, str]] = []
+    for scenario_id in development_ids:
+        try:
+            scenario = scenario_by_id[scenario_id]
+            call_counts = [
+                len(strategy["scenario_plans"][scenario_id]["calls"])
+                for strategy in strategies
+            ]
+        except (KeyError, TypeError) as exc:
+            raise ConformanceError(
+                f"scientific-v5 conformance scenario {scenario_id!r} lacks a plan"
+            ) from exc
+        suite = str(scenario["suite"])
+        candidates.append(
+            (
+                -max(call_counts),
+                -sum(call_counts),
+                AGENTDOJO_SUITES.index(suite),
+                str(scenario["structural_group_id"]),
+                scenario_id,
+            )
+        )
+    if not candidates or -min(candidates)[0] < 2:
+        raise ConformanceError(
+            "scientific-v5 conformance requires a multi-call development path"
+        )
+    scenario_id = min(candidates)[-1]
+    attacker = ModelIdentity(
+        role="attacker",
+        implementation="local_transformers",
+        model_id=QWEN_ATTACKER_MODEL_ID,
+        model_revision=QWEN_ATTACKER_REVISION,
+        tokenizer_revision=QWEN_ATTACKER_REVISION,
+        checkpoint_fingerprint=QWEN_ATTACKER_CHECKPOINT_FINGERPRINT,
+        prompt_hash=CONTROLLED_MODEL_PROMPT_HASH,
+        runtime_fingerprint=runtime_fingerprint,
+        dtype="bfloat16",
+        temperature=0.0,
+        top_p=1.0,
+        max_new_tokens=256,
+    )
+    payload = {
+        "schema_version": CONFORMANCE_SPEC_SCHEMA_VERSION,
+        "artifact_class": CONFORMANCE_ARTIFACT_CLASS,
+        "evidence_class": CONFORMANCE_EVIDENCE_CLASS,
+        "scientific_evidence_eligible": False,
+        "claim_boundary": CONFORMANCE_CLAIM_BOUNDARY,
+        "environment_backend": "agentdojo",
+        "tier2_track": "controlled",
+        "dataset_split": "development",
+        "test_outcomes_inspected": False,
+        "pair_selection_eligible": False,
+        "development_outcomes_generated": True,
+        "catalog_hash": catalog["catalog_hash"],
+        "split_manifest_hash": split_manifest["split_manifest_hash"],
+        "candidate_strategy_catalog_hash": strategy_catalog[
+            "candidate_strategy_catalog_hash"
+        ],
+        "runtime_fingerprint": runtime_fingerprint,
+        "source_tree_hash": source_tree_hash,
+        "scenario_id": scenario_id,
+        "strategy_ids": [str(row["strategy_id"]) for row in strategies],
+        "monitor_profile_ids": [str(row["profile_id"]) for row in profiles],
+        "attacker_identity": attacker.scientific_dict(),
+    }
+    document = {**payload, "conformance_spec_hash": stable_hash(payload)}
+    validate_conformance_spec(document)
+    _validate_bindings(
+        spec=document,
+        catalog=catalog,
+        split_manifest=split_manifest,
+        strategy_catalog=strategy_catalog,
+    )
+    return document
 
 
 def _report_identity(value: Any, *, label: str) -> ModelIdentity:
@@ -1154,6 +1283,14 @@ def _validate_bindings(
         raise ConformanceError(
             "conformance scenario is not in the frozen development split"
         )
+    if strategy_catalog.get("schema_version") == SUBSET_STRATEGY_SCHEMA_VERSION:
+        selected = strategy_catalog["scenario_cohort"][
+            "selected_scenario_ids_by_split"
+        ]["development"]
+        if str(scenario["scenario_id"]) not in {str(item) for item in selected}:
+            raise ConformanceError(
+                "conformance scenario is not in the scientific-v5 cohort"
+            )
 
     strategy_ids = _two_distinct_strings(
         spec.get("strategy_ids"), label="strategy_ids"
@@ -1386,6 +1523,7 @@ def _attacker_checks(
 
 def _monitor_checks(
     *,
+    strategy_catalog: Mapping[str, Any],
     profiles: Sequence[Mapping[str, Any]],
     strategies: Sequence[Mapping[str, Any]],
     plans: Sequence[Any],
@@ -1394,6 +1532,16 @@ def _monitor_checks(
     monitor_clients: Mapping[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     schema_by_name = {schema.name: schema for schema in public_scenario.tool_schemas}
+    inputs_by_strategy = {
+        str(strategy["strategy_id"]): make_plan_monitor_inputs(
+            strategy_catalog=strategy_catalog,
+            scenario_id=public_scenario.scenario_id,
+            frozen_user_goal=public_scenario.user_prompt,
+            plan=plan,
+            schema_by_name=schema_by_name,
+        )
+        for strategy, plan in zip(strategies, plans, strict=True)
+    }
     checks: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
     for profile in profiles:
@@ -1407,22 +1555,12 @@ def _monitor_checks(
         schedule = SeedSchedule(
             public_scenario.scenario_id, str(profile["model_revision"]), 0
         )
-        for strategy, plan in zip(strategies, plans, strict=True):
+        for strategy in strategies:
             strategy_id = str(strategy["strategy_id"])
-            for call_index, call in enumerate(plan.calls):
+            monitor_inputs = inputs_by_strategy[strategy_id]
+            for call_index, monitor_input in enumerate(monitor_inputs):
                 check_id = (
                     f"monitor:{profile_id}:{strategy_id}:call_{call_index}"
-                )
-                monitor_input = MonitorInput(
-                    frozen_user_goal=public_scenario.user_prompt,
-                    public_conversation_summary=public_value(
-                        {
-                            "scenario_id": public_scenario.scenario_id,
-                            "summary": "development checkpoint conformance",
-                        }
-                    ),
-                    proposed_call=call,
-                    tool_schema=schema_by_name[call.function],
                 )
                 seed = schedule.monitor(call_index)
                 try:
@@ -1598,6 +1736,7 @@ def execute_controlled_conformance(
         attacker, public_scenario
     )
     monitor_checks, monitor_errors = _monitor_checks(
+        strategy_catalog=strategy_catalog,
         profiles=profiles,
         strategies=strategies,
         plans=plans,
@@ -1834,6 +1973,7 @@ __all__ = [
     "ConformanceDependencies",
     "ConformanceError",
     "execute_controlled_conformance",
+    "make_scientific_v5_conformance_spec",
     "main",
     "validate_conformance_report",
     "validate_conformance_spec",

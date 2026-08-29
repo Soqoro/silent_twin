@@ -102,6 +102,26 @@ def _atomic_write_immutable(path: Path, value: Mapping[str, Any]) -> bool:
         temporary_path.unlink(missing_ok=True)
 
 
+def _clean_source_tree_hash() -> str:
+    """Return the executable source identity only for a clean Git checkpoint."""
+
+    from silenttwin.io.provenance import collect_provenance, source_tree_hash
+
+    observed = source_tree_hash()
+    provenance = collect_provenance()
+    revision = provenance.get("code_revision")
+    if (
+        provenance.get("code_dirty") is not False
+        or provenance.get("source_tree_hash") != observed
+        or not isinstance(revision, str)
+        or len(revision) != 40
+    ):
+        raise ValueError(
+            "runtime-bound scientific-v5 artifacts require a clean Git checkpoint"
+        )
+    return observed
+
+
 def _freeze(args: argparse.Namespace) -> dict[str, Any]:
     # These imports are deliberately below argument parsing so `--help` works
     # in the ordinary AgentDojo-free Python environment.
@@ -360,6 +380,134 @@ def _freeze_scientific_v5_candidate_catalog(
         ],
         "h200_submission_permitted": False,
         "development_submission_permitted": False,
+        "development_monitor_outcomes_inspected": False,
+        "test_outcomes_inspected": False,
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+    }
+
+
+def _bind_scientific_v5_runtime(args: argparse.Namespace) -> dict[str, Any]:
+    from .runtime_integrity import (
+        derive_learned_runtime_fingerprint,
+        make_learned_runtime_provenance,
+        verify_installed_distribution_against_wheel,
+    )
+    from .successor_design import (
+        make_runtime_bound_scientific_v5_candidate_strategy_catalog,
+    )
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "scientific-v5 runtime binding requires the development/test-"
+            "uninspected assertion"
+        )
+    if args.assert_wheel_built_from_current_clean_commit is not True:
+        raise ValueError(
+            "scientific-v5 runtime binding requires the clean-commit wheel "
+            "assertion"
+        )
+    runtime_source = _clean_source_tree_hash()
+    runtime_report = derive_learned_runtime_fingerprint(args.dependency_lock)
+    runtime_provenance = make_learned_runtime_provenance(runtime_report)
+    wheel_verification = verify_installed_distribution_against_wheel(
+        wheel_artifact=args.wheel_artifact,
+        distribution_name="silenttwin",
+        expected_version="0.1.0",
+    )
+    report = make_runtime_bound_scientific_v5_candidate_strategy_catalog(
+        design_catalog=_read_object(args.design_strategy_catalog),
+        census=_read_object(args.representability_census),
+        catalog=_read_object(args.catalog),
+        split_manifest=_read_object(args.splits),
+        action_eligibility_manifest=_read_object(args.action_eligibility),
+        predecessor_strategy_catalog=_read_object(
+            args.predecessor_strategy_catalog
+        ),
+        predecessor_train_design_audit=_read_object(
+            args.predecessor_train_design_audit
+        ),
+        runtime_source_tree_hash=runtime_source,
+        learned_runtime_provenance=runtime_provenance,
+        installed_wheel_verification=wheel_verification,
+    )
+    reused = _atomic_write_immutable(args.output, report)
+    binding = report["runtime_binding"]
+    return {
+        "candidate_strategy_catalog_hash": report[
+            "candidate_strategy_catalog_hash"
+        ],
+        "design_candidate_strategy_catalog_hash": binding[
+            "design_candidate_strategy_catalog_hash"
+        ],
+        "runtime_binding_hash": binding["runtime_binding_hash"],
+        "runtime_source_tree_hash": runtime_source,
+        "learned_runtime_fingerprint": binding[
+            "learned_runtime_fingerprint"
+        ],
+        "wheel_sha256": wheel_verification["wheel_sha256"],
+        "overall_disposition": report["overall_disposition"],
+        "engineering_conformance_spec_authoring_permitted": True,
+        "h200_submission_permitted": False,
+        "development_submission_permitted": False,
+        "development_monitor_outcomes_inspected": False,
+        "test_outcomes_inspected": False,
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+    }
+
+
+def _freeze_scientific_v5_conformance_spec(
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    from .conformance import make_scientific_v5_conformance_spec
+    from .successor_design import (
+        validate_runtime_bound_scientific_v5_candidate_strategy_catalog,
+    )
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "scientific-v5 conformance freeze requires the development/test-"
+            "uninspected assertion"
+        )
+    runtime_source = _clean_source_tree_hash()
+    catalog = _read_object(args.catalog)
+    splits = _read_object(args.splits)
+    runtime_catalog = _read_object(args.runtime_strategy_catalog)
+    validate_runtime_bound_scientific_v5_candidate_strategy_catalog(
+        runtime_catalog,
+        design_catalog=_read_object(args.design_strategy_catalog),
+        census=_read_object(args.representability_census),
+        catalog=catalog,
+        split_manifest=splits,
+        action_eligibility_manifest=_read_object(args.action_eligibility),
+        predecessor_strategy_catalog=_read_object(
+            args.predecessor_strategy_catalog
+        ),
+        predecessor_train_design_audit=_read_object(
+            args.predecessor_train_design_audit
+        ),
+        runtime_source_tree_hash=runtime_source,
+    )
+    report = make_scientific_v5_conformance_spec(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=runtime_catalog,
+        source_tree_hash=runtime_source,
+    )
+    reused = _atomic_write_immutable(args.output, report)
+    return {
+        "conformance_spec_hash": report["conformance_spec_hash"],
+        "candidate_strategy_catalog_hash": report[
+            "candidate_strategy_catalog_hash"
+        ],
+        "runtime_fingerprint": report["runtime_fingerprint"],
+        "source_tree_hash": report["source_tree_hash"],
+        "scenario_id": report["scenario_id"],
+        "strategy_ids": report["strategy_ids"],
+        "monitor_profile_ids": report["monitor_profile_ids"],
+        "scientific_evidence_eligible": False,
+        "h200_submission_permitted": False,
         "development_monitor_outcomes_inspected": False,
         "test_outcomes_inspected": False,
         "output": str(args.output),
@@ -714,6 +862,106 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     v5_catalog.set_defaults(handler=_freeze_scientific_v5_candidate_catalog)
+
+    v5_runtime = commands.add_parser(
+        "bind-scientific-v5-runtime",
+        help=(
+            "bind a reproducible installed SilentTwin wheel and learned "
+            "runtime to the reviewed scientific-v5 design catalog"
+        ),
+    )
+    v5_runtime.add_argument(
+        "--catalog", type=Path, default=DEFAULT_CATALOG_PATH
+    )
+    v5_runtime.add_argument(
+        "--splits", type=Path, default=DEFAULT_SPLITS_PATH
+    )
+    v5_runtime.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    v5_runtime.add_argument(
+        "--representability-census", type=Path, required=True
+    )
+    v5_runtime.add_argument(
+        "--predecessor-strategy-catalog", type=Path, required=True
+    )
+    v5_runtime.add_argument(
+        "--predecessor-train-design-audit", type=Path, required=True
+    )
+    v5_runtime.add_argument(
+        "--design-strategy-catalog", type=Path, required=True
+    )
+    v5_runtime.add_argument("--dependency-lock", type=Path, required=True)
+    v5_runtime.add_argument("--wheel-artifact", type=Path, required=True)
+    v5_runtime.add_argument("--output", type=Path, required=True)
+    v5_runtime.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that no development or held-out model outcome "
+            "informed the runtime freeze"
+        ),
+    )
+    v5_runtime.add_argument(
+        "--assert-wheel-built-from-current-clean-commit",
+        action="store_true",
+        required=True,
+        help=(
+            "required operator assertion that the supplied wheel was "
+            "reproducibly built from the current clean source tree"
+        ),
+    )
+    v5_runtime.set_defaults(handler=_bind_scientific_v5_runtime)
+
+    v5_conformance = commands.add_parser(
+        "freeze-scientific-v5-conformance-spec",
+        help=(
+            "derive one development-only engineering conformance spec from "
+            "the exact runtime-bound scientific-v5 catalog"
+        ),
+    )
+    v5_conformance.add_argument(
+        "--catalog", type=Path, default=DEFAULT_CATALOG_PATH
+    )
+    v5_conformance.add_argument(
+        "--splits", type=Path, default=DEFAULT_SPLITS_PATH
+    )
+    v5_conformance.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    v5_conformance.add_argument(
+        "--representability-census", type=Path, required=True
+    )
+    v5_conformance.add_argument(
+        "--predecessor-strategy-catalog", type=Path, required=True
+    )
+    v5_conformance.add_argument(
+        "--predecessor-train-design-audit", type=Path, required=True
+    )
+    v5_conformance.add_argument(
+        "--design-strategy-catalog", type=Path, required=True
+    )
+    v5_conformance.add_argument(
+        "--runtime-strategy-catalog", type=Path, required=True
+    )
+    v5_conformance.add_argument("--output", type=Path, required=True)
+    v5_conformance.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that no development or held-out outcome "
+            "informed the engineering spec"
+        ),
+    )
+    v5_conformance.set_defaults(
+        handler=_freeze_scientific_v5_conformance_spec
+    )
 
     sample = commands.add_parser(
         "freeze-sample-size",

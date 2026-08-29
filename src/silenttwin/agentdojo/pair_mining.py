@@ -49,6 +49,7 @@ from .monitors import (
 from .runtime_integrity import (
     EXPECTED_INSTALLED_PAYLOAD_SHA256,
     RuntimeIntegrityError,
+    validate_installed_wheel_verification,
     validate_learned_runtime_provenance,
 )
 from .splits import validate_split_manifest
@@ -66,6 +67,9 @@ SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION = (
 )
 SCIENTIFIC_V5_MONITOR_INPUT_PROTOCOL_REVISION = (
     "verdict-independent-complete-plan-current-call-v1"
+)
+SCIENTIFIC_V5_RUNTIME_BINDING_SCHEMA_VERSION = (
+    "silenttwin.agentdojo.scientific_v5_runtime_binding.v1"
 )
 PAIR_SCHEMA_VERSION = "silenttwin.agentdojo.pair_registry.v1"
 OBSERVATION_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation.v2"
@@ -129,6 +133,43 @@ def scientific_v5_monitor_input_protocol() -> dict[str, Any]:
         "candidate_context_independent_of_hidden_verdicts": True,
         "profile_or_strategy_identifier_not_rendered_as_evidence": True,
     }
+
+
+def scientific_v5_catalog_content_hash(document: Mapping[str, Any]) -> str:
+    """Hash scientific v5 content while excluding operational runtime identity."""
+
+    profiles = []
+    for raw in document.get("monitor_profiles", []):
+        if not isinstance(raw, Mapping):
+            raise PairMiningError("scientific-v5 monitor profile is not an object")
+        profile = dict(raw)
+        profile.pop("profile_hash", None)
+        profile.pop("runtime_fingerprint", None)
+        profiles.append(profile)
+    payload = {
+        "catalog_hash": document.get("catalog_hash"),
+        "split_manifest_hash": document.get("split_manifest_hash"),
+        "transformation_family_revision": document.get(
+            "transformation_family_revision"
+        ),
+        "train_evidence_hash": document.get("train_evidence_hash"),
+        "representability_census_hash": document.get(
+            "representability_census_hash"
+        ),
+        "scientific_protocol_amendment": document.get(
+            "scientific_protocol_amendment"
+        ),
+        "scenario_cohort": document.get("scenario_cohort"),
+        "monitor_input_protocol": document.get("monitor_input_protocol"),
+        "strategies": document.get("strategies"),
+        "monitor_profiles_without_runtime": profiles,
+        "mixed_workflows": document.get("mixed_workflows"),
+        "adaptive_design_disclosure": document.get(
+            "adaptive_design_disclosure"
+        ),
+        "claim_boundary": document.get("claim_boundary"),
+    }
+    return stable_hash(payload)
 
 
 def make_monitor_observation(
@@ -630,6 +671,94 @@ def _validate_scientific_v5_scenario_cohort(
         raise PairMiningError("scientific-v5 scenario cohort has an invalid claim boundary")
 
 
+def _validate_scientific_v5_runtime_binding(
+    document: Mapping[str, Any],
+    binding: Any,
+    *,
+    profiles: Sequence[Mapping[str, Any]],
+) -> None:
+    if not isinstance(binding, Mapping):
+        raise PairMiningError("scientific-v5 runtime binding is not an object")
+    expected_fields = {
+        "schema_version",
+        "design_candidate_strategy_catalog_hash",
+        "design_authoring_source_tree_hash",
+        "runtime_source_tree_hash",
+        "learned_runtime_fingerprint",
+        "learned_runtime_provenance",
+        "installed_wheel_verification",
+        "scientific_content_hash",
+        "runtime_binding_hash",
+    }
+    if set(binding) != expected_fields:
+        raise PairMiningError("scientific-v5 runtime-binding fields are not exact")
+    if binding.get("schema_version") != SCIENTIFIC_V5_RUNTIME_BINDING_SCHEMA_VERSION:
+        raise PairMiningError("scientific-v5 runtime-binding schema is unsupported")
+    recorded = str(binding.get("runtime_binding_hash", ""))
+    require_hash("runtime_binding_hash", recorded)
+    if recorded != stable_hash(_without_hash(binding, "runtime_binding_hash")):
+        raise PairMiningError("scientific-v5 runtime-binding hash is invalid")
+    for field in (
+        "design_candidate_strategy_catalog_hash",
+        "design_authoring_source_tree_hash",
+        "runtime_source_tree_hash",
+        "scientific_content_hash",
+    ):
+        require_hash(f"runtime_binding.{field}", str(binding.get(field, "")))
+    runtime_fingerprint = str(binding.get("learned_runtime_fingerprint", ""))
+    if not re.fullmatch(r"sha256:[0-9a-f]{64}", runtime_fingerprint):
+        raise PairMiningError("scientific-v5 learned-runtime fingerprint is invalid")
+    provenance = binding.get("learned_runtime_provenance")
+    if not isinstance(provenance, Mapping):
+        raise PairMiningError("scientific-v5 runtime binding lacks provenance")
+    try:
+        validate_learned_runtime_provenance(
+            provenance,
+            expected_runtime_fingerprints={runtime_fingerprint},
+        )
+    except RuntimeIntegrityError as exc:
+        raise PairMiningError(
+            f"scientific-v5 learned-runtime provenance is invalid: {exc}"
+        ) from exc
+    wheel = binding.get("installed_wheel_verification")
+    if not isinstance(wheel, Mapping):
+        raise PairMiningError("scientific-v5 runtime binding lacks wheel verification")
+    try:
+        validate_installed_wheel_verification(
+            wheel,
+            expected_distribution_name="silenttwin",
+            expected_version="0.1.0",
+        )
+    except RuntimeIntegrityError as exc:
+        raise PairMiningError(
+            f"scientific-v5 wheel verification is invalid: {exc}"
+        ) from exc
+    manifest = provenance["manifest"]
+    installed_rows = {
+        str(row["name"]): row
+        for row in manifest["installed_distributions"]
+    }
+    silenttwin_row = installed_rows.get("silenttwin")
+    if (
+        not isinstance(silenttwin_row, Mapping)
+        or silenttwin_row.get("version") != wheel.get("distribution_version")
+        or silenttwin_row.get("record_identity")
+        != wheel.get("installed_record_identity")
+    ):
+        raise PairMiningError(
+            "scientific-v5 wheel verification differs from runtime provenance"
+        )
+    if binding.get("scientific_content_hash") != scientific_v5_catalog_content_hash(
+        document
+    ):
+        raise PairMiningError("scientific-v5 runtime rebind changed scientific content")
+    if any(
+        profile.get("runtime_fingerprint") != runtime_fingerprint
+        for profile in profiles
+    ):
+        raise PairMiningError("scientific-v5 profiles do not share the bound runtime")
+
+
 def _validate_scientific_v5_catalog_extensions(
     document: Mapping[str, Any],
     *,
@@ -728,18 +857,38 @@ def _validate_scientific_v5_catalog_extensions(
             raise PairMiningError(
                 f"scientific-v5 profile {profile_id!r} is not bound to its mechanism"
             )
-    if (
-        document.get("development_monitor_outcomes_inspected") is not False
-        or document.get("test_outcomes_inspected") is not False
-        or document.get("learned_model_inference_performed") is not False
-        or document.get("h200_submission_permitted") is not False
-        or document.get("development_submission_permitted") is not False
-        or document.get("pair_reduction_permitted") is not False
-        or document.get("learned_wheel_build_permitted") is not True
-        or document.get("overall_disposition")
-        != "candidate_catalog_frozen_for_engineering_conformance"
-    ):
+    binding = document.get("runtime_binding")
+    fixed_false = (
+        document.get("development_monitor_outcomes_inspected") is False
+        and document.get("test_outcomes_inspected") is False
+        and document.get("learned_model_inference_performed") is False
+        and document.get("h200_submission_permitted") is False
+        and document.get("development_submission_permitted") is False
+        and document.get("pair_reduction_permitted") is False
+    )
+    design_state = (
+        binding is None
+        and document.get("learned_wheel_build_permitted") is True
+        and document.get("engineering_conformance_spec_authoring_permitted")
+        is None
+        and document.get("overall_disposition")
+        == "candidate_catalog_frozen_for_engineering_conformance"
+    )
+    runtime_state = (
+        binding is not None
+        and document.get("learned_wheel_build_permitted") is False
+        and document.get("engineering_conformance_spec_authoring_permitted") is True
+        and document.get("overall_disposition")
+        == "runtime_bound_candidate_catalog_frozen_pending_conformance_review"
+    )
+    if not fixed_false or not (design_state or runtime_state):
         raise PairMiningError("scientific-v5 catalog has an invalid execution gate")
+    if runtime_state:
+        _validate_scientific_v5_runtime_binding(
+            document,
+            binding,
+            profiles=profiles,
+        )
 
 
 def _validate_nonempty_plan(plan: Any, *, label: str) -> None:
@@ -3024,6 +3173,7 @@ __all__ = [
     "PairMiningError",
     "SCIENTIFIC_V5_MONITOR_CONTEXT_SCHEMA_VERSION",
     "SCIENTIFIC_V5_MONITOR_INPUT_PROTOCOL_REVISION",
+    "SCIENTIFIC_V5_RUNTIME_BINDING_SCHEMA_VERSION",
     "SCIENTIFIC_V5_SCENARIO_COHORT_SCHEMA_VERSION",
     "STRATEGY_SCHEMA_VERSION",
     "SUBSET_STRATEGY_SCHEMA_VERSION",
@@ -3040,6 +3190,7 @@ __all__ = [
     "monitor_pair_binding",
     "estimation_scenario_ids",
     "scientific_v5_monitor_input_protocol",
+    "scientific_v5_catalog_content_hash",
     "validate_candidate_strategy_catalog",
     "validate_estimation_strategy_coverage",
     "validate_observation_set_manifest",

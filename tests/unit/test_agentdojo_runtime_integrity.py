@@ -13,9 +13,11 @@ from silenttwin.agentdojo.runtime_integrity import (
     derive_learned_runtime_fingerprint,
     make_learned_runtime_provenance,
     not_applicable_learned_runtime_provenance,
+    validate_installed_wheel_verification,
     validate_learned_runtime_provenance,
     validate_locked_distributions,
     verify_agentdojo_distribution,
+    verify_installed_distribution_against_wheel,
 )
 
 
@@ -148,6 +150,87 @@ def test_wrong_operator_wheel_digest_fails_closed(tmp_path: Path) -> None:
             expected_wheel_sha256="0" * 64,
             expected_payload_sha256=_payload_fingerprint(files),
             expected_payload_file_count=len(files),
+        )
+
+
+def test_silenttwin_wheel_verification_binds_every_installed_payload_byte(
+    tmp_path: Path,
+) -> None:
+    installed_root = tmp_path / "installed"
+    files = {
+        "silenttwin/__init__.py": b'__version__ = "0.1.0"\n',
+        "silenttwin-0.1.0.dist-info/METADATA": (
+            b"Name: silenttwin\nVersion: 0.1.0\n"
+        ),
+    }
+    for relative, content in files.items():
+        destination = installed_root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(content)
+    distribution = _Distribution(
+        "silenttwin",
+        "0.1.0",
+        root=installed_root,
+        files=[
+            _File(path, identity=hashlib.sha256(content).hexdigest(), size=len(content))
+            for path, content in files.items()
+        ],
+    )
+    wheel = tmp_path / "silenttwin-0.1.0-py3-none-any.whl"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        for relative, content in files.items():
+            archive.writestr(relative, content)
+        archive.writestr("silenttwin-0.1.0.dist-info/RECORD", b"")
+        archive.writestr("silenttwin-0.1.0.dist-info/INSTALLER", b"pip\n")
+
+    report = verify_installed_distribution_against_wheel(
+        wheel_artifact=wheel,
+        distribution_name="silenttwin",
+        expected_version="0.1.0",
+        distribution=distribution,
+    )
+
+    assert report["immutable_payload_file_count"] == len(files)
+    assert report["installed_payload_matches_wheel"] is True
+    assert validate_installed_wheel_verification(
+        report,
+        expected_distribution_name="silenttwin",
+        expected_version="0.1.0",
+    ) == report["verification_hash"]
+
+    embellished = dict(report, operator_note="trust me")
+    with pytest.raises(RuntimeIntegrityError, match="fields are not exact"):
+        validate_installed_wheel_verification(
+            embellished,
+            expected_distribution_name="silenttwin",
+            expected_version="0.1.0",
+        )
+
+    wrong_metadata_wheel = tmp_path / "silenttwin-0.1.0-wrong.whl"
+    with zipfile.ZipFile(wrong_metadata_wheel, "w") as archive:
+        archive.writestr("silenttwin/__init__.py", files["silenttwin/__init__.py"])
+        archive.writestr(
+            "silenttwin-0.1.0.dist-info/METADATA",
+            b"Name: another-project\nVersion: 0.1.0\n",
+        )
+        archive.writestr("silenttwin-0.1.0.dist-info/RECORD", b"")
+    with pytest.raises(RuntimeIntegrityError, match="wheel metadata differs"):
+        verify_installed_distribution_against_wheel(
+            wheel_artifact=wrong_metadata_wheel,
+            distribution_name="silenttwin",
+            expected_version="0.1.0",
+            distribution=distribution,
+        )
+
+    (installed_root / "silenttwin/__init__.py").write_text(
+        "tampered\n", encoding="utf-8"
+    )
+    with pytest.raises(RuntimeIntegrityError, match="differs from wheel"):
+        verify_installed_distribution_against_wheel(
+            wheel_artifact=wheel,
+            distribution_name="silenttwin",
+            expected_version="0.1.0",
+            distribution=distribution,
         )
 
 

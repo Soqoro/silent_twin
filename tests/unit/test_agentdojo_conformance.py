@@ -29,6 +29,7 @@ from silenttwin.agentdojo.conformance import (
     ConformanceError,
     execute_controlled_conformance,
     main,
+    make_scientific_v5_conformance_spec,
     validate_conformance_report,
     validate_conformance_spec,
 )
@@ -632,6 +633,169 @@ def test_success_exercises_every_contract_profile_strategy_and_call(
         "peak_allocated_bytes"
     ] == 6000
     assert compat.validated_scenarios == [report["scenario"]["scenario_id"]]
+
+
+def test_conformance_routes_monitor_inputs_through_shared_plan_materializer(
+    monkeypatch: pytest.MonkeyPatch,
+    frozen_inputs: tuple[dict, dict, dict, dict],
+) -> None:
+    from silenttwin.agentdojo import conformance as conformance_module
+
+    original = conformance_module.make_plan_monitor_inputs
+    observed: list[tuple[str, int]] = []
+
+    def wrapped(**kwargs: Any) -> Any:
+        result = original(**kwargs)
+        observed.append((str(kwargs["scenario_id"]), len(result)))
+        return result
+
+    monkeypatch.setattr(
+        conformance_module, "make_plan_monitor_inputs", wrapped
+    )
+    report, _, _ = _execute(frozen_inputs, _ClientFactory())
+
+    assert report["status"] == "passed"
+    assert observed == [
+        (str(report["scenario"]["scenario_id"]), 1),
+        (str(report["scenario"]["scenario_id"]), 2),
+    ]
+
+
+def test_v5_conformance_spec_selects_a_deterministic_multicall_scenario(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from silenttwin.agentdojo import conformance as conformance_module
+    from silenttwin.agentdojo.pair_mining import SUBSET_STRATEGY_SCHEMA_VERSION
+
+    monkeypatch.setattr(conformance_module, "validate_catalog", lambda _: None)
+    monkeypatch.setattr(
+        conformance_module,
+        "validate_split_manifest",
+        lambda *_args, **_kwargs: None,
+    )
+    monkeypatch.setattr(
+        conformance_module,
+        "validate_candidate_strategy_catalog",
+        lambda _: None,
+    )
+    monkeypatch.setattr(
+        conformance_module,
+        "_validate_bindings",
+        lambda **_kwargs: ({}, ({}, {}), ({}, {})),
+    )
+    catalog = {
+        "catalog_hash": "a" * 64,
+        "scenarios": [
+            {
+                "scenario_id": "development-a",
+                "suite": "workspace",
+                "structural_group_id": "group-a",
+            },
+            {
+                "scenario_id": "development-b",
+                "suite": "travel",
+                "structural_group_id": "group-b",
+            },
+        ],
+    }
+    splits = {"split_manifest_hash": "b" * 64}
+    runtime_source = "c" * 64
+    runtime_fingerprint = "sha256:" + "d" * 64
+
+    def plan(count: int) -> dict[str, Any]:
+        return {
+            "calls": [
+                {"function": "fixture_tool", "arguments": {"index": index}}
+                for index in range(count)
+            ]
+        }
+
+    strategies = {
+        "schema_version": SUBSET_STRATEGY_SCHEMA_VERSION,
+        "candidate_strategy_catalog_hash": "e" * 64,
+        "engineering_conformance_spec_authoring_permitted": True,
+        "h200_submission_permitted": False,
+        "runtime_binding": {
+            "runtime_source_tree_hash": runtime_source,
+            "learned_runtime_fingerprint": runtime_fingerprint,
+        },
+        "scenario_cohort": {
+            "selected_scenario_ids_by_split": {
+                "development": ["development-a", "development-b"]
+            }
+        },
+        "strategies": [
+            {
+                "strategy_id": "strategy-a",
+                "scenario_plans": {
+                    "development-a": plan(2),
+                    "development-b": plan(1),
+                },
+            },
+            {
+                "strategy_id": "strategy-b",
+                "scenario_plans": {
+                    "development-a": plan(1),
+                    "development-b": plan(3),
+                },
+            },
+        ],
+        "monitor_profiles": [
+            {
+                "profile_id": "profile-a",
+                "runtime_fingerprint": runtime_fingerprint,
+            },
+            {
+                "profile_id": "profile-b",
+                "runtime_fingerprint": runtime_fingerprint,
+            },
+        ],
+    }
+
+    spec = make_scientific_v5_conformance_spec(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=strategies,
+        source_tree_hash=runtime_source,
+    )
+
+    assert spec["scenario_id"] == "development-b"
+    assert spec["strategy_ids"] == ["strategy-a", "strategy-b"]
+    assert spec["monitor_profile_ids"] == ["profile-a", "profile-b"]
+    assert spec["runtime_fingerprint"] == runtime_fingerprint
+    validate_conformance_spec(spec)
+
+
+def test_runtime_artifact_freeze_requires_a_clean_source_checkpoint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from silenttwin.agentdojo import cli as artifact_cli
+    from silenttwin.io import provenance
+
+    source_hash = "a" * 64
+    monkeypatch.setattr(provenance, "source_tree_hash", lambda: source_hash)
+    monkeypatch.setattr(
+        provenance,
+        "collect_provenance",
+        lambda: {
+            "code_dirty": False,
+            "code_revision": "b" * 40,
+            "source_tree_hash": source_hash,
+        },
+    )
+    assert artifact_cli._clean_source_tree_hash() == source_hash
+
+    monkeypatch.setattr(
+        provenance,
+        "collect_provenance",
+        lambda: {
+            "code_dirty": True,
+            "code_revision": "b" * 40,
+            "source_tree_hash": source_hash,
+        },
+    )
+    with pytest.raises(ValueError, match="clean Git checkpoint"):
+        artifact_cli._clean_source_tree_hash()
 
 
 def test_granite_failure_retains_raw_protocol_provenance_and_continues(
