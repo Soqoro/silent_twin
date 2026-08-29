@@ -208,6 +208,59 @@ def _assess_train_pair_feasibility(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _audit_train_pair_design(args: argparse.Namespace) -> dict[str, Any]:
+    from silenttwin.io.jsonl import read_jsonl
+    from silenttwin.io.provenance import source_tree_hash
+
+    from .pair_mining import make_train_pair_design_audit
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "train design audit requires the development/test-uninspected assertion"
+        )
+    report = make_train_pair_design_audit(
+        catalog=_read_object(args.catalog),
+        split_manifest=_read_object(args.splits),
+        strategy_catalog=_read_object(args.strategy_catalog),
+        train_observations=read_jsonl(args.train_observations),
+        train_observation_manifest=_read_object(
+            args.train_observation_manifest
+        ),
+        train_pair_feasibility_report=_read_object(
+            args.train_pair_feasibility_report
+        ),
+        action_eligibility_manifest=_read_object(args.action_eligibility),
+        analysis_source_tree_hash=source_tree_hash(),
+    )
+    reused = _atomic_write_immutable(args.output, report)
+    return {
+        "train_pair_design_audit_hash": report[
+            "train_pair_design_audit_hash"
+        ],
+        "overall_disposition": report["overall_disposition"],
+        "development_submission_permitted": report[
+            "development_submission_permitted"
+        ],
+        "suite_geometry": {
+            suite: {
+                "maximum_within_scenario_complementarity_across_profile_pairs": (
+                    value[
+                        "maximum_within_scenario_complementarity_across_profile_pairs"
+                    ]
+                ),
+                "observed_attainability_dispositions": value[
+                    "observed_attainability_dispositions"
+                ],
+            }
+            for suite, value in report["suite_geometry"].items()
+        },
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+        "development_observations_inspected": False,
+        "test_outcomes_inspected": False,
+    }
+
+
 def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
     from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
     from .config import AGENTDOJO_SUITES, bundle_hash
@@ -433,6 +486,44 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     feasibility.set_defaults(handler=_assess_train_pair_feasibility)
+
+    design_audit = commands.add_parser(
+        "audit-train-pair-design",
+        help=(
+            "validate train observations and freeze exact profile/candidate "
+            "decision geometry without weakening the feasibility gate"
+        ),
+    )
+    design_audit.add_argument(
+        "--catalog", type=Path, default=DEFAULT_CATALOG_PATH
+    )
+    design_audit.add_argument(
+        "--splits", type=Path, default=DEFAULT_SPLITS_PATH
+    )
+    design_audit.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    design_audit.add_argument("--strategy-catalog", type=Path, required=True)
+    design_audit.add_argument("--train-observations", type=Path, required=True)
+    design_audit.add_argument(
+        "--train-observation-manifest", type=Path, required=True
+    )
+    design_audit.add_argument(
+        "--train-pair-feasibility-report", type=Path, required=True
+    )
+    design_audit.add_argument("--output", type=Path, required=True)
+    design_audit.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that neither development nor held-out outcomes "
+            "informed this train-only diagnostic"
+        ),
+    )
+    design_audit.set_defaults(handler=_audit_train_pair_design)
 
     sample = commands.add_parser(
         "freeze-sample-size",

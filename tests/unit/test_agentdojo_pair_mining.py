@@ -30,6 +30,7 @@ from silenttwin.agentdojo.pair_mining import (
     _best_construction,
     make_monitor_observation,
     make_observation_set_manifest,
+    make_train_pair_design_audit,
     make_train_pair_feasibility_report,
     make_candidate_strategy_catalog,
     mine_pair_registry,
@@ -1020,6 +1021,145 @@ def test_train_feasibility_blocks_development_without_complementary_pairs(
     assert all(
         value["maximum_complementary_scenario_count"] == 0
         for value in report["suite_reports"].values()
+    )
+
+
+def test_train_pair_design_audit_records_crossed_decision_geometry(
+    frozen_inputs: tuple[dict[str, object], dict[str, object]],
+    strategy_catalog: dict[str, object],
+) -> None:
+    catalog, splits = frozen_inputs
+    train = _observations(
+        catalog,
+        splits,
+        strategy_catalog,
+        split="train",
+    )
+    manifest = _observation_manifest(
+        train,
+        split="train",
+        catalog=catalog,
+        splits=splits,
+        strategy_catalog=strategy_catalog,
+    )
+    analysis_source = stable_hash("analysis-source")
+    feasibility = make_train_pair_feasibility_report(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=strategy_catalog,
+        train_observations=train,
+        train_observation_manifest=manifest,
+        action_eligibility_manifest=_action_eligibility(),
+        analysis_source_tree_hash=analysis_source,
+    )
+    report = make_train_pair_design_audit(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=strategy_catalog,
+        train_observations=train,
+        train_observation_manifest=manifest,
+        train_pair_feasibility_report=feasibility,
+        action_eligibility_manifest=_action_eligibility(),
+        analysis_source_tree_hash=analysis_source,
+    )
+    assert report["overall_disposition"] == (
+        "current_profile_candidate_geometry_feasible"
+    )
+    assert report["development_submission_permitted"] is True
+    assert report["compatible_profile_pair_count"] == 1
+    pair = report["profile_pair_reports"][0]
+    assert pair["global_block_region_relation"] == (
+        "nonnested_on_observed_cells"
+    )
+    for suite, suite_report in pair["suite_reports"].items():
+        scenario_count = sum(
+            row["suite"] == suite
+            for row in _eligible_scenarios(catalog, "train")
+        )
+        assert suite_report[
+            "scenarios_with_both_exclusive_directions"
+        ] == scenario_count
+        assert suite_report["attainability_disposition"] == (
+            "within_scenario_complementarity_observed"
+        )
+        assert suite_report["plan_decision_pattern_counts"] == {
+            "profile_a_allow_profile_b_allow": 0,
+            "profile_a_allow_profile_b_block": scenario_count,
+            "profile_a_block_profile_b_allow": scenario_count,
+            "profile_a_block_profile_b_block": 0,
+        }
+    payload = dict(report)
+    payload.pop("train_pair_design_audit_hash")
+    assert report["train_pair_design_audit_hash"] == stable_hash(payload)
+    assert report["development_observations_inspected"] is False
+    assert report["test_outcomes_inspected"] is False
+
+    tampered_feasibility = copy.deepcopy(feasibility)
+    tampered_feasibility["development_submission_permitted"] = False
+    with pytest.raises(PairMiningError, match="does not exactly reproduce"):
+        make_train_pair_design_audit(
+            catalog=catalog,
+            split_manifest=splits,
+            strategy_catalog=strategy_catalog,
+            train_observations=train,
+            train_observation_manifest=manifest,
+            train_pair_feasibility_report=tampered_feasibility,
+            action_eligibility_manifest=_action_eligibility(),
+            analysis_source_tree_hash=analysis_source,
+        )
+
+
+def test_train_pair_design_audit_diagnoses_equal_block_regions(
+    frozen_inputs: tuple[dict[str, object], dict[str, object]],
+    strategy_catalog: dict[str, object],
+) -> None:
+    catalog, splits = frozen_inputs
+    train = _observations(
+        catalog,
+        splits,
+        strategy_catalog,
+        split="train",
+        all_block=True,
+    )
+    manifest = _observation_manifest(
+        train,
+        split="train",
+        catalog=catalog,
+        splits=splits,
+        strategy_catalog=strategy_catalog,
+    )
+    analysis_source = stable_hash("analysis-source")
+    feasibility = make_train_pair_feasibility_report(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=strategy_catalog,
+        train_observations=train,
+        train_observation_manifest=manifest,
+        action_eligibility_manifest=_action_eligibility(),
+        analysis_source_tree_hash=analysis_source,
+    )
+    report = make_train_pair_design_audit(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=strategy_catalog,
+        train_observations=train,
+        train_observation_manifest=manifest,
+        train_pair_feasibility_report=feasibility,
+        action_eligibility_manifest=_action_eligibility(),
+        analysis_source_tree_hash=analysis_source,
+    )
+    assert report["overall_disposition"] == (
+        "current_profile_candidate_geometry_infeasible"
+    )
+    assert report["development_submission_permitted"] is False
+    pair = report["profile_pair_reports"][0]
+    assert pair["global_block_region_relation"] == (
+        "equal_on_observed_cells"
+    )
+    assert all(
+        value["attainability_disposition"] == "no_profile_disagreement"
+        and value["scenarios_with_both_exclusive_directions"] == 0
+        for value in pair["suite_reports"].values()
     )
 
 

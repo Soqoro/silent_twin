@@ -2416,3 +2416,127 @@ Immediate next checkpoint:
    conformance before any new learned train observation. Any protocol change
    must preserve development/test blindness and must not silently weaken the
    complementary criterion after observing this negative result.
+
+## Scientific-v4 train-only protocol-design audit on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The negative v4
+feasibility record was committed at
+`0c32d63c8af20e05fb433f751502396b8146f182` (`Record scientific v4 negative
+feasibility`). No GPU job, development observation, pair reduction, benchmark
+grid, external API call, or development/test outcome inspection occurred in
+this checkpoint.
+
+The repository now contains a first-party CPU-only command,
+`audit-train-pair-design`. It validates the same complete train evidence chain
+as the mandatory feasibility gate, requires and exactly reproduces the frozen
+feasibility report, and then records profile-decision contingency,
+block-region nesting, candidate sensitivity, and whether opposite exclusive
+directions exist suite-wide, within a structural group, or within one public
+scenario. Its claim boundary explicitly forbids using the diagnostic to
+weaken the within-scenario criterion or authorize development. The operator
+guide documents the command and its mandatory
+development/test-uninspected assertion.
+
+New regression coverage checks a feasible crossed profile/candidate geometry,
+an infeasible equal-block-region geometry, report self-hashing, and rejection
+of a tampered upstream feasibility report. The complete pair-mining unit file
+passes 21 tests. The broader pair-mining, action-eligibility, runtime-integrity,
+conformance, useful-work runner, config-freeze, and shell-entrypoint set passes
+108 tests in 31.56 seconds. Python compilation, CLI help discovery, and
+`git diff --check` also pass. The current uncommitted executable source-tree
+hash is
+`b7f72f5d1d48fba8e0949519f5dd1b0e1dc98042e7aacfffbeb9cfa7475a0a84`.
+
+The independently reproduced diagnostic is frozen mode `0444` at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-design-audit-scientific-v4.json`.
+The 13,245-byte file has SHA-256
+`d2e543859f2c0848aa316c7cab63dce1b536e9d5098accf892f472901ca53514`;
+its internal train-pair-design-audit hash is
+`c7879bc748c5f8aab6556532349f5778b3df2ce138a2d8f2af4058ae0546adf6`.
+A second complete CLI derivation reused the existing freeze byte-for-object,
+and an independent self-hash check passed. The report binds the immutable v4
+observation-set hash
+`dd93f2204f15c24022cc936cae6911f1339a8e6da7a6ed80ddc7cff145616a7d`
+and, critically, exactly reproduces and binds the frozen feasibility hash
+`c12b392bd6e1057b4de700370a9ae9ffffc4544d4d58b4f2b1e8b5c5f011b739`
+rather than recomputing that identity under the new analysis source.
+
+The exact 536-cell plan-level contingency is:
+
+| Integrity profile | Privacy profile | Candidate cells |
+| --- | --- | ---: |
+| allow | allow | 97 |
+| allow | block | 1 |
+| block | allow | 104 |
+| block | block | 334 |
+
+Thus the integrity profile blocks 438 cells and the privacy profile blocks 335.
+Both profiles produced only binary plan scores `0.0` and `1.0`. They use the
+same Granite checkpoint, tokenizer, prompt, threshold `0.5`, reasoning mode,
+dtype, and deterministic decoding; among the audited scientific configuration
+fields, only `policy_hash` differs. The integrity profile covers mutation and
+the privacy profile covers disclosure, while both policies also reject
+embedded instructions in untrusted content. Their observed rejection regions
+are therefore almost nested: the integrity-only block direction occurs 104
+times, while the privacy-only block direction occurs once.
+
+The suite-level geometry is:
+
+| Suite | Integrity-only scenarios | Privacy-only scenarios | Crossed scenarios | Candidate-sensitive scenarios | All-candidates-stable scenarios |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| workspace | 14 | 0 | 0 | 11 | 17 |
+| banking | 1 | 0 | 0 | 1 | 23 |
+| slack | 4 | 1 | 0 | 5 | 25 |
+| travel | 16 | 0 | 0 | 2 | 50 |
+
+Banking, travel, and workspace lack the privacy-only direction anywhere in the
+suite, so the current two-profile construction is suite-wide incapable of
+complementarity there regardless of candidate ordering. Slack contains both
+directions globally, but they never occur in the same scenario or even the
+same structural group. Across all suites, 115 of 134 scenarios give all four
+candidates the same profile-pair decision pattern. Candidate materialization
+changes at least one profile decision in only 19 scenarios and never reverses
+the direction within a scenario. The audit disposition is therefore
+`current_profile_candidate_geometry_infeasible`, with
+`development_submission_permitted:false` and
+`pair_reduction_permitted:false`.
+
+This identifies a scientific-construction mismatch rather than a scheduler,
+runtime, checkpoint, action-validity, or reducer bug. The proposal's decisive
+Tier-2 example requires two configurations of a common safety objective with
+different representation-specific false negatives, such as one missing an
+indirect link and the other an encoded attachment. Scientific v4 instead pairs
+broad integrity-versus-privacy policy axes, while its four goal-faithful
+candidate transformations normally preserve one scenario's attack objective.
+More serialization variants under the same two policy axes are therefore a
+poor next bet. Threshold tuning is also unavailable: the native Granite
+adapter fixes threshold `0.5` and maps `yes`/`no` to binary `1.0`/`0.0`.
+
+Recommended successor-design constraints:
+
+1. retain the within-scenario complementary criterion and the one-final-effect
+   budget; do not rescue v4 by pairing different public scenarios;
+2. define both hidden monitor states against one common broad ground-truth
+   safety objective, with preregistered nonnested, mechanism-specific
+   detection configurations rather than different policy categories;
+3. author effect-equivalent but materially different candidate pathways within
+   a public scenario (for example direct versus indirect disclosure), not only
+   formatting, amount, schedule, or verification variations;
+4. perform a model-free representability census first and freeze only scenario
+   families that genuinely support two such pathways, transparently reporting
+   all exclusions; and
+5. disclose that any successor is adaptively designed using scientific-v4
+   train outcomes. Keep development and test untouched so development remains
+   the first held-out validation of the successor construction.
+
+Immediate next checkpoint:
+
+1. review and commit the new CPU audit implementation, tests, operator guide,
+   and this handoff record;
+2. do not build another learned wheel, submit H200 conformance, or run another
+   train observation until a concrete successor construction is reviewed;
+3. decide whether to author a scientific-v5 common-policy, mechanism-distinct
+   construction under the constraints above or stop Tier-2 E2 as a valid
+   negative construction-feasibility result; and
+4. if v5 is chosen, freeze its protocol amendment and complete model-free
+   action/representability audits before any learned-model call.

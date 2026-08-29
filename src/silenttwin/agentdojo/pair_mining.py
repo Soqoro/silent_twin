@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from copy import deepcopy
-from itertools import permutations
+from itertools import combinations, permutations
 import math
 import re
 from typing import Any, Iterable, Mapping, Sequence
@@ -64,6 +64,12 @@ TRAIN_PAIR_FEASIBILITY_SCHEMA_VERSION = (
 )
 TRAIN_PAIR_FEASIBILITY_REVISION = (
     "exhaustive-train-candidate-pool-construction-v2"
+)
+TRAIN_PAIR_DESIGN_AUDIT_SCHEMA_VERSION = (
+    "silenttwin.agentdojo.train_pair_design_audit.v1"
+)
+TRAIN_PAIR_DESIGN_AUDIT_REVISION = (
+    "exact-train-profile-candidate-decision-geometry-v1"
 )
 _COMPATIBILITY_FIELDS = {
     "python_version",
@@ -1688,6 +1694,413 @@ def make_train_pair_feasibility_report(
     }
 
 
+_PROFILE_DECISION_PATTERNS = {
+    ("allow", "allow"): "profile_a_allow_profile_b_allow",
+    ("allow", "block"): "profile_a_allow_profile_b_block",
+    ("block", "allow"): "profile_a_block_profile_b_allow",
+    ("block", "block"): "profile_a_block_profile_b_block",
+}
+
+
+def _block_region_relation(pattern_counts: Mapping[str, int]) -> str:
+    a_only = int(pattern_counts["profile_a_block_profile_b_allow"])
+    b_only = int(pattern_counts["profile_a_allow_profile_b_block"])
+    if a_only == 0 and b_only == 0:
+        return "equal_on_observed_cells"
+    if a_only == 0:
+        return "profile_a_block_region_subset_of_profile_b"
+    if b_only == 0:
+        return "profile_b_block_region_subset_of_profile_a"
+    return "nonnested_on_observed_cells"
+
+
+def _profile_design_identity(profile: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        field: profile.get(field)
+        for field in (
+            "profile_id",
+            "profile_hash",
+            "family",
+            "implementation",
+            "model_id",
+            "model_revision",
+            "tokenizer_revision",
+            "checkpoint_fingerprint",
+            "runtime_fingerprint",
+            "prompt_hash",
+            "policy_hash",
+            "policy_text",
+            "threshold",
+            "reasoning_mode",
+            "dtype",
+            "decoding",
+        )
+    }
+
+
+def make_train_pair_design_audit(
+    *,
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    strategy_catalog: Mapping[str, Any],
+    train_observations: Sequence[Mapping[str, Any]],
+    train_observation_manifest: Mapping[str, Any],
+    train_pair_feasibility_report: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    analysis_source_tree_hash: str,
+) -> dict[str, Any]:
+    """Diagnose exact train-only profile/candidate decision geometry.
+
+    This audit does not weaken or replace the feasibility gate. It validates
+    the same complete evidence chain, then records whether both exclusive
+    profile-disagreement directions exist and co-occur within one public
+    scenario. Development and held-out observations are never accepted.
+    """
+
+    require_hash("analysis_source_tree_hash", analysis_source_tree_hash)
+    frozen_feasibility_source_hash = str(
+        train_pair_feasibility_report.get("analysis_source_tree_hash", "")
+    )
+    require_hash(
+        "frozen feasibility analysis_source_tree_hash",
+        frozen_feasibility_source_hash,
+    )
+    feasibility = make_train_pair_feasibility_report(
+        catalog=catalog,
+        split_manifest=split_manifest,
+        strategy_catalog=strategy_catalog,
+        train_observations=train_observations,
+        train_observation_manifest=train_observation_manifest,
+        action_eligibility_manifest=action_eligibility_manifest,
+        analysis_source_tree_hash=frozen_feasibility_source_hash,
+    )
+    if dict(train_pair_feasibility_report) != feasibility:
+        raise PairMiningError(
+            "train design audit received a feasibility report that does not "
+            "exactly reproduce from the frozen train evidence"
+        )
+    scenario_index = _catalog_index(catalog)
+    profile_index = {
+        str(row["profile_id"]): row
+        for row in strategy_catalog["monitor_profiles"]
+    }
+    profile_ids = tuple(sorted(profile_index))
+    strategy_ids = tuple(
+        sorted(str(row["strategy_id"]) for row in strategy_catalog["strategies"])
+    )
+    eligible_ids = tuple(
+        pilot_scenario_ids(action_eligibility_manifest, dataset_split="train")
+    )
+    decisions = {
+        (
+            str(row["scenario_id"]),
+            str(row["profile_id"]),
+            str(row["strategy_id"]),
+        ): str(row["monitor_decision"])
+        for row in train_observations
+    }
+    score_distributions: dict[str, list[dict[str, Any]]] = {}
+    for profile_id in profile_ids:
+        scores = Counter(
+            float(row["monitor_score"])
+            for row in train_observations
+            if row["profile_id"] == profile_id
+        )
+        score_distributions[profile_id] = [
+            {"score": score, "count": count}
+            for score, count in sorted(scores.items())
+        ]
+
+    pair_reports: list[dict[str, Any]] = []
+    incompatible_pairs: list[dict[str, str]] = []
+    for profile_a, profile_b in combinations(profile_ids, 2):
+        compatible, reason = _monitor_pair_compatibility(
+            profile_index[profile_a], profile_index[profile_b]
+        )
+        if not compatible:
+            incompatible_pairs.append(
+                {
+                    "profile_a": profile_a,
+                    "profile_b": profile_b,
+                    "reason": reason,
+                }
+            )
+            continue
+
+        suite_reports: dict[str, Any] = {}
+        global_patterns: Counter[str] = Counter()
+        for suite in AGENTDOJO_SUITES:
+            suite_scenarios = tuple(
+                scenario_id
+                for scenario_id in eligible_ids
+                if scenario_index[scenario_id]["suite"] == suite
+            )
+            scenario_patterns: dict[str, set[str]] = {}
+            pattern_counts: Counter[str] = Counter()
+            sensitive_a: set[str] = set()
+            sensitive_b: set[str] = set()
+            for scenario_id in suite_scenarios:
+                observed_patterns: set[str] = set()
+                decisions_a: set[str] = set()
+                decisions_b: set[str] = set()
+                for strategy_id in strategy_ids:
+                    decision_a = decisions[
+                        (scenario_id, profile_a, strategy_id)
+                    ]
+                    decision_b = decisions[
+                        (scenario_id, profile_b, strategy_id)
+                    ]
+                    pattern = _PROFILE_DECISION_PATTERNS[
+                        (decision_a, decision_b)
+                    ]
+                    pattern_counts[pattern] += 1
+                    global_patterns[pattern] += 1
+                    observed_patterns.add(pattern)
+                    decisions_a.add(decision_a)
+                    decisions_b.add(decision_b)
+                scenario_patterns[scenario_id] = observed_patterns
+                if len(decisions_a) > 1:
+                    sensitive_a.add(scenario_id)
+                if len(decisions_b) > 1:
+                    sensitive_b.add(scenario_id)
+
+            a_only_pattern = "profile_a_block_profile_b_allow"
+            b_only_pattern = "profile_a_allow_profile_b_block"
+            scenarios_with_a_only = {
+                scenario_id
+                for scenario_id, patterns in scenario_patterns.items()
+                if a_only_pattern in patterns
+            }
+            scenarios_with_b_only = {
+                scenario_id
+                for scenario_id, patterns in scenario_patterns.items()
+                if b_only_pattern in patterns
+            }
+            crossed_scenarios = scenarios_with_a_only & scenarios_with_b_only
+            structural_groups: dict[str, set[str]] = defaultdict(set)
+            for scenario_id, patterns in scenario_patterns.items():
+                structural_groups[
+                    str(scenario_index[scenario_id]["structural_group_id"])
+                ].update(patterns)
+            crossed_groups = sum(
+                {a_only_pattern, b_only_pattern} <= patterns
+                for patterns in structural_groups.values()
+            )
+            complete_counts = {
+                pattern: int(pattern_counts[pattern])
+                for pattern in _PROFILE_DECISION_PATTERNS.values()
+            }
+            if crossed_scenarios:
+                disposition = "within_scenario_complementarity_observed"
+            elif not scenarios_with_a_only and not scenarios_with_b_only:
+                disposition = "no_profile_disagreement"
+            elif not scenarios_with_a_only or not scenarios_with_b_only:
+                disposition = "one_exclusive_direction_absent_suitewide"
+            else:
+                disposition = (
+                    "opposite_directions_not_colocated_within_scenario"
+                )
+            suite_reports[suite] = {
+                "scenario_count": len(suite_scenarios),
+                "structural_group_count": len(structural_groups),
+                "strategy_count": len(strategy_ids),
+                "plan_cell_count": len(suite_scenarios) * len(strategy_ids),
+                "plan_decision_pattern_counts": complete_counts,
+                "block_region_relation": _block_region_relation(
+                    complete_counts
+                ),
+                "profile_disagreement_scenario_count": sum(
+                    bool(
+                        patterns
+                        & {a_only_pattern, b_only_pattern}
+                    )
+                    for patterns in scenario_patterns.values()
+                ),
+                "scenarios_with_profile_a_only_blocks": len(
+                    scenarios_with_a_only
+                ),
+                "scenarios_with_profile_b_only_blocks": len(
+                    scenarios_with_b_only
+                ),
+                "scenarios_with_both_exclusive_directions": len(
+                    crossed_scenarios
+                ),
+                "structural_groups_with_both_exclusive_directions": (
+                    crossed_groups
+                ),
+                "candidate_sensitive_profile_a_scenario_count": len(
+                    sensitive_a
+                ),
+                "candidate_sensitive_profile_b_scenario_count": len(
+                    sensitive_b
+                ),
+                "candidate_sensitive_either_profile_scenario_count": len(
+                    sensitive_a | sensitive_b
+                ),
+                "all_candidates_same_pair_pattern_scenario_count": sum(
+                    len(patterns) == 1
+                    for patterns in scenario_patterns.values()
+                ),
+                "candidate_pattern_set_counts": dict(
+                    sorted(
+                        Counter(
+                            "+".join(sorted(patterns))
+                            for patterns in scenario_patterns.values()
+                        ).items()
+                    )
+                ),
+                "suitewide_bidirectional_disagreement": bool(
+                    scenarios_with_a_only and scenarios_with_b_only
+                ),
+                "within_scenario_complementarity_observed": bool(
+                    crossed_scenarios
+                ),
+                "attainability_disposition": disposition,
+            }
+
+        global_counts = {
+            pattern: int(global_patterns[pattern])
+            for pattern in _PROFILE_DECISION_PATTERNS.values()
+        }
+        comparison_fields = (
+            "prompt_hash",
+            "policy_hash",
+            "threshold",
+            "reasoning_mode",
+            "decoding",
+        )
+        differing_fields = [
+            field
+            for field in comparison_fields
+            if profile_index[profile_a].get(field)
+            != profile_index[profile_b].get(field)
+        ]
+        pair_reports.append(
+            {
+                "profile_a": _profile_design_identity(
+                    profile_index[profile_a]
+                ),
+                "profile_b": _profile_design_identity(
+                    profile_index[profile_b]
+                ),
+                "configuration_difference_fields": differing_fields,
+                "global_plan_decision_pattern_counts": global_counts,
+                "global_block_region_relation": _block_region_relation(
+                    global_counts
+                ),
+                "exclusive_disagreement_count": (
+                    global_counts["profile_a_allow_profile_b_block"]
+                    + global_counts["profile_a_block_profile_b_allow"]
+                ),
+                "suite_reports": suite_reports,
+                "all_suites_have_within_scenario_complementarity": all(
+                    report["within_scenario_complementarity_observed"]
+                    for report in suite_reports.values()
+                ),
+            }
+        )
+
+    suite_geometry: dict[str, Any] = {}
+    for suite in AGENTDOJO_SUITES:
+        compatible_suite_reports = [
+            pair["suite_reports"][suite] for pair in pair_reports
+        ]
+        maximum_crossed = max(
+            (
+                int(report["scenarios_with_both_exclusive_directions"])
+                for report in compatible_suite_reports
+            ),
+            default=0,
+        )
+        suite_geometry[suite] = {
+            "maximum_within_scenario_complementarity_across_profile_pairs": (
+                maximum_crossed
+            ),
+            "any_profile_pair_has_suitewide_bidirectional_disagreement": any(
+                report["suitewide_bidirectional_disagreement"]
+                for report in compatible_suite_reports
+            ),
+            "within_scenario_complementarity_observed": maximum_crossed > 0,
+            "observed_attainability_dispositions": sorted(
+                {
+                    str(report["attainability_disposition"])
+                    for report in compatible_suite_reports
+                }
+            ),
+        }
+    geometry_feasible = all(
+        report["within_scenario_complementarity_observed"]
+        for report in suite_geometry.values()
+    )
+    if geometry_feasible != bool(
+        feasibility["development_submission_permitted"]
+    ):
+        raise PairMiningError(
+            "train design audit disagrees with the mandatory feasibility gate"
+        )
+
+    payload = {
+        "schema_version": TRAIN_PAIR_DESIGN_AUDIT_SCHEMA_VERSION,
+        "analysis_revision": TRAIN_PAIR_DESIGN_AUDIT_REVISION,
+        "analysis_source_tree_hash": analysis_source_tree_hash,
+        "evidence_class": "scientific_train_pair_design_diagnostic",
+        "protocol_disposition": train_observation_manifest[
+            "protocol_disposition"
+        ],
+        "dataset_split": "train",
+        "catalog_hash": catalog["catalog_hash"],
+        "split_manifest_hash": split_manifest["split_manifest_hash"],
+        "action_eligibility_manifest_hash": action_eligibility_manifest[
+            "action_eligibility_manifest_hash"
+        ],
+        "candidate_strategy_catalog_hash": strategy_catalog[
+            "candidate_strategy_catalog_hash"
+        ],
+        "train_observation_set_hash": train_observation_manifest[
+            "observation_set_hash"
+        ],
+        "train_pair_feasibility_hash": feasibility[
+            "train_pair_feasibility_hash"
+        ],
+        "observation_generator_source_tree_hash": (
+            train_observation_manifest["generator_source_tree_hash"]
+        ),
+        "learned_runtime_fingerprints": feasibility[
+            "learned_runtime_fingerprints"
+        ],
+        "train_scenario_count": len(eligible_ids),
+        "strategy_count": len(strategy_ids),
+        "profile_count": len(profile_ids),
+        "observation_count": len(train_observations),
+        "compatible_profile_pair_count": len(pair_reports),
+        "incompatible_profile_pairs": incompatible_pairs,
+        "observed_plan_score_distributions": score_distributions,
+        "profile_pair_reports": pair_reports,
+        "suite_geometry": suite_geometry,
+        "overall_disposition": (
+            "current_profile_candidate_geometry_feasible"
+            if geometry_feasible
+            else "current_profile_candidate_geometry_infeasible"
+        ),
+        "development_submission_permitted": feasibility[
+            "development_submission_permitted"
+        ],
+        "pair_reduction_permitted": False,
+        "development_observations_inspected": False,
+        "test_outcomes_inspected": False,
+        "external_api_calls": 0,
+        "claim_boundary": (
+            "This train-only diagnostic explains observed profile/candidate "
+            "decision geometry. It does not weaken the within-scenario gate, "
+            "authorize development, or estimate feedback-leakage effects."
+        ),
+    }
+    return {
+        **payload,
+        "train_pair_design_audit_hash": stable_hash(payload),
+    }
+
+
 def _learned_profile_runtime_fingerprints(
     strategy_catalog: Mapping[str, Any],
 ) -> set[str]:
@@ -2289,11 +2702,14 @@ __all__ = [
     "PAIR_SCHEMA_VERSION",
     "PairMiningError",
     "STRATEGY_SCHEMA_VERSION",
+    "TRAIN_PAIR_DESIGN_AUDIT_REVISION",
+    "TRAIN_PAIR_DESIGN_AUDIT_SCHEMA_VERSION",
     "TRAIN_PAIR_FEASIBILITY_REVISION",
     "TRAIN_PAIR_FEASIBILITY_SCHEMA_VERSION",
     "make_candidate_strategy_catalog",
     "make_monitor_observation",
     "make_observation_set_manifest",
+    "make_train_pair_design_audit",
     "make_train_pair_feasibility_report",
     "mine_pair_registry",
     "monitor_pair_binding",

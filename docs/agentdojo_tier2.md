@@ -116,6 +116,24 @@ Submit development only when the frozen report says
 pilot evidence and requires a newly frozen candidate/profile design; it must
 not be bypassed by weakening the within-scenario complementary-pair criterion.
 
+For a false gate, freeze the train-only design diagnostic before changing the
+construction. It revalidates the same complete evidence chain and records the
+exact profile-decision contingency, block-region nesting, candidate
+sensitivity, and whether opposite disagreement directions exist suite-wide,
+within a structural group, or within one public scenario. It never consumes
+development or test observations and cannot authorize development:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
+  -m silenttwin.agentdojo.cli audit-train-pair-design \
+  --strategy-catalog /persistent/evidence/candidate-strategies-v1.json \
+  --train-observations /persistent/evidence/train.jsonl \
+  --train-observation-manifest /persistent/evidence/train.manifest.json \
+  --train-pair-feasibility-report /persistent/evidence/train-pair-feasibility.json \
+  --output /persistent/evidence/train-pair-design-audit.json \
+  --assert-development-and-test-results-uninspected
+```
+
 ```bash
 
 STAGE=run PAIR_MINING_ACTION=observe OBSERVATION_SPLIT=development \
