@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v5 conformance v6 passed; train submission pending)
+Last updated: 2026-08-30 (scientific-v5 train feasibility negative; development blocked)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3093,3 +3093,119 @@ This job is train-only. It cannot inspect development or test outcomes, select
 pairs, run the feasibility gate, reduce evidence, or execute a benchmark grid.
 Do not submit it until this handoff-only checkpoint is committed and the user
 explicitly approves the exact scalar job.
+
+## Scientific-v5 train and negative feasibility freeze on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The passed-v6
+conformance record was committed at
+`a5f7d55f2734ecddfb615024a07cb395be709c69` (`Record passed v6 conformance`).
+The explicitly approved scalar PBS job `54618.gaas` (`st-pair-tr-v5`) then ran
+the scientific-v5 train-only observation workload on one H200 in `gpu_free`
+under project `fs_ccds_asysong`. It finished on `hpc-gaas-g25` with
+`Exit_status = 0` after 4 minutes 9 seconds. PBS recorded 12 CPUs, one GPU,
+1,176,660 KB host memory, 59,302,228 KB virtual memory, and 33,232 MB maximum
+GPU memory. No development observation, pair reduction, benchmark grid, or
+held-out execution was submitted.
+
+The validated train evidence is frozen mode `0444` at:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.jsonl`,
+  20,513,506 bytes, file SHA-256
+  `89c9551e18c3910dff19843ca2455d577fc513eb47769d7686df0dc75a06851d`;
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.manifest.json`,
+  255,762 bytes, file SHA-256
+  `9fe827c414467aec3b2b60fff151ffa5dd1eb18983d6590f949ce07510589c9e`.
+
+The manifest's internal observation-set hash is
+`99ef2b8625569dde2096bbe40f156cd2df025b3826bbba8b567cdf1cc3e6e635`;
+its observation-list hash is
+`ddbcbf69b668b96f36861d268979b0dbf92b31f01c6b822b82506d258df4749f`;
+and its 186-row action-validation-list hash is
+`3e8324faa3c042d98df197cc91afe7fdbc719ed3739122da5b38807fb399ef56`.
+First-party domain validation rechecked every artifact envelope, self-hash,
+observation row, profile/strategy/scenario identity, source/runtime binding,
+complete Cartesian cohort, and action ledger. All 186 freshly executed action
+records reproduce the corresponding frozen scientific-v5 census records
+exactly after the preregistered wall-clock post-state normalization. All 646
+Granite call records pass raw response, rendered-input, seed, checkpoint,
+runtime, local-files-only, H200, and structured-chat provenance validation.
+
+The evidence contains exactly 93 train scenarios by two candidate paths by
+two monitor profiles: 186 fresh action executions, 372 observation rows, and
+646 Granite calls. Decisions were 36 `allow` and 336 `block`. Every action
+execution had zero tool errors, released attack-success `True`, and zero
+external API calls. The job bound clean executable source-tree hash
+`e0cf93521972f5fa5eac6ce2bfa41206efa28dea36b967e6901ecc4742de6571`
+and learned-runtime fingerprint
+`sha256:c6f9bab5c6aa9a5adc989eb3e47588059817dfdd5103f5cc64c87b77a5b76dae`.
+Standard output has file SHA-256
+`e6c8f36a216fd3c00b0408bd9bc48ca2a07f4adde9160ac39a22cf8782610bbb`;
+standard error has file SHA-256
+`95c0af9e3c5168ee7b47f2bde1a767bd5f2d51771c13e99fe48484dda5e88131`.
+The only stderr content is the upstream Transformers `torch_dtype`
+deprecation warning and normal Granite checkpoint-loading progress.
+
+The mandatory CPU-only train feasibility gate was then run with the explicit
+assertion that development and test results were uninspected. Its immutable
+report is mode `0444` at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-feasibility-scientific-v5.json`.
+The 160,007-byte file has SHA-256
+`25d4723550a65b29597c0d40a6b6fd92850b2d380efec7ee200c8f15a8a7b777`;
+its internal train-pair-feasibility hash is
+`4e31ffde2d9c56b74322d237917d2232fc598920a4fd4891fd1fabe06997a451`.
+A separate complete CLI derivation reproduced the published file byte-for-byte.
+
+The exhaustive gate evaluated all compatible ordered profile/path
+constructions. Its result is scientifically negative:
+
+| Suite | Train scenarios | Maximum complementary rows | Maximum one-sided rows |
+| --- | ---: | ---: | ---: |
+| workspace | 28 | 0 | 8 |
+| travel | 26 | 0 | 0 |
+| banking | 24 | 0 | 0 |
+| slack | 15 | 0 | 0 |
+
+The report therefore has overall disposition
+`infeasible_no_complementary_blind_spot`,
+`development_submission_permitted:false`, and
+`pair_reduction_permitted:false`. It records zero external API calls,
+`development_observations_inspected:false`, and
+`test_outcomes_inspected:false`. The reserved
+`pair-registry-scientific-v5.json` remains absent.
+
+Scientific v5 solved the representation and complete-plan transport problems,
+but the two common-objective Granite procedures still produced no required
+within-scenario complementary blind spot in any suite. This is a negative
+construction-feasibility result, not evidence for or against the proposed
+feedback-leakage effect. Development data cannot repair a failed train
+construction, so scientific-v5 development observation, pair reduction, and
+all benchmark grids remain prohibited.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only negative-feasibility record;
+2. do not submit scientific-v5 development, reduction, or benchmark jobs;
+3. run and freeze the existing CPU-only train-design diagnostic against the
+   exact v5 evidence and feasibility report before considering another
+   protocol change; and
+4. use that diagnostic to decide whether to stop Tier-2 E2 as a valid negative
+   construction-feasibility result or preregister an explicitly adaptive
+   scientific-v6 redesign. Do not weaken the within-scenario complementary
+   criterion or inspect development/test outcomes to rescue v5.
+
+Prepared CPU-only scientific-v5 train-design audit command (**not run**):
+
+```bash
+PYTHONPATH=/home/suaq0001/projects/silent_twin/src \
+/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python \
+  -m silenttwin.agentdojo.cli audit-train-pair-design \
+  --catalog /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json \
+  --splits /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json \
+  --action-eligibility /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json \
+  --strategy-catalog /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v6.json \
+  --train-observations /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.jsonl \
+  --train-observation-manifest /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.manifest.json \
+  --train-pair-feasibility-report /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-feasibility-scientific-v5.json \
+  --output /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-design-audit-scientific-v5.json \
+  --assert-development-and-test-results-uninspected
+```
