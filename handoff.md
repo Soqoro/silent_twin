@@ -1670,3 +1670,82 @@ qsub -P fs_ccds_asysong \
 Do not resubmit train pair observation before the v3 conformance report has
 passed all checks. Development observation remains blocked behind a successful
 train observation retry.
+
+## Passed v3 conformance and resolved train retry on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The handoff-only v3
+freeze record was committed at `b51365a3d4d47efe0619deba20731e67ee2414be`
+(`Record repaired runtime and v3 conformance freeze`). PBS job `54408.gaas`
+then ran the explicitly approved one-H200 v3 conformance gate and finished with
+exit status zero in 72 seconds. PBS recorded one GPU, 12 CPUs, 724,900 KB host
+memory, and the requested 250 GB/15-minute resource envelope.
+
+The validated report is at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v3.json`.
+File SHA-256 is
+`52c7c125b6a3e7c37d0cea10c6cc86c91469dcb692b1c8f8cc60d96c038a29b7`;
+internal conformance-report hash is
+`bd0406e73537666764de55a3cfc31a1c6c3427276dad3606e00cc11b46a50a9a`.
+All 8 checks passed with no errors. Domain validation confirmed exact bindings
+to conformance spec hash
+`5c498b9a304f0d6aaf32efc3a31a6da3912f2286345a62925a1602aeec348d19`,
+engineering candidate-catalog hash
+`40744ad06dce2476b65c80ed3da1b3e89767275daa2a06b1aee7574b5be4db46`,
+source tree hash
+`cabca299bb5271b3362c9b23e651b2248d12843948693466717cdbd380817b4a`,
+and learned runtime fingerprint
+`sha256:732bb2cef4b2d69bfb753f1556977b4afb4b39668565ac3a8d13795d0015afeb`.
+The report retained one Qwen attacker and two distinct Granite monitor clients
+on `cuda:0`. The H200 exposed 150,109,880,320 bytes, and the final protocol
+stage recorded a 49,567,984,640-byte peak allocation and
+50,319,065,088-byte peak reservation. The only stderr content was the upstream
+Transformers `torch_dtype` deprecation warning and normal weight-load progress.
+The report remains engineering-conformance-only and is not scientific
+benchmark evidence or pair-selection evidence.
+
+The repaired scientific train-observation retry is now resolved. Its frozen
+scientific catalog is `candidate-strategies-v2.json`, not the engineering
+conformance catalog. It covers 134 eligible train scenarios, 268 executable
+scenario/strategy plans, 536 scenario/strategy/profile observation rows, and
+860 learned Granite monitor calls across two distinct retained clients. The
+model-free audit already validated all 268 train plans and 430 underlying tool
+calls. The learned-runtime preflight passes with 108 locked distributions and
+the exact frozen runtime fingerprint above.
+
+The following destinations are all absent, including any hidden train
+temporary file:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train.jsonl`
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train.manifest.json`
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/development.jsonl`
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/development.manifest.json`
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-v1.json`
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only update;
+2. explicitly approve the resolved train command below;
+3. recheck the clean source hash, runtime fingerprint, input hashes, checkpoint,
+   and absent train destinations immediately before one scalar submission;
+4. validate and freeze both train outputs before authorizing development
+   observation. Do not submit development observation or the reducer yet.
+
+Resolved repaired train pair-observation command (prepared, **not submitted**):
+
+```bash
+export PBS_PAIR_TRAIN_V2_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=train,OBSERVATIONS_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train.jsonl,OBSERVATION_MANIFEST_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train.manifest.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-v2.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-v1.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:732bb2cef4b2d69bfb753f1556977b4afb4b39668565ac3a8d13795d0015afeb,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0,MONITOR_DEVICE=cuda:0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=01:00:00 \
+  -N st-pair-tr-v2 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/pair-mining/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/pair-mining/ \
+  -v "$PBS_PAIR_TRAIN_V2_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+```
+
+This is a train-only scientific observation job. It does not inspect test
+outcomes, select pairs, run the development split, or execute a benchmark
+grid.
