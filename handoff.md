@@ -2314,3 +2314,105 @@ qsub -P fs_ccds_asysong \
 
 This job is train-only. It cannot inspect development or test outcomes, select
 pairs, run the feasibility gate, reduce evidence, or execute a benchmark grid.
+
+## Scientific-v4 train and negative feasibility freeze on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The passed-v5
+conformance record was committed at
+`59ed3dcd52a30abe763892779bc4bed66954cfd2` (`Record passed v5 conformance`).
+The explicitly approved scalar PBS job `54515.gaas` (`st-pair-tr-v4`) then ran
+the scientific-v4 train-only observation workload on one H200 in `gpu_free`
+under project `fs_ccds_asysong`. It finished on `hpc-gaas-g25` with
+`Exit_status = 0` after 9 minutes 6 seconds. PBS recorded 12 CPUs, one GPU,
+1,254,052 KB host memory, 59,343,736 KB virtual memory, and 33,300 MB maximum
+GPU memory. No development observation, pair reduction, benchmark grid, or
+held-out execution was submitted.
+
+The validated train evidence is frozen mode `0444` at:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v4.jsonl`,
+  46,970,887 bytes, file SHA-256
+  `c1d940a7577475e2ed6d773803b25fb603a5265c25bce79c56e2a7280a2f36e7`;
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v4.manifest.json`,
+  671,450 bytes, file SHA-256
+  `2df0449716ef89742b2a90d0edfcf486644efb61fc166f8e264e2724e3db781b`.
+
+The manifest's internal observation-set hash is
+`dd93f2204f15c24022cc936cae6911f1339a8e6da7a6ed80ddc7cff145616a7d`;
+its observation-list hash is
+`dfa553588748dead0b9e2df9cfe7f468243a424c4b678c25a331a32d3161045d`;
+and its 536-row action-validation-list hash is
+`1f00a699d15664356c6a366c43758173b20849ddeba32534efa16c42e9178f5e`.
+First-party domain validation rechecked every envelope, self-hash, row,
+identity, source/runtime binding, complete Cartesian cohort, action ledger,
+and learned-runtime provenance. The evidence contains exactly 134 train
+scenarios by four candidate strategies by two monitor profiles: 536 fresh
+action executions, 1,072 observation rows, and 1,768 Granite calls. Decisions
+were 299 `allow` and 773 `block`.
+
+All 536 observed scenario/strategy action cells exactly match the deterministic
+fields in the frozen 536-row train subset of
+`candidate-strategies-action-audit-v4.json`. There are no missing, repeated,
+or unexpected cells, no tool-execution errors, no released attack-success
+failures, and zero external API calls. The job bound the clean executable
+source-tree hash
+`22ad59fb04b7ee7bc493a32707bc7afd6ea35ef8d0f090290f0afcfc49971651`
+and learned-runtime fingerprint
+`sha256:eb63f7a9ff8533223bdef7d52a0a06d7eda1dfafbebfb126963b01d1e07dc7c6`.
+Standard error contains only the upstream Transformers `torch_dtype`
+deprecation warning and normal Granite checkpoint-loading progress. Standard
+output contains the successful 1,072-row observation summary. Their file
+SHA-256 values are respectively
+`eeec271009f26fc6702438d34e62f03faee314df4d17631fbccc57849f59d7ac`
+and
+`c3a3fa0e692e7a6addf9d701f16b275048904ea8a6f0b1b8461b5722bb436b74`.
+
+The mandatory CPU-only feasibility gate was then run against only this frozen
+train evidence, with the explicit assertion that development and test results
+were uninspected. Its immutable report is mode `0444` at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-feasibility-scientific-v4.json`.
+The 1,330,241-byte file has SHA-256
+`61f5c885b830a999a7fef98f412c9eab0af1807b37b150f0f6c48f7f8a4ca4a2`;
+its internal train-pair-feasibility hash is
+`c12b392bd6e1057b4de700370a9ae9ffffc4544d4d58b4f2b1e8b5c5f011b739`.
+A separate in-memory derivation reproduced the complete published object
+exactly and independently revalidated its self-hash.
+
+The exhaustive gate evaluated all 24 compatible ordered profile/candidate
+constructions per suite. Its result is scientifically negative:
+
+| Suite | Train scenarios | Maximum complementary rows | Maximum one-sided rows |
+| --- | ---: | ---: | ---: |
+| workspace | 28 | 0 | 13 |
+| banking | 24 | 0 | 1 |
+| slack | 30 | 0 | 5 |
+| travel | 52 | 0 | 16 |
+
+The report therefore has overall disposition
+`infeasible_no_complementary_blind_spot` and
+`development_submission_permitted:false`. It records zero external API calls,
+`development_observations_inspected:false`, and
+`test_outcomes_inspected:false`. The reserved
+`pair-registry-scientific-v4.json` remains absent, as required for a train-only
+observation attempt.
+
+The expanded four-strategy pool improved some one-sided headroom but did not
+produce the required within-scenario complementary blind spot in any suite.
+This is a construction-feasibility result, not evidence for or against the
+feedback-leakage effect itself. Development data cannot repair a failed train
+construction, so scientific-v4 development observation, pair reduction, and
+all benchmark grids remain prohibited.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only negative-feasibility record;
+2. do not submit scientific-v4 development, reduction, or benchmark jobs;
+3. perform a train-only protocol-design audit before spending another H200
+   job, focusing on whether the within-scenario complementarity requirement is
+   structurally compatible with the current two Granite policy profiles and
+   goal-faithful action representations; and
+4. if continuing, preregister a methodologically explicit successor
+   construction and repeat its model-free action audit and engineering
+   conformance before any new learned train observation. Any protocol change
+   must preserve development/test blindness and must not silently weaken the
+   complementary criterion after observing this negative result.
