@@ -327,7 +327,7 @@ def test_pair_observation_preflight_requires_checkpoint_before_model_constructio
         )
 
 
-def test_generate_pair_observations_cli_forwards_action_eligibility(
+def test_generate_pair_observations_cli_uses_generic_jsonl(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -389,7 +389,7 @@ def test_generate_pair_observations_cli_forwards_action_eligibility(
     ) -> tuple[list[dict[str, object]], dict[str, object]]:
         captured["action_eligibility_manifest"] = action_eligibility_manifest
         captured.update(kwargs)
-        return [], {
+        return [{"record_type": "monitor_observation", "sentinel": "no-summary"}], {
             "observation_set_hash": "c" * 64,
             "protocol_disposition": "estimation_only_action_representable",
             "action_eligibility_manifest_hash": "a" * 64,
@@ -398,10 +398,18 @@ def test_generate_pair_observations_cli_forwards_action_eligibility(
     monkeypatch.setattr(runner, "generate_pair_observation_set", checked_generator)
     monkeypatch.setattr(
         runner,
-        "atomic_write_jsonl",
+        "atomic_write_objects_jsonl",
         lambda path, rows: published.update(
             {"observations_path": path, "observations": rows}
         ),
+    )
+    monkeypatch.setattr(
+        runner,
+        "atomic_write_jsonl",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("observation rows must not use the result-bundle writer")
+        ),
+        raising=False,
     )
     monkeypatch.setattr(
         runner,
@@ -439,11 +447,13 @@ def test_generate_pair_observations_cli_forwards_action_eligibility(
     ]
     assert captured["dataset_split"] == "train"
     assert published["observations_path"] == observations
-    assert published["observations"] == []
+    assert published["observations"] == [
+        {"record_type": "monitor_observation", "sentinel": "no-summary"}
+    ]
     assert published["manifest_path"] == manifest
     assert published["manifest"] == {
         "observation_set_hash": "c" * 64,
         "protocol_disposition": "estimation_only_action_representable",
         "action_eligibility_manifest_hash": "a" * 64,
     }
-    assert json.loads(capsys.readouterr().out)["observation_count"] == 0
+    assert json.loads(capsys.readouterr().out)["observation_count"] == 1

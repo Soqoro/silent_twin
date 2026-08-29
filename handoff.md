@@ -1749,3 +1749,70 @@ qsub -P fs_ccds_asysong \
 This is a train-only scientific observation job. It does not inspect test
 outcomes, select pairs, run the development split, or execute a benchmark
 grid.
+
+## Train generic-JSONL publication repair on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The passed-v3/train
+retry handoff was committed at
+`8faaec37c1bfb54afc1b1c0a7696a96498768563` (`Record passed v3 conformance
+and train retry`). The explicitly approved repaired train-observation PBS job
+`54413.gaas` (`st-pair-tr-v2`) then loaded both retained Granite Guardian
+clients and completed the in-memory train observation generation, but exited
+with status two after 4 minutes 47 seconds at the first publication call. PBS
+recorded 1,181,060 KB peak host memory and 33,300 MB peak GPU memory.
+
+The failure was a second local runner wiring error, not a model, runtime,
+checkpoint, action-plan, GPU, scheduler, or scientific-protocol failure:
+
+```text
+AgentDojo runner error: ResultValidationError: result must contain exactly one
+summary record; found 0
+```
+
+`runner._generate_pair_observations` passed the generic monitor-observation
+rows to `atomic_write_jsonl`, whose deliberately stricter contract accepts only
+benchmark result bundles ending in one summary record. Pair-observation JSONL
+is a generic object stream and intentionally contains no such summary. The
+failure occurred after `generate_pair_observation_set` returned its rows and
+manifest, so all 860 learned monitor calls had completed. The strict writer
+validates before opening a temporary file, and therefore no train JSONL,
+manifest, development artifact, pair registry, or hidden temporary file was
+published.
+
+The working tree now imports and calls the existing
+`atomic_write_objects_jsonl` publisher for observation rows. The manifest
+continues to use the single-object atomic JSON publisher. The CLI regression
+now returns a non-summary monitor-observation row, captures the generic writer,
+and makes any call to the strict result-bundle writer fail explicitly. It also
+retains the prior assertion that the validated action-eligibility object is
+forwarded to the generator. Thus the old production path fails the regression
+and the repaired path passes.
+
+Verification passed `git diff --check`, the focused pair/action/runtime/
+conformance/shell/JSONL set (`108 passed in 32.54s`), the exhaustive complete
+catalog determinism test (`1 passed in 593.26s`), and every other collected
+test under the pinned Python 3.11 test environment (`508 passed, 1 deselected,
+79 subtests passed in 846.91s`). Together these cover all 509 collected tests.
+The repaired executable source tree hash is
+`192772d7a94949b4084f76992605dad161c883d07172dc357b2ce32a6ee2d596`.
+
+The repair, regression, and this handoff update are not yet committed. The
+learned environment still contains the prior wheel, so its runtime fingerprint
+and every v2/v3 source/runtime-bound catalog, audit, spec, and report are stale
+for another train attempt even though the historical v3 report remains valid
+for its recorded source.
+
+Immediate next checkpoint:
+
+1. review and commit the runner repair, regression, and this handoff record;
+2. reproduce and archive a replacement wheel under source hash
+   `192772d7a94949b4084f76992605dad161c883d07172dc357b2ce32a6ee2d596`,
+   force-reinstall it offline, and freeze the new learned-runtime fingerprint;
+3. create a new scientific catalog/action audit and engineering conformance
+   catalog/spec without overwriting v2/v3 artifacts;
+4. explicitly approve, submit, and pass the new one-H200 conformance gate;
+5. only then resolve and separately approve one train-observation retry.
+
+Do not resubmit train observation from this dirty tree or reuse the v3
+source/runtime bindings for the repaired publisher. Development observation
+and pair reduction remain blocked.

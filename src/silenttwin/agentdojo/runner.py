@@ -19,7 +19,7 @@ from typing import Any, Mapping, Sequence
 from silenttwin.io.jsonl import (
     ResultValidationError,
     atomic_write_json,
-    atomic_write_jsonl,
+    atomic_write_objects_jsonl,
     read_jsonl,
 )
 from silenttwin.io.provenance import collect_provenance
@@ -2001,7 +2001,7 @@ def _generate_pair_observations(args: argparse.Namespace) -> dict[str, Any]:
         monitor_clients=monitor_clients,
         compat=compat,
     )
-    atomic_write_jsonl(args.observations_output, rows)
+    atomic_write_objects_jsonl(args.observations_output, rows)
     atomic_write_json(args.observation_manifest_output, manifest)
     return {
         "dataset_split": args.dataset_split,
