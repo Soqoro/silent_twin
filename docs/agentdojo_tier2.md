@@ -78,9 +78,12 @@ PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
 
 The checked freeze selects 134 train and 59 development scenarios. Its pilot
 test cohort is deliberately empty. A scientific strategy catalog must contain
-exactly two strategies, set `default_plan_policy` to `forbidden`, and provide
-an exact `scenario_plans` entry for every one of those 193 scenarios. Generic
-or suite-level fallback is rejected.
+at least two strategies, set `default_plan_policy` to `forbidden`, and provide
+an exact `scenario_plans` entry for every one of those 193 scenarios. Every
+pair of candidate plans must have distinct, non-nested required-action
+multisets. The train reducer searches the complete frozen pool but still
+selects exactly two final candidates per suite. Generic or suite-level fallback
+is rejected.
 
 ```bash
 STAGE=grid bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
@@ -92,6 +95,28 @@ OBSERVATION_MANIFEST_OUTPUT=/persistent/evidence/train.manifest.json \
 AGENTDOJO_MODEL_CACHE=/persistent/model-cache \
 AGENTDOJO_MONITOR_CHECKPOINT=/persistent/checkpoints/action-monitor \
 bash experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+```
+
+Before spending another learned-model job on development, freeze the CPU-only
+train feasibility gate. It validates the complete observation chain and
+exhausts every ordered pair from the train-frozen candidate/profile pool:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
+  -m silenttwin.agentdojo.cli assess-train-pair-feasibility \
+  --strategy-catalog /persistent/evidence/candidate-strategies-v1.json \
+  --train-observations /persistent/evidence/train.jsonl \
+  --train-observation-manifest /persistent/evidence/train.manifest.json \
+  --output /persistent/evidence/train-pair-feasibility.json \
+  --assert-development-and-test-results-uninspected
+```
+
+Submit development only when the frozen report says
+`development_submission_permitted:true`. A false result is valid negative
+pilot evidence and requires a newly frozen candidate/profile design; it must
+not be bypassed by weakening the within-scenario complementary-pair criterion.
+
+```bash
 
 STAGE=run PAIR_MINING_ACTION=observe OBSERVATION_SPLIT=development \
 AGENTDOJO_ACTION_ELIGIBILITY=configs/silenttwin/agentdojo/action-eligibility-v1.json \

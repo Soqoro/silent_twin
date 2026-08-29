@@ -137,6 +137,22 @@ def test_required_action_comparison_rejects_representational_variants() -> None:
     )
     assert hashes["left"] != hashes["right"]
 
+    amount_3 = CanonicalToolCall("d", "transfer", {"amount": 3, "note": "x"})
+    pool_hashes = validate_distinct_required_action_plans(
+        {
+            "left": _plan("left", amount_1),
+            "middle": _plan("middle", amount_2),
+            "right": _plan("right", amount_3),
+        },
+        schemas=(schema,),
+    )
+    assert len(set(pool_hashes.values())) == 3
+
+    with pytest.raises(ActionEligibilityError, match="at least two"):
+        validate_distinct_required_action_plans(
+            {"only": _plan("only", amount_1)}, schemas=(schema,)
+        )
+
     optional_only = CanonicalToolCall(
         "c", "transfer", {"amount": 1, "note": "different"}
     )
@@ -161,6 +177,7 @@ def test_required_action_comparison_rejects_representational_variants() -> None:
             {
                 "left": _plan("left", amount_1),
                 "right": _plan("right", amount_1, amount_2),
+                "third": _plan("third", amount_3),
             },
             schemas=(schema,),
         )

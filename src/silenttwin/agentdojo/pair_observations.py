@@ -97,9 +97,9 @@ def generate_pair_observation_set(
         raise PairMiningError("observation generation artifacts do not share an upstream")
     strategies = tuple(strategy_catalog["strategies"])
     profiles = tuple(strategy_catalog["monitor_profiles"])
-    if len(strategies) != 2:
+    if len(strategies) < 2:
         raise PairMiningError(
-            "estimation-only observation generation requires exactly two strategies"
+            "estimation-only observation generation requires at least two strategies"
         )
     validate_estimation_strategy_coverage(
         strategy_catalog, action_eligibility_manifest

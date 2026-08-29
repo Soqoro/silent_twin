@@ -30,6 +30,7 @@ from silenttwin.agentdojo.pair_mining import (
     _best_construction,
     make_monitor_observation,
     make_observation_set_manifest,
+    make_train_pair_feasibility_report,
     make_candidate_strategy_catalog,
     mine_pair_registry,
     monitor_pair_binding,
@@ -195,23 +196,29 @@ def _observations(
     *,
     split: str,
     reverse: bool = False,
+    all_block: bool = False,
 ) -> list[dict[str, object]]:
     scenarios = _eligible_scenarios(catalog, split)
+    strategies = {
+        str(row["strategy_id"]): row for row in strategy_catalog["strategies"]
+    }
     forward = {
         ("profile_a", "strategy_a"): "allow",
         ("profile_b", "strategy_a"): "block",
         ("profile_a", "strategy_b"): "block",
         ("profile_b", "strategy_b"): "allow",
     }
+    for strategy_id in sorted(set(strategies) - {"strategy_a", "strategy_b"}):
+        forward[("profile_a", strategy_id)] = "block"
+        forward[("profile_b", strategy_id)] = "block"
     if reverse:
         forward = {
             key: "block" if decision == "allow" else "allow"
             for key, decision in forward.items()
         }
+    if all_block:
+        forward = {key: "block" for key in forward}
     rows: list[dict[str, object]] = []
-    strategies = {
-        str(row["strategy_id"]): row for row in strategy_catalog["strategies"]
-    }
     profiles = {
         str(row["profile_id"]): row for row in strategy_catalog["monitor_profiles"]
     }
@@ -886,6 +893,134 @@ def test_estimation_strategy_catalog_requires_exact_nonfallback_coverage(
     incomplete["candidate_strategy_catalog_hash"] = stable_hash(payload)
     with pytest.raises(PairMiningError, match="coverage differs"):
         validate_estimation_strategy_coverage(incomplete, _action_eligibility())
+
+
+def test_estimation_pair_mining_screens_a_complete_candidate_pool(
+    frozen_inputs: tuple[dict[str, object], dict[str, object]],
+    strategy_catalog: dict[str, object],
+) -> None:
+    catalog, splits = frozen_inputs
+    expanded = copy.deepcopy(strategy_catalog)
+    third = copy.deepcopy(expanded["strategies"][1])
+    third["strategy_id"] = "strategy_c"
+    third["transformation_family"] = "family_c"
+    third["plan_template"] = {
+        "calls": [{"function": "candidate_c", "args": {}}]
+    }
+    third["scenario_plans"] = {
+        scenario_id: {
+            "calls": [{"function": "candidate_c", "args": {}}]
+        }
+        for scenario_id in third["scenario_plans"]
+    }
+    expanded["strategies"].append(third)
+    payload = dict(expanded)
+    payload.pop("candidate_strategy_catalog_hash")
+    expanded["candidate_strategy_catalog_hash"] = stable_hash(payload)
+
+    validate_estimation_strategy_coverage(expanded, _action_eligibility())
+    train = _observations(catalog, splits, expanded, split="train")
+    development = _observations(
+        catalog, splits, expanded, split="development", reverse=True
+    )
+    registry = mine_pair_registry(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=expanded,
+        train_observations=train,
+        development_observations=development,
+        train_observation_manifest=_observation_manifest(
+            train,
+            split="train",
+            catalog=catalog,
+            splits=splits,
+            strategy_catalog=expanded,
+        ),
+        development_observation_manifest=_observation_manifest(
+            development,
+            split="development",
+            catalog=catalog,
+            splits=splits,
+            strategy_catalog=expanded,
+        ),
+        action_eligibility_manifest=_action_eligibility(),
+    )
+    validate_pair_registry(
+        registry,
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=expanded,
+    )
+    assert {
+        pair["candidate_0_strategy_id"] for pair in registry["pairs"]
+    } == {"strategy_a"}
+    assert {
+        pair["candidate_1_strategy_id"] for pair in registry["pairs"]
+    } == {"strategy_b"}
+
+    feasibility = make_train_pair_feasibility_report(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=expanded,
+        train_observations=train,
+        train_observation_manifest=_observation_manifest(
+            train,
+            split="train",
+            catalog=catalog,
+            splits=splits,
+            strategy_catalog=expanded,
+        ),
+        action_eligibility_manifest=_action_eligibility(),
+        analysis_source_tree_hash=stable_hash("analysis-source"),
+    )
+    assert feasibility["overall_disposition"] == "feasible"
+    assert feasibility["development_submission_permitted"] is True
+    assert feasibility["strategy_count"] == 3
+    assert feasibility["development_observations_inspected"] is False
+    assert feasibility["test_outcomes_inspected"] is False
+    assert {
+        report["construction_attempt_count"]
+        for report in feasibility["suite_reports"].values()
+    } == {12}
+
+
+def test_train_feasibility_blocks_development_without_complementary_pairs(
+    frozen_inputs: tuple[dict[str, object], dict[str, object]],
+    strategy_catalog: dict[str, object],
+) -> None:
+    catalog, splits = frozen_inputs
+    train = _observations(
+        catalog,
+        splits,
+        strategy_catalog,
+        split="train",
+        all_block=True,
+    )
+    report = make_train_pair_feasibility_report(
+        catalog=catalog,
+        split_manifest=splits,
+        strategy_catalog=strategy_catalog,
+        train_observations=train,
+        train_observation_manifest=_observation_manifest(
+            train,
+            split="train",
+            catalog=catalog,
+            splits=splits,
+            strategy_catalog=strategy_catalog,
+        ),
+        action_eligibility_manifest=_action_eligibility(),
+        analysis_source_tree_hash=stable_hash("analysis-source"),
+    )
+    assert (
+        report["overall_disposition"]
+        == "infeasible_no_complementary_blind_spot"
+    )
+    assert report["development_submission_permitted"] is False
+    assert report["pair_reduction_permitted"] is False
+    assert all(
+        value["maximum_complementary_scenario_count"] == 0
+        for value in report["suite_reports"].values()
+    )
 
 
 def test_learned_monitor_prompt_and_policy_are_frozen_before_pair_mining(

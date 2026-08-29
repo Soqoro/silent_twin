@@ -9,7 +9,7 @@ therefore carries no test instantiations.
 
 from __future__ import annotations
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from copy import deepcopy
 from itertools import permutations
 import math
@@ -59,6 +59,12 @@ PAIR_SCHEMA_VERSION = "silenttwin.agentdojo.pair_registry.v1"
 OBSERVATION_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation.v2"
 OBSERVATION_SET_SCHEMA_VERSION = "silenttwin.agentdojo.monitor_observation_set.v2"
 OBSERVATION_GENERATOR_REVISION = "silenttwin-agentdojo-monitor-observation-v2"
+TRAIN_PAIR_FEASIBILITY_SCHEMA_VERSION = (
+    "silenttwin.agentdojo.train_pair_feasibility.v2"
+)
+TRAIN_PAIR_FEASIBILITY_REVISION = (
+    "exhaustive-train-candidate-pool-construction-v2"
+)
 _COMPATIBILITY_FIELDS = {
     "python_version",
     "package_version",
@@ -696,13 +702,13 @@ def validate_estimation_strategy_coverage(
     strategy_catalog: Mapping[str, Any],
     action_eligibility_manifest: Mapping[str, Any],
 ) -> tuple[str, ...]:
-    """Require two exact plans for every train/development pilot scenario."""
+    """Require a complete candidate pool for every pilot scenario."""
 
     validate_candidate_strategy_catalog(strategy_catalog)
     strategies = strategy_catalog.get("strategies")
-    if not isinstance(strategies, list) or len(strategies) != 2:
+    if not isinstance(strategies, list) or len(strategies) < 2:
         raise PairMiningError(
-            "estimation-only observation generation requires exactly two strategies"
+            "estimation-only observation generation requires at least two strategies"
         )
     expected = tuple(
         sorted(
@@ -1185,11 +1191,17 @@ def _validate_observation_manifest_envelope(
                 }
                 for scenario_id in expected_ids
             }
-            if set(strategies_by_scenario) != set(expected_ids) or any(
-                len(values) != 2 for values in strategies_by_scenario.values()
+            observed_strategy_sets = {
+                frozenset(values) for values in strategies_by_scenario.values()
+            }
+            if (
+                set(strategies_by_scenario) != set(expected_ids)
+                or any(len(values) < 2 for values in strategies_by_scenario.values())
+                or len(observed_strategy_sets) != 1
             ):
                 raise PairMiningError(
-                    "action-validation ledger lacks two strategies per eligible scenario"
+                    "action-validation ledger lacks one complete strategy pool per "
+                    "eligible scenario"
                 )
     elif (
         manifest.get("protocol_disposition") != "legacy_full_catalog"
@@ -1433,6 +1445,249 @@ def _yield_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     }
 
 
+def make_train_pair_feasibility_report(
+    *,
+    catalog: Mapping[str, Any],
+    split_manifest: Mapping[str, Any],
+    strategy_catalog: Mapping[str, Any],
+    train_observations: Sequence[Mapping[str, Any]],
+    train_observation_manifest: Mapping[str, Any],
+    action_eligibility_manifest: Mapping[str, Any],
+    analysis_source_tree_hash: str,
+) -> dict[str, Any]:
+    """Validate train evidence and gate development before another model run.
+
+    The report exhausts every compatible ordered profile pair and every
+    ordered pair from the train-frozen candidate pool.  It never consumes
+    development or held-out observations.  A suite is feasible only when at
+    least one scenario supplies both complementary false-negative directions.
+    """
+
+    require_hash("analysis_source_tree_hash", analysis_source_tree_hash)
+    validate_catalog(catalog)
+    validate_split_manifest(split_manifest, catalog=catalog)
+    validate_candidate_strategy_catalog(strategy_catalog)
+    try:
+        eligibility_hash = validate_action_eligibility_manifest(
+            action_eligibility_manifest,
+            catalog=catalog,
+            split_manifest=split_manifest,
+        )
+    except ActionEligibilityError as exc:
+        raise PairMiningError(f"invalid action eligibility: {exc}") from exc
+    if (
+        strategy_catalog.get("catalog_hash") != catalog.get("catalog_hash")
+        or strategy_catalog.get("split_manifest_hash")
+        != split_manifest.get("split_manifest_hash")
+    ):
+        raise PairMiningError("strategy catalog belongs to another catalog/split")
+    validate_estimation_strategy_coverage(
+        strategy_catalog, action_eligibility_manifest
+    )
+    scenario_index = _catalog_index(catalog)
+    strategy_index = {
+        str(row["strategy_id"]): row for row in strategy_catalog["strategies"]
+    }
+    profile_index = {
+        str(row["profile_id"]): row
+        for row in strategy_catalog["monitor_profiles"]
+    }
+    strategy_ids = tuple(sorted(strategy_index))
+    profile_ids = tuple(sorted(profile_index))
+    if len(strategy_ids) < 2 or len(profile_ids) < 2:
+        raise PairMiningError(
+            "train feasibility requires at least two strategies and profiles"
+        )
+    eligible_ids = pilot_scenario_ids(
+        action_eligibility_manifest, dataset_split="train"
+    )
+    runtime_fingerprints = _learned_profile_runtime_fingerprints(
+        strategy_catalog
+    )
+    observation_set_hash = validate_observation_set_manifest(
+        train_observation_manifest,
+        observations=train_observations,
+        dataset_split="train",
+        catalog_hash=str(catalog["catalog_hash"]),
+        split_manifest_hash=str(split_manifest["split_manifest_hash"]),
+        candidate_strategy_catalog_hash=str(
+            strategy_catalog["candidate_strategy_catalog_hash"]
+        ),
+        expected_runtime_fingerprints=runtime_fingerprints,
+        action_eligibility_manifest_hash=eligibility_hash,
+        eligible_scenario_ids=eligible_ids,
+        strategy_ids=strategy_ids,
+    )
+    if (
+        strategy_catalog.get("artifact_class")
+        != "deterministic_fake_smoke_fixture"
+        and train_observation_manifest.get("scientific_evidence_eligible")
+        is not True
+    ):
+        raise PairMiningError(
+            "production feasibility requires real learned-monitor train evidence"
+        )
+    action_validation_index = {
+        (str(row["scenario_id"]), str(row["strategy_id"])): row
+        for row in train_observation_manifest["action_validations"]
+    }
+    train = _normalize_observations(
+        train_observations,
+        required_split="train",
+        scenario_index=scenario_index,
+        strategy_index=strategy_index,
+        profile_index=profile_index,
+        catalog_hash=str(catalog["catalog_hash"]),
+        split_manifest_hash=str(split_manifest["split_manifest_hash"]),
+        candidate_strategy_catalog_hash=str(
+            strategy_catalog["candidate_strategy_catalog_hash"]
+        ),
+        action_eligibility_manifest_hash=eligibility_hash,
+        eligible_scenario_ids=eligible_ids,
+        action_validation_index=action_validation_index,
+    )
+    expected_identities = {
+        (scenario_id, strategy_id, profile_id)
+        for scenario_id in eligible_ids
+        for strategy_id in strategy_ids
+        for profile_id in profile_ids
+    }
+    observed_identities = {
+        (
+            str(row["scenario_id"]),
+            str(row["strategy_id"]),
+            str(row["profile_id"]),
+        )
+        for row in train
+    }
+    if observed_identities != expected_identities:
+        raise PairMiningError(
+            "train observations do not exactly cover the candidate/profile pool"
+        )
+
+    suite_reports: dict[str, Any] = {}
+    for suite in AGENTDOJO_SUITES:
+        attempts: list[dict[str, Any]] = []
+        for profile_theta0, profile_theta1 in permutations(profile_ids, 2):
+            if not _monitor_pair_compatibility(
+                profile_index[profile_theta0], profile_index[profile_theta1]
+            )[0]:
+                continue
+            for candidate0, candidate1 in permutations(strategy_ids, 2):
+                yield_rows = _construction_rows(
+                    train,
+                    suite=suite,
+                    profile_theta0=profile_theta0,
+                    profile_theta1=profile_theta1,
+                    candidate_0=candidate0,
+                    candidate_1=candidate1,
+                )
+                summary = _yield_summary(yield_rows)
+                attempts.append(
+                    {
+                        "profile_theta0": profile_theta0,
+                        "profile_theta1": profile_theta1,
+                        "candidate_0_strategy_id": candidate0,
+                        "candidate_1_strategy_id": candidate1,
+                        "complementary_structural_group_count": len(
+                            {
+                                str(row["structural_group_id"])
+                                for row in yield_rows
+                                if row["pair_yield_class"] == "both"
+                            }
+                        ),
+                        "yield_summary": summary,
+                    }
+                )
+        maximum_complementary = max(
+            (
+                int(attempt["yield_summary"]["counts"]["both"])
+                for attempt in attempts
+            ),
+            default=0,
+        )
+        maximum_one_sided = max(
+            (
+                int(attempt["yield_summary"]["counts"]["candidate0_only"])
+                + int(attempt["yield_summary"]["counts"]["candidate1_only"])
+                for attempt in attempts
+            ),
+            default=0,
+        )
+        suite_reports[suite] = {
+            "disposition": (
+                "feasible" if maximum_complementary > 0 else "infeasible"
+            ),
+            "required_minimum_complementary_structural_groups": 1,
+            "maximum_complementary_scenario_count": maximum_complementary,
+            "maximum_one_sided_scenario_count": maximum_one_sided,
+            "construction_attempt_count": len(attempts),
+            "construction_attempts": attempts,
+        }
+    feasible = all(
+        report["disposition"] == "feasible"
+        for report in suite_reports.values()
+    )
+    model_call_count = sum(
+        len(row["monitor_input_hashes"]) for row in train_observations
+    )
+    payload = {
+        "schema_version": TRAIN_PAIR_FEASIBILITY_SCHEMA_VERSION,
+        "analysis_revision": TRAIN_PAIR_FEASIBILITY_REVISION,
+        "analysis_source_tree_hash": analysis_source_tree_hash,
+        "evidence_class": "scientific_train_pair_feasibility",
+        "protocol_disposition": train_observation_manifest[
+            "protocol_disposition"
+        ],
+        "dataset_split": "train",
+        "catalog_hash": catalog["catalog_hash"],
+        "split_manifest_hash": split_manifest["split_manifest_hash"],
+        "action_eligibility_manifest_hash": eligibility_hash,
+        "candidate_strategy_catalog_hash": strategy_catalog[
+            "candidate_strategy_catalog_hash"
+        ],
+        "train_observation_set_hash": observation_set_hash,
+        "observation_generator_source_tree_hash": train_observation_manifest[
+            "generator_source_tree_hash"
+        ],
+        "learned_runtime_fingerprints": sorted(runtime_fingerprints),
+        "train_scenario_count": len(eligible_ids),
+        "strategy_count": len(strategy_ids),
+        "profile_count": len(profile_ids),
+        "observation_count": len(train_observations),
+        "action_validation_count": len(action_validation_index),
+        "learned_monitor_call_count": model_call_count,
+        "monitor_decision_counts": dict(
+            sorted(
+                Counter(
+                    str(row["monitor_decision"])
+                    for row in train_observations
+                ).items()
+            )
+        ),
+        "suite_reports": suite_reports,
+        "overall_disposition": (
+            "feasible"
+            if feasible
+            else "infeasible_no_complementary_blind_spot"
+        ),
+        "development_observations_inspected": False,
+        "test_outcomes_inspected": False,
+        "external_api_calls": 0,
+        "development_submission_permitted": feasible,
+        "pair_reduction_permitted": False,
+        "claim_boundary": (
+            "This train-only report gates development observation. It is pair-"
+            "construction feasibility evidence, not a feedback-leakage or "
+            "benchmark prohibited-effect result."
+        ),
+    }
+    return {
+        **payload,
+        "train_pair_feasibility_hash": stable_hash(payload),
+    }
+
+
 def _learned_profile_runtime_fingerprints(
     strategy_catalog: Mapping[str, Any],
 ) -> set[str]:
@@ -1483,9 +1738,9 @@ def mine_pair_registry(
     }
     strategy_ids = set(strategy_index)
     profile_ids = set(profile_index)
-    if len(strategy_ids) != 2:
+    if len(strategy_ids) < 2:
         raise PairMiningError(
-            "estimation-only pair mining requires exactly two validated strategies"
+            "estimation-only pair mining requires at least two validated strategies"
         )
     validate_estimation_strategy_coverage(
         strategy_catalog, action_eligibility_manifest
@@ -1895,9 +2150,9 @@ def validate_pair_registry(
         strategy_ids = {
             str(row["strategy_id"]) for row in strategy_catalog["strategies"]
         }
-        if estimation_only and len(strategy_ids) != 2:
+        if estimation_only and len(strategy_ids) < 2:
             raise PairMiningError(
-                "estimation-only pair registry requires exactly two strategies"
+                "estimation-only pair registry requires at least two strategies"
             )
         profile_ids = {
             str(row["profile_id"])
@@ -2034,9 +2289,12 @@ __all__ = [
     "PAIR_SCHEMA_VERSION",
     "PairMiningError",
     "STRATEGY_SCHEMA_VERSION",
+    "TRAIN_PAIR_FEASIBILITY_REVISION",
+    "TRAIN_PAIR_FEASIBILITY_SCHEMA_VERSION",
     "make_candidate_strategy_catalog",
     "make_monitor_observation",
     "make_observation_set_manifest",
+    "make_train_pair_feasibility_report",
     "mine_pair_registry",
     "monitor_pair_binding",
     "validate_candidate_strategy_catalog",

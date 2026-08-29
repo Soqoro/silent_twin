@@ -496,11 +496,17 @@ def _required_signature(call: Any, schemas: Mapping[str, Any]) -> str:
 def validate_distinct_required_action_plans(
     plans: Mapping[str, Any], *, schemas: Sequence[Any]
 ) -> dict[str, str]:
-    """Reject identical, optional-only, ordering-only, or nested candidates."""
+    """Reject identical, optional-only, ordering-only, or nested candidates.
 
-    if len(plans) != 2:
+    Observation generation may screen a train-frozen pool larger than two.
+    Every pair in that pool must be substantively distinct so the reducer can
+    later choose exactly two candidates without admitting a representational
+    duplicate.
+    """
+
+    if len(plans) < 2:
         raise ActionEligibilityError(
-            "estimation-only action eligibility requires exactly two strategies"
+            "estimation-only action eligibility requires at least two strategies"
         )
     schema_index = {str(schema.name): schema for schema in schemas}
     signatures: dict[str, Counter[str]] = {}
@@ -517,15 +523,16 @@ def validate_distinct_required_action_plans(
         hashes[strategy_id] = stable_hash(
             sorted(signatures[strategy_id].items())
         )
-    (left_id, right_id), = combinations(sorted(signatures), 2)
-    left = signatures[left_id]
-    right = signatures[right_id]
-    left_nested = all(right[key] >= count for key, count in left.items())
-    right_nested = all(left[key] >= count for key, count in right.items())
-    if left_nested or right_nested:
-        raise ActionEligibilityError(
-            "candidate required-action multisets are identical or nested"
-        )
+    for left_id, right_id in combinations(sorted(signatures), 2):
+        left = signatures[left_id]
+        right = signatures[right_id]
+        left_nested = all(right[key] >= count for key, count in left.items())
+        right_nested = all(left[key] >= count for key, count in right.items())
+        if left_nested or right_nested:
+            raise ActionEligibilityError(
+                "candidate required-action multisets are identical or nested: "
+                f"{left_id!r}, {right_id!r}"
+            )
     return hashes
 
 

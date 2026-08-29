@@ -169,6 +169,45 @@ def _verify(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _assess_train_pair_feasibility(args: argparse.Namespace) -> dict[str, Any]:
+    from silenttwin.io.jsonl import read_jsonl
+    from silenttwin.io.provenance import source_tree_hash
+
+    from .pair_mining import make_train_pair_feasibility_report
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "train feasibility requires the development/test-uninspected assertion"
+        )
+    report = make_train_pair_feasibility_report(
+        catalog=_read_object(args.catalog),
+        split_manifest=_read_object(args.splits),
+        strategy_catalog=_read_object(args.strategy_catalog),
+        train_observations=read_jsonl(args.train_observations),
+        train_observation_manifest=_read_object(
+            args.train_observation_manifest
+        ),
+        action_eligibility_manifest=_read_object(args.action_eligibility),
+        analysis_source_tree_hash=source_tree_hash(),
+    )
+    reused = _atomic_write_immutable(args.output, report)
+    return {
+        "train_pair_feasibility_hash": report["train_pair_feasibility_hash"],
+        "overall_disposition": report["overall_disposition"],
+        "development_submission_permitted": report[
+            "development_submission_permitted"
+        ],
+        "maximum_complementary_scenario_count_by_suite": {
+            suite: value["maximum_complementary_scenario_count"]
+            for suite, value in report["suite_reports"].items()
+        },
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+        "development_observations_inspected": False,
+        "test_outcomes_inspected": False,
+    }
+
+
 def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
     from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
     from .config import AGENTDOJO_SUITES, bundle_hash
@@ -363,6 +402,37 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     eligibility.set_defaults(handler=_freeze_action_eligibility)
+
+    feasibility = commands.add_parser(
+        "assess-train-pair-feasibility",
+        help=(
+            "validate train observations and freeze the complementary-pair "
+            "feasibility gate before development"
+        ),
+    )
+    feasibility.add_argument("--catalog", type=Path, default=DEFAULT_CATALOG_PATH)
+    feasibility.add_argument("--splits", type=Path, default=DEFAULT_SPLITS_PATH)
+    feasibility.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    feasibility.add_argument("--strategy-catalog", type=Path, required=True)
+    feasibility.add_argument("--train-observations", type=Path, required=True)
+    feasibility.add_argument(
+        "--train-observation-manifest", type=Path, required=True
+    )
+    feasibility.add_argument("--output", type=Path, required=True)
+    feasibility.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that neither development nor held-out outcomes "
+            "informed this train gate"
+        ),
+    )
+    feasibility.set_defaults(handler=_assess_train_pair_feasibility)
 
     sample = commands.add_parser(
         "freeze-sample-size",

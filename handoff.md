@@ -1970,3 +1970,123 @@ qsub -P fs_ccds_asysong \
 
 This job is train-only. It does not inspect test outcomes, run development,
 select pairs, reduce evidence, or execute a benchmark grid.
+
+## Scientific-v3 negative train pilot and candidate-pool repair on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The passed-v4/train
+retry record was committed at
+`0c1517b5f84dfbc261133fc17e203e114c74a1f5` (`Record passed v4 conformance
+and train retry`). PBS job `54439.gaas` (`st-pair-tr-v3`) then finished with
+`Exit_status = 0` in 4 minutes 53 seconds. It used one GPU and 12 CPUs; PBS
+recorded 1,185,476 KB host memory and 59,303,768 KB virtual memory. The only
+stderr content was the upstream Transformers `torch_dtype` deprecation warning
+and normal Granite weight-load progress.
+
+The generic-object publisher repair succeeded. The following scientific-v3
+train artifacts were atomically published, fully validated, and frozen mode
+`0444`:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train.jsonl`
+  contains 536 observation rows and has file SHA-256
+  `4f35ac7f666b927dc44c12ac3045f4ba0d67b80142f4d0601e3d42ed242f65d5`.
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train.manifest.json`
+  has file SHA-256
+  `e872ace797fc301f558230e6e705077c2051089499582671559ebd4706fda707`;
+  its internal observation-set hash is
+  `37e8aa7f5b68bd5f117e95d37e9156bca97b5cf47ff6a0e683835356b8710ef2`.
+
+The manifest contains all 268 action-execution validations and the JSONL
+contains all 860 learned Granite monitor calls for the exact 134-scenario by
+two-strategy by two-profile train Cartesian product. Domain validation
+rechecked every row/hash, exact source hash
+`192772d7a94949b4084f76992605dad161c883d07172dc357b2ce32a6ee2d596`,
+runtime fingerprint
+`sha256:5a03ad2502c60e613946d19a1be1c3d9f9d34c03f79deb67c948ac63165a4b91`,
+and every deterministic action field against the frozen v3 action audit. It
+also confirmed 143 `allow` and 393 `block` plan verdicts, zero external API
+calls, and no development or test outcome inspection.
+
+The train run is operationally successful but scientifically negative. An
+exhaustive CPU analysis tested every ordered profile orientation and candidate
+orientation. The preregistered construction requires, within one public
+scenario, candidate 0 to be a false negative only under theta 0 and candidate
+1 to be a false negative only under theta 1. No suite contains such a `both`
+row:
+
+| Suite | Train scenarios | Maximum complementary rows | Maximum one-sided rows |
+| --- | ---: | ---: | ---: |
+| workspace | 28 | 0 | 11 |
+| banking | 24 | 0 | 1 |
+| slack | 30 | 0 | 0 |
+| travel | 52 | 0 | 16 |
+
+This is not a scheduler, checkpoint, runtime, publication, validation, or
+reducer-orientation failure. The two frozen candidate materializations and
+profiles yield only one-sided or shared behavior. Development evidence cannot
+repair train selection, so no development observation or pair reduction was
+submitted.
+
+Two immutable train-only feasibility records were published. The initial
+independent audit is
+`train-pair-feasibility-scientific-v3.json`, file SHA-256
+`93c7ee3a2330bbc0ab635d9da14f4a944143befa9376eff1a4b8aec7b9553be0`
+and internal hash
+`259562679bfeea7f23c47fa27a5809708fe5a202af28e97e4d4f7298d8de33b4`.
+The new first-party gate is
+`train-pair-feasibility-scientific-v3-v2.json`, file SHA-256
+`252e30031a7b66a53f05d7ba20c4d58db829b257371247512ee30fec76a3c149`
+and internal hash
+`8c8dca4e8ee02985cc62f8d6fee03d21478663835457e6fcb98f0680b3b0982c`.
+Both are mode `0444`, say
+`infeasible_no_complementary_blind_spot`, explicitly forbid development
+submission, and record that development and test outcomes were not inspected.
+
+The working tree now implements the smallest protocol repair that preserves
+the scientific question. Estimation observation may screen a train-frozen
+pool of at least two candidate strategies. Every candidate pair must still
+have distinct, nonnested required-action multisets and exact plans for all 193
+train/development pilot scenarios. The train reducer exhausts the pool but
+still freezes exactly two final candidates per suite; controlled E2 still has
+exactly two public candidates and one final-effect opportunity. The
+within-scenario complementary criterion was not weakened.
+
+A new CPU-only CLI command,
+`assess-train-pair-feasibility`, validates the complete train evidence chain,
+exhausts every ordered compatible profile/candidate pair, atomically freezes a
+self-hashed report, and permits development only when all four suites are
+feasible. The operator guide now places this mandatory gate between train and
+development. The final focused candidate-pool, negative-gate, pair-mining,
+action-eligibility, runtime, conformance, runner, and shell regression set
+passed `103 tests in 38.54s`. Python compilation, shell syntax for all
+AgentDojo entrypoints, CLI help discovery, and `git diff --check` also passed.
+The complete pinned repository collection then passed `511 tests` and `79
+subtests` in `1064.83s` with the pinned Python 3.11 binary and `PYTHON_BIN`
+propagated to nested shell tests.
+
+The current uncommitted executable source-tree hash is
+`22ad59fb04b7ee7bc493a32707bc7afd6ea35ef8d0f090290f0afcfc49971651`.
+The historical v4 conformance report and scientific-v3 train evidence remain
+valid for their recorded source/runtime, but the installed learned wheel,
+runtime fingerprint, and all v3/v4 source-bound inputs are stale for any new
+observation run from this candidate-pool implementation.
+
+Immediate next checkpoint:
+
+1. review and commit the candidate-pool/gate implementation, regressions,
+   operator guide, and this negative-pilot record;
+2. build and reproduce a new offline wheel from that clean revision,
+   force-reinstall it into the learned Python 3.11 environment, and freeze the
+   replacement runtime fingerprint;
+3. author a new versioned scientific catalog containing an expanded pool of
+   meaningful, action-valid train-frozen transformations for every one of the
+   193 pilot scenarios; do not tune a profile against development/test or use
+   a strategy-ID marker to manufacture complementarity;
+4. execute and reproduce the complete model-free action audit, then create new
+   versioned engineering conformance inputs and pass one H200 conformance job;
+5. generate a new versioned train observation set, run the CPU feasibility
+   gate, and authorize development only if that report sets
+   `development_submission_permitted:true`.
+
+Do not submit scientific-v3 development observation, do not run the pair
+reducer, and do not overwrite or repurpose the preserved generic `train.*`
+negative-pilot artifacts.
