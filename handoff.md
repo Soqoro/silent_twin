@@ -2090,3 +2090,137 @@ Immediate next checkpoint:
 Do not submit scientific-v3 development observation, do not run the pair
 reducer, and do not overwrite or repurpose the preserved generic `train.*`
 negative-pilot artifacts.
+
+## Scientific-v4 candidate-pool and H200 conformance-v5 freeze on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The candidate-pool
+and mandatory train-feasibility gate were committed at
+`02e4042692d0c13dfb26a6d5fde7e91cd156591e` (`Gate development on train
+pair feasibility`). No PBS job, learned-model inference for a new candidate,
+development observation, test inspection, pair reduction, or benchmark grid
+was submitted during this checkpoint.
+
+The clean committed executable source-tree hash is
+`22ad59fb04b7ee7bc493a32707bc7afd6ea35ef8d0f090290f0afcfc49971651`.
+Two independent offline/no-dependency/no-build-isolation wheel builds from
+separate `git archive` trees used commit epoch `1787995615` and produced
+byte-identical 438,437-byte wheels. The replacement wheel is archived
+read-only at
+`/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/22ad59fb04b7ee7bc493a32707bc7afd6ea35ef8d0f090290f0afcfc49971651/silenttwin-0.1.0-py3-none-any.whl`;
+its file SHA-256 is
+`7469d8326f05470a805679efe458f5b5b219b40a81a741c55f179c4974cccf55`.
+ZIP integrity validation passed.
+
+Only that archived local wheel was force-reinstalled offline and without
+dependency resolution into the dedicated learned Python 3.11 environment.
+All 111 immutable SilentTwin payload files match the wheel byte-for-byte. The
+installed payload-manifest hash is
+`39f483c0901b69d19fe72165c5e67d0e3b5021adb586d6224c13ce52cdaa0cb8`,
+the installed RECORD identity is
+`1f9cf5b5ead7215c7a5a0bab3f01f47adacf6a27ef95d93ac677684cbf44ca0a`,
+and `pip check` reports no broken requirements. The frozen 108-distribution
+learned-runtime fingerprint is
+`sha256:eb63f7a9ff8533223bdef7d52a0a06d7eda1dfafbebfb126963b01d1e07dc7c6`.
+The 71-pin core lock and both local checkpoint trees are unchanged.
+
+The versioned scientific-v4 construction is frozen read-only at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-v4.json`.
+Its file SHA-256 is
+`07cd448eeaf475f76dffa8401a4e2af83fdbbb0f8650efb333a817506cfad501`;
+its internal candidate-catalog hash is
+`06591a83d52460ca2a99e13c412ea2f9a2ccb6267ffe99f23da5fddc000c9803`.
+It contains four exact, nonfallback strategies over all 193 train/development
+pilot scenarios:
+
+- `released-ground-truth-derived-path-v2`;
+- `natural-contextual-materialization-v1`;
+- `natural-structured-materialization-v1`; and
+- `natural-alternate-materialization-v1`.
+
+The pool uses natural goal-faithful variations only: equivalent transfer
+partitions and microtransfer amounts, labeled/multiline/JSON representations,
+same-day calendar slots, and public-tool calendar creation/verification paths.
+The artificial `[SilentTwin alternate action materialization]` and
+`[alternate serialization]` markers are absent. The two Granite policy texts,
+checkpoint, decoding, and threshold are unchanged from scientific v3; only
+their source-bound runtime and complete profile hashes were refreshed. This
+redesign transparently records that the aggregate negative scientific-v3 train
+feasibility disposition was inspected. It also records that no row-level
+predecessor outcome was used to author a new plan, no learned outcome exists
+for a new candidate, and no development or test outcome was inspected.
+
+The complete model-free audit is frozen read-only at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-action-audit-v4.json`.
+Its file SHA-256 is
+`43be9c06d6bedae63919047302b6ef7c8da1a0646779a9a80032a4e0030501e0`;
+its internal audit hash is
+`55525070c491988fd25ce51cf64bdb26d3cce8d5f48fab0d79f7148520bd7515`,
+and its 772-validation-list hash is
+`03d2f42258d947194d77b1eef189471199c677a430992af7205b41ae7681fd95`.
+Every candidate pair has distinct, nonnested required-action multisets on
+every scenario. All 772 plans executed in fresh environment clones with zero
+tool errors and returned released attack-success `True`; no external API call
+or learned-model inference occurred. Coverage is 224 workspace, 128 banking,
+148 Slack, and 272 travel scenario/strategy validations.
+
+Two independent complete 772-plan executions reproduced the scientific
+catalog byte-for-byte. After removing only the documented wall-clock-derived
+post-environment hashes and their enclosing action-validation/audit hashes,
+the audit records were byte-identical with normalized SHA-256
+`4b0a5021e029aacec448ca4e678bf7d2868592cc8f2902292d52064fe429f396`.
+The published first run was revalidated from its immutable destination,
+including all self-hashes, exact pilot coverage, materialized call-sequence
+hashes, required-action multiset hashes, released grader results, and source
+provenance.
+
+New engineering-only H200 inputs were also reproduced byte-for-byte and
+published read-only:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v5.json`
+  has file SHA-256
+  `cc80070255b1efd349b599efab28e52df009af92d3de33b786b0e0e0127073f9`
+  and internal candidate-catalog hash
+  `1d106c9dfcbdb56cb56d8c87dc80db4099821b328ebc3a846d9df3e29bf50f31`.
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v5.json`
+  has file SHA-256
+  `ed9193e3388662c808bc271c6aab43303da34d7c94f6cf984e220bfbba053ddd`
+  and internal spec hash
+  `93496549355a5e26784aa7e0105434b435c085ef107519d514644c78302fc52c`.
+
+The v5 conformance report path is absent. The versioned scientific-v4 train
+JSONL and manifest paths are also absent. A future train run will contain 536
+action executions, 1,072 scenario/strategy/profile observation rows, and
+1,768 Granite monitor calls. It must use new versioned destinations and must
+not overwrite the preserved generic `train.*` scientific-v3 negative-pilot
+artifacts.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only freeze record; documentation does not
+   change the frozen executable source-tree hash, but the conformance launcher
+   requires a clean worktree;
+2. explicitly approve exactly one scalar v5 H200 conformance submission below;
+3. validate and freeze the resulting v5 report; and
+4. only after all eight checks pass, prepare a separate versioned
+   scientific-v4 train-only observation submission. Development remains
+   blocked until the new CPU feasibility gate permits it.
+
+Resolved conformance-v5 command (prepared, **not submitted**):
+
+```bash
+export PBS_CONFORMANCE_V5_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,AGENTDOJO_DATASET_SPLIT=development,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v5.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:eb63f7a9ff8533223bdef7d52a0a06d7eda1dfafbebfb126963b01d1e07dc7c6,CONFORMANCE_SPEC=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v5.json,CONFORMANCE_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v5.json,EXPECTED_SOURCE_TREE_HASH=22ad59fb04b7ee7bc493a32707bc7afd6ea35ef8d0f090290f0afcfc49971651,ATTACKER_DEVICE=cuda:0,MONITOR_DEVICE=cuda:0,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=00:15:00 \
+  -N st-conform-v5 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -v "$PBS_CONFORMANCE_V5_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_checkpoint_conformance_tier2.sh
+```
+
+Do not submit scientific-v4 train observation before conformance v5 passes,
+and do not submit development observation or pair reduction before the new
+train feasibility report sets `development_submission_permitted:true`.
