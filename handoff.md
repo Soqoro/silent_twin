@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v5 runtime/conformance v6 frozen; submission pending)
+Last updated: 2026-08-30 (scientific-v5 conformance v6 passed; train submission pending)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -2988,3 +2988,108 @@ qsub -P fs_ccds_asysong \
 Do not submit this command until the documentation-only checkpoint is clean and
 the user explicitly approves the exact scalar job. Do not submit train or
 development observation in the same approval.
+
+## Passed conformance v6 and resolved scientific-v5 train submission on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The scientific-v5
+runtime and conformance-v6 freeze record was committed at
+`1190e532bcbcd016cc67ed159b412e44547cec18` (`Record scientific v5 runtime and
+conformance v6 freeze`). PBS job `54604.gaas` (`st-conform-v6`) then ran the
+explicitly approved scalar H200 engineering gate in `gpu_free` under project
+`fs_ccds_asysong`. It finished on `hpc-gaas-g25` with `Exit_status = 0` after
+1 minute 24 seconds. PBS recorded 12 CPUs, one GPU, 1,296,984 KB host memory,
+75,928,428 KB virtual memory, and 48,082 MB maximum GPU memory.
+
+The generated report is at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v6.json`.
+It is 647,471 bytes, mode `0600`, and has file SHA-256
+`88582ed492eb6d7b807a0e3a4b26c12ede0a8f6740b856625806af0e659cad21`.
+Its internal conformance-report hash is
+`2ed38659d3cb93d04ec337b6bccdcbff6c0b1e782c0a11189359ef29c6cd6007`.
+Independent first-party validation rechecked the self-hashed report, frozen
+catalog, split, runtime-bound strategy catalog, conformance spec, source and
+runtime identities, exact model identities, upstream bindings, and scheduler
+provenance. All 18 checks passed: three attacker-contract checks, fourteen
+complete-plan monitor cells, and one attacker-retirement check. The report has
+no errors and records zero external API calls.
+
+The report binds exactly:
+
+- conformance spec hash
+  `87860f990cdb4bd7bb4007c4f5a636a54dea76d076700efdfbf444064cec0155`;
+- runtime-bound candidate-catalog hash
+  `c0361e3375a88dd415c34e5f2487fdbb2fcc240bd0973b3fa8ecee9598338b76`;
+- executable source-tree hash
+  `e0cf93521972f5fa5eac6ce2bfa41206efa28dea36b967e6901ecc4742de6571`;
+- learned-runtime fingerprint
+  `sha256:c6f9bab5c6aa9a5adc989eb3e47588059817dfdd5103f5cc64c87b77a5b76dae`;
+  and
+- scalar PBS job `54604.gaas` with no array task.
+
+The H200 exposed 150,109,880,320 bytes. The conformance process retained one
+Qwen attacker and two distinct Granite monitor clients simultaneously. Its
+maximum PyTorch allocation was 49,321,932,800 bytes and maximum reservation
+was 49,706,696,704 bytes. Standard output has file SHA-256
+`6bb64aac459760c6d0a2c5441de60a993c0f08b6eae8dc6cd4575d4a82009476`;
+standard error has file SHA-256
+`1eff1a3171f5b8d703788f19cc471d3840281bbf495f6673923da10ee49e4cb4`.
+The only stderr content is the upstream Transformers `torch_dtype`
+deprecation warning and normal checkpoint-loading progress. This passed
+artifact remains engineering-only evidence and is not a scientific benchmark
+result or pair-selection input.
+
+The scientific-v5 train preflight now passes against the exact design,
+representability census, predecessor-v4 audit chain, checked action-eligibility
+manifest, runtime-bound two-strategy/two-profile catalog, passed v6 report,
+108-distribution learned runtime, and pinned Granite checkpoint. The selected
+train cohort contains 93 scenarios: 28 workspace, 26 travel, 24 banking, and
+15 Slack. A train-only observation job will execute 186 scenario/path action
+cells, emit 372 scenario/path/profile observation rows, and make 646 Granite
+monitor calls. It loads two Granite monitor clients and does not load the Qwen
+attacker.
+
+The following versioned destinations are absent and reserved for this attempt:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.jsonl`;
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.manifest.json`;
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-feasibility-scientific-v5.json`; and
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v5.json`.
+
+The preserved scientific-v4 and generic predecessor evidence will not be
+overwritten. No scientific-v5 development observation, pair reduction,
+benchmark grid, or held-out execution is authorized. After train finishes,
+both outputs must pass full validation and the CPU-only v5 feasibility report
+must set `development_submission_permitted:true` before a development command
+can be prepared.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only passed-conformance record; documentation
+   does not change executable source hash `e0cf9352...6571`, but scientific
+   provenance requires a clean committed checkpoint;
+2. explicitly approve exactly one scalar scientific-v5 train-only submission
+   below;
+3. validate and freeze both versioned train outputs; and
+4. run the CPU-only feasibility gate before making any development decision.
+
+Resolved scientific-v5 train observation command (prepared, **not
+submitted**):
+
+```bash
+export PBS_PAIR_TRAIN_V5_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=train,OBSERVATIONS_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.jsonl,OBSERVATION_MANIFEST_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v5.manifest.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v6.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v5.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:c6f9bab5c6aa9a5adc989eb3e47588059817dfdd5103f5cc64c87b77a5b76dae,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0,MONITOR_DEVICE=cuda:0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=01:00:00 \
+  -N st-pair-tr-v5 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/pair-mining/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/pair-mining/ \
+  -v "$PBS_PAIR_TRAIN_V5_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+```
+
+This job is train-only. It cannot inspect development or test outcomes, select
+pairs, run the feasibility gate, reduce evidence, or execute a benchmark grid.
+Do not submit it until this handoff-only checkpoint is committed and the user
+explicitly approves the exact scalar job.
