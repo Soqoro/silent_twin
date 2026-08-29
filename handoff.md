@@ -1816,3 +1816,92 @@ Immediate next checkpoint:
 Do not resubmit train observation from this dirty tree or reuse the v3
 source/runtime bindings for the repaired publisher. Development observation
 and pair reduction remain blocked.
+
+## Repaired publisher v4 freeze on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The generic-JSONL
+publisher repair, regression, and failure record were committed and pushed at
+`b8bf4b39aeff03aa36e341761ab8891bda8bdd58` (`Fix pair observation JSONL
+publication`). The clean committed executable source tree hash is
+`192772d7a94949b4084f76992605dad161c883d07172dc357b2ce32a6ee2d596`.
+
+Two independent offline/no-dependency/no-build-isolation wheel builds from
+separate `git archive` trees used commit epoch `1787990502` and produced
+byte-identical 436,263-byte wheels. The replacement wheel is archived read-only
+at
+`/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/192772d7a94949b4084f76992605dad161c883d07172dc357b2ce32a6ee2d596/silenttwin-0.1.0-py3-none-any.whl`;
+its file SHA-256 is
+`f91a8dcda2290b56c7870bd7798272b387444479233b3ee91bb273b5594f35ee`.
+The wheel contains the generic observation publisher call and passed ZIP
+integrity validation.
+
+Only that archived local wheel was force-reinstalled offline, without
+dependency resolution, into the learned Python 3.11 environment. All 111
+installed immutable SilentTwin payload files match the wheel byte-for-byte.
+The installed payload-manifest hash is
+`b20ef2ab765dcdfb875193c05d45c261085f0c76b3f69e3e709679746ca583c7`,
+the installed RECORD identity is
+`f3e2a323ad21f13bc5c12074ab2ec5eb8a7925efcea102d78786adb1d6355178`,
+and `pip check` reports no broken requirements. The frozen 108-distribution
+learned-runtime fingerprint is
+`sha256:5a03ad2502c60e613946d19a1be1c3d9f9d34c03f79deb67c948ac63165a4b91`.
+
+The source/runtime-bound inputs were regenerated without overwriting any prior
+artifact:
+
+- The scientific candidate catalog is read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-v3.json`.
+  File SHA-256 is
+  `2e6ec4d3f9b1c7376a9aa0b2f74e0f7ba1d3ed6dc9a0eadaf602fa4656a3b600`;
+  internal candidate-catalog hash is
+  `5748b56f8e32cb36c1e6744f058cae346d71766bcd1c78e972778b0a4aa4f7e9`.
+- The model-free action audit is read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-action-audit-v3.json`.
+  File SHA-256 is
+  `7a172ac27400d5767a218b762c86593460e58d9de2b03318516d52f0aa4b08a3`;
+  internal audit hash is
+  `e7ec2fbaa2fd03ee179a41b7026b8b9cdd5ea9db9d341cbbae9e6563c0bcd60a`,
+  and its 386-validation-list hash is
+  `a7b2a50e842c2b2903f850c048eb02aeca3398e5ac129fc49af4854bdfb3f4b9`.
+- The engineering-only conformance catalog is read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v4.json`.
+  File SHA-256 is
+  `866b202708ce53f2a410e08a643349f5524d6388b53aba70f846e7132e2b1596`;
+  internal candidate-catalog hash is
+  `d221c012e1e4593a2fa04430a1c996c806580750497a079a2175eaae2ba4d16a`.
+- The one-H200 conformance spec is read-only at
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v4.json`.
+  File SHA-256 is
+  `cc5b13f1479f8e38637ce85c332169363efa6fcdcdfd29c620532c647514b40d`;
+  internal spec hash is
+  `a0289add22e95bed826d1bee2a1e40bd6e35953d9c7e4e43e6477cbbd149ac0f`.
+
+Two independent complete 386-plan refreshes reproduced every deterministic
+field from the prior audit. The scientific catalog, engineering catalog, and
+conformance spec were byte-identical across runs. The action audits differed
+only in the documented fresh-environment post-state hashes and their enclosing
+validation/list/self hashes. Run 1 was exclusively published and all four
+published files were rechecked byte-for-byte and frozen mode `0444`.
+
+No v4 conformance report, train observation, development observation, or pair
+registry exists. The next checkpoint is to review and commit this handoff-only
+update, then explicitly approve the resolved v4 conformance command below.
+
+Resolved v4 conformance command (prepared, **not submitted**):
+
+```bash
+export PBS_CONFORMANCE_V4_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,AGENTDOJO_DATASET_SPLIT=development,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v4.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:5a03ad2502c60e613946d19a1be1c3d9f9d34c03f79deb67c948ac63165a4b91,CONFORMANCE_SPEC=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v4.json,CONFORMANCE_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v4.json,EXPECTED_SOURCE_TREE_HASH=192772d7a94949b4084f76992605dad161c883d07172dc357b2ce32a6ee2d596,ATTACKER_DEVICE=cuda:0,MONITOR_DEVICE=cuda:0,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=00:15:00 \
+  -N st-conform-v4 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -v "$PBS_CONFORMANCE_V4_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_checkpoint_conformance_tier2.sh
+```
+
+Do not resubmit train observation before the v4 conformance report passes all
+checks. Development observation and pair reduction remain blocked.
