@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v5 train feasibility negative; development blocked)
+Last updated: 2026-08-30 (scientific-v5 geometry audit frozen; stop/redesign decision pending)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3209,3 +3209,83 @@ PYTHONPATH=/home/suaq0001/projects/silent_twin/src \
   --output /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-design-audit-scientific-v5.json \
   --assert-development-and-test-results-uninspected
 ```
+
+## Scientific-v5 train-only design audit on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The scientific-v5
+negative-feasibility record was committed at
+`c804c07110088c2eae368b0548585ff50cf80a7d` (`Record scientific v5 negative
+feasibility`). No GPU job, model load, learned inference, external API call,
+development/test outcome inspection, pair reduction, or benchmark grid
+occurred in this checkpoint.
+
+The existing first-party CPU-only `audit-train-pair-design` command revalidated
+the exact scientific-v5 catalog, train observation set, action ledger, and
+negative feasibility report before computing decision geometry. The immutable
+diagnostic is mode `0444` at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-design-audit-scientific-v5.json`.
+The 13,069-byte file has SHA-256
+`580116aa52fdbb94d63400e40190313c8200a37a378d0ef9f8eff9e30c9d66de`;
+its internal train-pair-design-audit hash is
+`09351ec89fdcd949a2a76e50d8def5ad8b4477e8b6119dab278ca9acfd2c6993`.
+A second complete CLI derivation reproduced the published file byte-for-byte.
+
+The audit binds train observation-set hash
+`99ef2b8625569dde2096bbe40f156cd2df025b3826bbba8b567cdf1cc3e6e635`
+and negative feasibility hash
+`4e31ffde2d9c56b74322d237917d2232fc598920a4fd4891fd1fabe06997a451`.
+It records zero external API calls,
+`development_observations_inspected:false`,
+`test_outcomes_inspected:false`,
+`development_submission_permitted:false`, and
+`pair_reduction_permitted:false`.
+
+Let profile A be `effect-authorization-guardian-v1` and profile B be
+`provenance-composition-guardian-v1`. Their only audited configuration
+difference is `policy_hash`; checkpoint, tokenizer, prompt template, threshold,
+reasoning mode, dtype, runtime, and deterministic decoding are identical. The
+exact plan-cell contingency is:
+
+| Suite | Cells | Both allow | A allow, B block | A block, B allow | Both block | Candidate-sensitive scenarios |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| workspace | 56 | 11 | 0 | 14 | 31 | 8 |
+| travel | 52 | 0 | 0 | 0 | 52 | 0 |
+| banking | 48 | 0 | 0 | 0 | 48 | 0 |
+| slack | 30 | 0 | 0 | 0 | 30 | 0 |
+| **Total** | **186** | **11** | **0** | **14** | **161** | **8** |
+
+Profile A allowed 11 and blocked 175 plan cells. Profile B allowed 25 and
+blocked 161. Both produced only binary scores `0.0` and `1.0`. Banking, Slack,
+and travel exhibit `equal_on_observed_cells`: both profiles block every
+candidate, with no candidate sensitivity and no profile disagreement.
+Workspace has 11 profile-disagreement scenarios and eight candidate-sensitive
+scenarios, but every disagreement has the same direction: A blocks while B
+allows. No plan cell has A allow while B blocks. Globally, B's block region is
+therefore a strict subset of A's block region.
+
+The required complementary construction needs both exclusive directions
+within one public scenario. One direction is absent even suite-wide, and three
+suites contain no disagreement at all. Candidate reordering cannot create the
+missing direction. The audit's overall disposition is
+`current_profile_candidate_geometry_infeasible`, with zero within-scenario
+complementarity in every suite.
+
+This localizes the scientific-v5 failure. The complete-plan protocol,
+runtime/checkpoints, action representability, and scheduler execution all
+worked, but two policy prompts on the same binary Granite checkpoint collapsed
+to equal or nested rejection regions. The audit does not authorize weakening
+the criterion, using cross-scenario directions, or inspecting development to
+choose a replacement.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only audit record;
+2. do not submit scientific-v5 development, pair reduction, or benchmark
+   jobs;
+3. make an explicit scientific decision between stopping Tier-2 E2 as a valid
+   negative construction-feasibility result and attempting a preregistered,
+   transparently adaptive scientific-v6 redesign; and
+4. if v6 is chosen, do not spend another H200 job until a new monitor
+   construction has a defensible reason to produce nonnested errors under one
+   common safety objective and its model-free protocol/artifact gates are
+   frozen. Development and test must remain untouched.
