@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v5 runtime-binding source gate pending commit)
+Last updated: 2026-08-30 (scientific-v5 runtime/conformance v6 frozen; submission pending)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -2869,3 +2869,122 @@ Immediate next checkpoint:
 5. keep train/development observation, pair reduction, and all benchmark grids
    blocked until engineering conformance passes and the next scientific gate
    explicitly authorizes them.
+
+## Scientific-v5 runtime and conformance-v6 freeze on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The runtime-binding
+source gate was committed at
+`5a8b401fc54d3ad81a892f35dd3b9e942cec5165`
+(`Freeze scientific v5 runtime binding gate`), and the worktree was clean
+before the final build. No PBS job, H200 allocation, checkpoint load,
+learned-model inference, external API call, development/test outcome
+inspection, pair reduction, or benchmark grid occurred.
+
+Commit `5a8b401` has executable source-tree hash
+`e0cf93521972f5fa5eac6ce2bfa41206efa28dea36b967e6901ecc4742de6571`
+and commit epoch `1788022829`. Two independent `git archive` extractions had
+identical tar SHA-256
+`dd9849e9ad76189c4497ce061c2551dfc25db35bc47bf92c6ef2725ba20ceaab`.
+Building each with that `SOURCE_DATE_EPOCH`, no dependency resolution, and no
+build isolation produced byte-identical wheels. The final wheel is 464,020
+bytes with SHA-256
+`c93b868115d7fea2542ba7b65d113f88dbd161fd7fa6e6e031310dde01af1090`.
+ZIP integrity passed, and the read-only archived copy is mode `0444` at
+`/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/e0cf93521972f5fa5eac6ce2bfa41206efa28dea36b967e6901ecc4742de6571/silenttwin-0.1.0-py3-none-any.whl`.
+
+The exact archived wheel was force-reinstalled into
+`/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311`; `pip
+check` reports no broken requirements, and imports resolve from that
+environment's `site-packages`. All 112 immutable installed payload files match
+the archive byte-for-byte. Their canonical manifest hash is
+`6514e0a8f4ae0e394aec75278ae06f386bf55781f9f7d097c5aa1c5f55154596`,
+the installed RECORD identity is
+`22c01bde17e5a633f19a9d1109b1ff820e7863927f14638a82545d79582e9220`,
+and the installed-wheel verification hash is
+`d6f4d0d01278cebbc0bc132586d68573c7b73f26f6f5ffb32c7d399a777e2cac`.
+
+The runtime contains 108 installed distributions. The no-options integrity
+lock is `requirements-tier2-agentdojo.lock`, file SHA-256
+`0c1da0a4be1b183d243bd308751d3622a09a1553cae2f1ce031dc5e1250a6458`;
+it validates the exact 71-package AgentDojo core while the runtime fingerprint
+binds every installed distribution. The resulting learned-runtime fingerprint
+is
+`sha256:c6f9bab5c6aa9a5adc989eb3e47588059817dfdd5103f5cc64c87b77a5b76dae`.
+`requirements-tier2-learned-h200.lock` remains the provisioning record (file
+SHA-256
+`3a6c67947d634df44e4a1f9de9540d4c05460d03af6c8b79c2d1c62d701a7655`)
+and deliberately contains the approved PyTorch index option, so it is not the
+input to the exact-pin runtime parser. An initial attempt with the provisioning
+record stopped at that option before any conformance artifact was written;
+using the established core-lock contract then passed.
+
+The runtime-bound catalog is read-only at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v6.json`.
+It is 246,808 bytes with file SHA-256
+`b9c127c01c4755039d9325ec366856ecd858aac9c04171474a3bb835e9e6c556`,
+internal catalog hash
+`c0361e3375a88dd415c34e5f2487fdbb2fcc240bd0973b3fa8ecee9598338b76`,
+runtime-binding hash
+`06d19b20c43e5e45c91cee5c15201991578ef52a448c1fafce8388989c73b33a`,
+and scientific-content hash
+`1e3701dcd6cd8b6995fbb53f0978a00f6373947b814231bdd251b39e205fa5cf`.
+That content hash is identical when computed from the reviewed design catalog
+and runtime-bound catalog. The artifact remains bound to design catalog hash
+`ef6734e4cd4b4e348129c2a51955b070dfd94630a99bc893e92ff7666964fe90`
+and retains `h200_submission_permitted:false`,
+`development_submission_permitted:false`, and
+`pair_reduction_permitted:false`.
+
+The engineering-only conformance spec is read-only at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v6.json`.
+It is 2,177 bytes with file SHA-256
+`84d55e44d061438eab97ebd8dd2a5a7d51381d8b609a73559dc45fce964df30a`
+and internal spec hash
+`87860f990cdb4bd7bb4007c4f5a636a54dea76d076700efdfbf444064cec0155`.
+The deterministic selector chose development Slack scenario
+`1677414d1289c2e6d318197a4fb7009edd3c5f4d29589fbfe5ff506cbc8f973c`
+(`user_task_17`, `injection_task_2`). Its inline and staged paths contain one
+and six calls respectively; six is the maximum candidate call count across
+the selected development cohort. The spec therefore exercises the new
+complete-plan/current-index monitor contract. It binds the two exact v5
+strategies and the effect-authorization/provenance-composition profiles.
+
+A second complete invocation independently revalidated the upstream chain,
+active installation, wheel bytes, runtime identity, runtime catalog, and spec,
+and reused both immutable outputs byte-for-object. Direct validation confirmed
+the unchanged scientific-content hash, maximum-call selector, development-only
+scenario, and absence of the v6 report path. The repository remained clean
+during both derivations. The conformance catalog/spec are engineering-only and
+do not constitute model-quality or benchmark evidence.
+
+Immediate next checkpoint:
+
+1. review and commit this documentation-only freeze record; it does not change
+   executable source hash `e0cf9352...6571`, but the launcher requires a clean
+   worktree;
+2. explicitly approve exactly one scalar H200 conformance-v6 submission below;
+3. validate the resulting report and require every attacker, monitor, memory,
+   lifecycle, source, runtime, and compatibility check to pass; and
+4. only after a passed v6 report, prepare a separately reviewed scientific-v5
+   train-only observation submission. Development observation, pair reduction,
+   and every benchmark grid remain blocked.
+
+Resolved conformance-v6 command (prepared, **not submitted**):
+
+```bash
+export PBS_CONFORMANCE_V6_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,AGENTDOJO_DATASET_SPLIT=development,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v6.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:c6f9bab5c6aa9a5adc989eb3e47588059817dfdd5103f5cc64c87b77a5b76dae,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,CONFORMANCE_SPEC=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-spec-v6.json,CONFORMANCE_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v6.json,EXPECTED_SOURCE_TREE_HASH=e0cf93521972f5fa5eac6ce2bfa41206efa28dea36b967e6901ecc4742de6571,ATTACKER_DEVICE=cuda:0,MONITOR_DEVICE=cuda:0,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=00:15:00 \
+  -N st-conform-v6 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/conformance/ \
+  -v "$PBS_CONFORMANCE_V6_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_checkpoint_conformance_tier2.sh
+```
+
+Do not submit this command until the documentation-only checkpoint is clean and
+the user explicitly approves the exact scalar job. Do not submit train or
+development observation in the same approval.

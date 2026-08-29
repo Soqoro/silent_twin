@@ -220,7 +220,7 @@ PYTHONPATH=src /persistent/venvs/agentdojo-learned/bin/python3.11 \
     /persistent/evidence/train-pair-design-audit-scientific-v4.json \
   --design-strategy-catalog \
     /persistent/evidence/candidate-strategies-scientific-v5.json \
-  --dependency-lock requirements-tier2-learned-h200.lock \
+  --dependency-lock requirements-tier2-agentdojo.lock \
   --wheel-artifact \
     /persistent/runtime-artifacts/<source-hash>/silenttwin-0.1.0-py3-none-any.whl \
   --output \
@@ -228,6 +228,13 @@ PYTHONPATH=src /persistent/venvs/agentdojo-learned/bin/python3.11 \
   --assert-development-and-test-results-uninspected \
   --assert-wheel-built-from-current-clean-commit
 ```
+
+Here `requirements-tier2-agentdojo.lock` is the no-options, exact 71-package
+integrity lock accepted by the runtime validator. The separate
+`requirements-tier2-learned-h200.lock` remains the 108-package provisioning
+record and contains the approved PyTorch index option; it is not parsed as the
+runtime gate. The derived runtime fingerprint still binds every installed
+distribution, including the complete learned stack and SilentTwin wheel.
 
 Then freeze exactly one development-only engineering spec. The selector is
 deterministic and prefers the selected scenario with the largest candidate
