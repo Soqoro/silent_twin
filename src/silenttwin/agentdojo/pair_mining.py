@@ -1024,6 +1024,18 @@ def make_candidate_strategy_catalog(
 
 def validate_candidate_strategy_catalog(document: Mapping[str, Any]) -> None:
     schema_version = document.get("schema_version")
+    # Scientific-v6 replaces learned-pair mining with an explicitly authored
+    # private-authorization intervention.  Keep its substantive validator in a
+    # separate module so none of the learned-observation provenance below can
+    # be accidentally imputed to that controlled construction.
+    from .recipient_separation import (
+        RECIPIENT_SEPARATION_STRATEGY_SCHEMA_VERSION,
+        validate_recipient_separation_candidate_catalog,
+    )
+
+    if schema_version == RECIPIENT_SEPARATION_STRATEGY_SCHEMA_VERSION:
+        validate_recipient_separation_candidate_catalog(document)
+        return
     if schema_version not in {
         STRATEGY_SCHEMA_VERSION,
         SUBSET_STRATEGY_SCHEMA_VERSION,
@@ -2812,6 +2824,23 @@ def validate_pair_registry(
     strategy_catalog: Mapping[str, Any] | None = None,
     action_eligibility_manifest: Mapping[str, Any] | None = None,
 ) -> None:
+    from .recipient_separation import (
+        RECIPIENT_SEPARATION_DISPOSITION,
+        RecipientSeparationError,
+        validate_recipient_separation_pair_registry,
+    )
+
+    if document.get("protocol_disposition") == RECIPIENT_SEPARATION_DISPOSITION:
+        try:
+            validate_recipient_separation_pair_registry(
+                document,
+                catalog=catalog,
+                split_manifest=split_manifest,
+                strategy_catalog=strategy_catalog,
+            )
+        except RecipientSeparationError as exc:
+            raise PairMiningError(str(exc)) from exc
+        return
     expected_runtime_fingerprints: set[str] | None = None
     if strategy_catalog is not None:
         validate_candidate_strategy_catalog(strategy_catalog)

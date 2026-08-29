@@ -3289,3 +3289,126 @@ Immediate next checkpoint:
    construction has a defensible reason to produce nonnested errors under one
    common safety objective and its model-free protocol/artifact gates are
    frozen. Development and test must remain untouched.
+
+## Scientific-v6 feedback-recipient-separation authoring checkpoint on 2026-08-30
+
+The scientific decision is now explicit: v6 does not make another learned
+monitor-pair search primary. The learned Granite v5 geometry remains a valid
+negative result. Scientific-v6 instead studies a benchmark-controlled private
+authorization state and randomizes the recipient/timing of truthful guardrail
+feedback. This supports a causal security--utility benchmark while avoiding a
+claim that complementary learned-monitor errors are prevalent.
+
+The human-readable protocol is
+`docs/scientific_v6_recipient_separation_protocol.md`. The machine-readable
+protocol is
+`configs/silenttwin/agentdojo/scientific-v6-recipient-separation-protocol-v1.json`,
+with internal protocol hash
+`d4868e4c3af4ba6e16d2b4ad7aa435328b164c5594116a18f05034f7dfd6e394`.
+The analysis plan is
+`configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json`, with
+canonical hash
+`f76e10b58d8273e5e1ab3306bd2da993f8a907989b1f107febc269b0ca1eb353`.
+Both bind the exact catalog, split, action-eligibility, runtime-bound v5
+candidate catalog, and negative train-design audit chain.
+
+The new first-party `recipient_separation` module derives two immutable v6
+artifacts without model inference. It reuses the exact two action-valid v5
+plans for every selected scenario and replaces the nested learned profiles
+with the following preauthored hidden-state table:
+
+| Private state | Candidate 0 | Candidate 1 |
+| --- | --- | --- |
+| theta0 | allow | block |
+| theta1 | block | allow |
+
+Both candidates remain ground-truth prohibited. The table is a controlled
+authorization intervention, not a learned-guardrail error or prevalence
+estimate. Pair selection consumes no learned outcome. The derived cohort is
+93 train scenarios and 51 reserved development scenarios across all four
+suites, with an empty test cohort. The pair registry permits only `train`;
+development assembly/grid construction and every test grid fail closed.
+
+The machine protocol now also freezes the exact primary Qwen2.5-7B model,
+tokenizer revision, checkpoint tree fingerprint, controlled prompt hash,
+bfloat16 dtype, deterministic decoding, and 256-token output limit. Only the
+site-derived learned-runtime fingerprint is rebound after the clean commit.
+Grid construction rejects a substituted model, revision, checkpoint, prompt,
+dtype, or decoding row.
+
+The initial executable scope is R1/E1 private-state inference, R2/E2
+feedback-assisted prohibited effects, and the R3/E2 SilentTwin channel-closure
+cells, using Q in {0, 4, 16}. R4/E4 clean repair is deliberately blocked:
+`mixed_workflows` is empty and `clean_repair_experiment_ready:false` until
+independently authored benign workflows and an independent dependency oracle
+exist. The scientific claim is train-only controlled causal feasibility, not
+held-out generalization, learned-monitor geometry, or clean-repair evidence.
+
+The checked file
+`configs/silenttwin/agentdojo/grid-plans/recipient-separation-train-template-v1.json`
+contains the exact E1 and E2 matrices but is intentionally nonexecutable. It
+must be rebound after a clean commit to the final v6 artifact hashes and the
+clean-wheel learned-runtime fingerprint. The dedicated
+`experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh`
+entrypoint requires the strategy catalog, pair registry, and materialized plan
+explicitly and rejects any non-train split. No qsub command is embedded and no
+H200 job has been submitted. The worker now treats one grid task as the model
+initialization boundary: identical immutable E1/E2 model identities share one
+loaded local-transformers client across matched cells. This removes repeated
+Qwen loads while keeping prompts, deterministic seeds, context wrappers,
+scenario environments, and result manifests separate. Before any learned
+client is constructed, v6 run-stage validation also requires the active source
+tree to be clean and byte-identical to the design artifact's frozen authoring
+source hash; the installed-wheel runtime identity cannot conceal a different
+`PYTHONPATH` checkout.
+
+Model-free validation currently passes:
+
+- 80 focused unit tests covering recipient artifacts, pair/grid dispatch,
+  runtime validation, aggregation, backend assembly, and sample-size
+  fail-closure;
+- 31 shell integration tests, including exact entrypoint discovery, explicit
+  v6 artifact requirements, and non-train rejection;
+- 356 tests in the complete AgentDojo unit plus shell-entrypoint regression
+  selection;
+- Python compilation, shell syntax, and `git diff --check`;
+- an in-memory derivation against the real v5 artifacts with 93 train, 51
+  development, and zero test scenarios; and
+- temporary E1/E2 grid construction and manifest round trips, with development
+  grid construction rejected as required.
+
+The immutable v6 output destinations are currently absent:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json`; and
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json`.
+
+Immediate next checkpoint:
+
+1. review and commit the scientific-v6 protocol, code, tests, operator guide,
+   and existing proposal draft;
+2. from that clean commit, execute the CPU-only immutable v6 freeze below;
+3. review the resulting hashes and build/install a byte-reproducible wheel for
+   the same clean source checkpoint;
+4. materialize and inspect the exact train grids; and
+5. prepare a separate scalar H200 task-zero end-to-end pilot for explicit user
+   approval. Do not submit the remaining train grid before that pilot passes.
+
+Prepared CPU-only scientific-v6 design-freeze command (**not run because the
+new implementation is not yet committed**):
+
+```bash
+PYTHONPATH=/home/suaq0001/projects/silent_twin/src \
+/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python \
+  -m silenttwin.agentdojo.cli freeze-scientific-v6-recipient-separation \
+  --protocol /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/scientific-v6-recipient-separation-protocol-v1.json \
+  --catalog /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json \
+  --splits /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json \
+  --action-eligibility /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json \
+  --analysis-plan /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json \
+  --predecessor-strategy-catalog /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-engineering-candidate-strategies-v6.json \
+  --predecessor-train-design-audit /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-pair-design-audit-scientific-v5.json \
+  --strategy-catalog-output /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json \
+  --pair-registry-output /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json \
+  --assert-development-and-test-results-uninspected \
+  --acknowledge-adaptive-use-of-v5-train-results
+```

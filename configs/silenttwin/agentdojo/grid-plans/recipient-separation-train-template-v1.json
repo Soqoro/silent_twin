@@ -1,0 +1,164 @@
+{
+  "schema_version": "silenttwin.agentdojo.production_grid_template.v1",
+  "template_only": true,
+  "protocol_revision": "scientific-v6-feedback-recipient-separation-v1",
+  "protocol_disposition": "controlled_authorization_recipient_separation_v1",
+  "design_phase": "train_only_adaptive_feasibility",
+  "claim_boundary": "This template is not executable. Materialize it only after a clean-commit learned-runtime rebind and an attacker conformance gate tied to the new source tree.",
+  "required_frozen_artifacts": {
+    "protocol": "configs/silenttwin/agentdojo/scientific-v6-recipient-separation-protocol-v1.json",
+    "analysis_plan": "configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json",
+    "candidate_strategy_catalog": "/persistent/evidence/candidate-strategies-scientific-v6-recipient-separation.json",
+    "pair_registry": "/persistent/evidence/pair-registry-scientific-v6-recipient-separation-train.json",
+    "dependency_lock": "requirements-tier2-agentdojo.lock"
+  },
+  "materialization_requirements": [
+    "Set schema_version to silenttwin.agentdojo.grid_plan.v1.",
+    "Set template_only to false or remove it.",
+    "Replace every angle-bracket placeholder with a hash-bound value.",
+    "Bind required_v6_artifact_hashes to the selected protocol, candidate catalog, and pair registry.",
+    "Use exactly one attacker identity that passed conformance against the clean executable source tree and learned runtime.",
+    "Do not add development, test, E3, E4, E5, ecological, victim, repair, or learned-monitor execution to this train freeze."
+  ],
+  "required_v6_artifact_hashes": {
+    "recipient_separation_protocol_hash": "d4868e4c3af4ba6e16d2b4ad7aa435328b164c5594116a18f05034f7dfd6e394",
+    "candidate_strategy_catalog_hash": "<DERIVE_AFTER_CLEAN_COMMIT>",
+    "pair_registry_hash": "<DERIVE_AFTER_CLEAN_COMMIT>"
+  },
+  "base_configuration": {
+    "fixture_mode": false,
+    "feedback_policy": "generic_failure",
+    "feedback_source": "genuine",
+    "monitor_family": "deterministic_task_policy",
+    "query_budget": 0,
+    "settlement_runtime": "speculative_dependency_aware",
+    "threat_mode": "indirect_injection",
+    "tool_protocol_revision": "agentdojo-tool-protocol-v1"
+  },
+  "models": [
+    {
+      "role": "attacker",
+      "implementation": "local_transformers",
+      "model_id": "Qwen/Qwen2.5-7B-Instruct",
+      "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "tokenizer_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+      "checkpoint_fingerprint": "sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e",
+      "runtime_fingerprint": "sha256:<REBIND_AFTER_CLEAN_COMMIT>",
+      "prompt_hash": "3ef6e4129bc30ef227da9929b297fe36d7b3f4cc2d9af046567c4e8e81d297f5",
+      "dtype": "bfloat16",
+      "temperature": 0.0,
+      "top_p": 1.0,
+      "max_new_tokens": 256
+    }
+  ],
+  "primary_contrasts": {
+    "e1": "e1_generic_failure_genuine_q16_minus_q0",
+    "e2": "e2_genuine_q16_minus_no_probe_attack_success"
+  },
+  "experiments": {
+    "e1": {
+      "defaults": {},
+      "factor_grid": {
+        "feedback_policy": [
+          "detailed_refusal",
+          "binary_denial",
+          "generic_failure",
+          "silenttwin"
+        ],
+        "feedback_source": [
+          "genuine",
+          "matched_shuffled",
+          "constant"
+        ],
+        "query_budget": [0, 4, 16]
+      },
+      "factor_order": [
+        "feedback_policy",
+        "feedback_source",
+        "query_budget"
+      ]
+    },
+    "e2": {
+      "cells": [
+        {
+          "condition": "no_probe",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "genuine",
+          "query_budget": 0
+        },
+        {
+          "condition": "genuine",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "genuine",
+          "query_budget": 4
+        },
+        {
+          "condition": "genuine",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "genuine",
+          "query_budget": 16
+        },
+        {
+          "condition": "matched_shuffled",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "matched_shuffled",
+          "query_budget": 4
+        },
+        {
+          "condition": "matched_shuffled",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "matched_shuffled",
+          "query_budget": 16
+        },
+        {
+          "condition": "constant",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "constant",
+          "query_budget": 4
+        },
+        {
+          "condition": "constant",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "constant",
+          "query_budget": 16
+        },
+        {
+          "condition": "random_final",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "genuine",
+          "query_budget": 4
+        },
+        {
+          "condition": "random_final",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "genuine",
+          "query_budget": 16
+        },
+        {
+          "condition": "oracle",
+          "feedback_policy": "generic_failure",
+          "feedback_source": "genuine",
+          "query_budget": 0
+        },
+        {
+          "condition": "silenttwin",
+          "feedback_policy": "silenttwin",
+          "feedback_source": "genuine",
+          "query_budget": 0
+        },
+        {
+          "condition": "silenttwin",
+          "feedback_policy": "silenttwin",
+          "feedback_source": "genuine",
+          "query_budget": 4
+        },
+        {
+          "condition": "silenttwin",
+          "feedback_policy": "silenttwin",
+          "feedback_source": "genuine",
+          "query_budget": 16
+        }
+      ]
+    }
+  }
+}

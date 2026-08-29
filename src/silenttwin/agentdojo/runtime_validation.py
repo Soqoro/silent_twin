@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from silenttwin.io.provenance import collect_provenance, source_tree_hash
+
 from .catalog import validate_catalog
 from .config import AGENTDOJO_SUITES, stable_hash
 from .grid import FrozenInputs, load_frozen_inputs
@@ -28,10 +30,37 @@ from .runtime_integrity import (
     validate_locked_distributions,
     verify_agentdojo_distribution,
 )
+from .recipient_separation import RECIPIENT_SEPARATION_DISPOSITION
 
 
 class RuntimeArtifactError(ValueError):
     """Run-stage files or grid bindings are inconsistent."""
+
+
+def _validate_recipient_separation_source_binding(
+    strategy_catalog: Mapping[str, Any],
+) -> None:
+    """Bind v6 execution to the clean source tree that authored its design."""
+
+    if (
+        strategy_catalog.get("protocol_disposition")
+        != RECIPIENT_SEPARATION_DISPOSITION
+    ):
+        return
+    expected = str(strategy_catalog.get("authoring_source_tree_hash", ""))
+    observed = source_tree_hash()
+    provenance = collect_provenance()
+    revision = provenance.get("code_revision")
+    if (
+        provenance.get("code_dirty") is not False
+        or provenance.get("source_tree_hash") != observed
+        or expected != observed
+        or not isinstance(revision, str)
+        or len(revision) != 40
+    ):
+        raise RuntimeArtifactError(
+            "scientific-v6 execution requires its exact clean authoring source tree"
+        )
 
 
 def validate_environment_integrity(
@@ -294,6 +323,8 @@ def validate_runtime_artifacts(
         )
     except (OSError, TypeError, ValueError) as exc:
         raise RuntimeArtifactError(f"invalid frozen AgentDojo artifact chain: {exc}") from exc
+
+    _validate_recipient_separation_source_binding(inputs.strategy_catalog)
 
     if not selected_members:
         raise RuntimeArtifactError("run-stage task selected no grid members")

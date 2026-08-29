@@ -265,6 +265,106 @@ The resulting experiment is a controlled mechanism-diverse causal benchmark;
 it cannot be reported as evidence that complementary blind spots are prevalent
 in common guardrails.
 
+## Scientific-v6 feedback-recipient separation
+
+Scientific-v5 ended with a valid negative train result: its two Granite policy
+profiles had nested rejection regions and supplied no complementary
+within-scenario pair. Scientific-v6 does not relabel or bypass that result. It
+changes the causal question. The private state is a benchmark-authored
+authorization bit, and the intervention of interest is which process receives
+truthful enforcement feedback and when. Learned-monitor prevalence is outside
+the claim boundary.
+
+The human protocol is
+`docs/scientific_v6_recipient_separation_protocol.md`; the checked machine
+freeze is
+`configs/silenttwin/agentdojo/scientific-v6-recipient-separation-protocol-v1.json`.
+Its first phase is train-only and opens only E1 and E2. E4 clean repair remains
+blocked until independently authored benign workflows and an independent
+dependency oracle are frozen. Development and test stay unopened.
+
+After reviewing and committing the protocol implementation, derive the two
+immutable design artifacts from a clean checkout. This CPU-only command
+explicitly records that scientific-v5 train geometry informed the redesign:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
+  -m silenttwin.agentdojo.cli freeze-scientific-v6-recipient-separation \
+  --protocol \
+    configs/silenttwin/agentdojo/scientific-v6-recipient-separation-protocol-v1.json \
+  --catalog configs/silenttwin/agentdojo/catalog-v1.json \
+  --splits configs/silenttwin/agentdojo/splits-v1.json \
+  --action-eligibility \
+    configs/silenttwin/agentdojo/action-eligibility-v1.json \
+  --analysis-plan \
+    configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json \
+  --predecessor-strategy-catalog \
+    /persistent/conformance/candidate-strategies-scientific-v5-runtime.json \
+  --predecessor-train-design-audit \
+    /persistent/evidence/train-pair-design-audit-scientific-v5.json \
+  --strategy-catalog-output \
+    /persistent/evidence/candidate-strategies-scientific-v6-recipient-separation.json \
+  --pair-registry-output \
+    /persistent/evidence/pair-registry-scientific-v6-recipient-separation-train.json \
+  --assert-development-and-test-results-uninspected \
+  --acknowledge-adaptive-use-of-v5-train-results
+```
+
+The freeze revalidates the full v5 negative-audit chain, copies the two exact
+action-valid prohibited plans without learned-outcome filtering, and creates
+two deterministic private-authorization profiles with the complementary table
+fixed by the protocol. Its pair registry contains no learned observation
+manifest, no test instantiation, and exactly `execution_permitted_splits:
+["train"]`.
+
+The checked grid file
+`configs/silenttwin/agentdojo/grid-plans/recipient-separation-train-template-v1.json`
+is intentionally not executable. From the same clean committed source, build
+and install the reproducible wheel, derive the learned-runtime fingerprint,
+and make an immutable copy with all of the following changes:
+
+- change the schema to `silenttwin.agentdojo.grid_plan.v1` and set
+  `template_only:false`;
+- bind the exact protocol, candidate-catalog, and pair-registry hashes;
+- replace the attacker runtime placeholder with the active clean-wheel runtime
+  fingerprint; and
+- change no experiment cells, model checkpoint fields, split permissions, or
+  claim-boundary fields.
+
+The machine protocol fixes the complete Qwen2.5-7B checkpoint, tokenizer,
+controlled prompt, dtype, and decoding identity. Grid construction compares
+the materialized model row with that protocol field-by-field and allows only
+the runtime fingerprint to be rebound; a checkpoint or model substitution is
+an error.
+
+Inspect either train grid on a login node through the dedicated entrypoint:
+
+```bash
+RECIPIENT_EXPERIMENT=e1 STAGE=grid \
+AGENTDOJO_DATASET_SPLIT=train \
+AGENTDOJO_STRATEGY_CATALOG=/persistent/evidence/candidate-strategies-scientific-v6-recipient-separation.json \
+AGENTDOJO_PAIR_REGISTRY=/persistent/evidence/pair-registry-scientific-v6-recipient-separation-train.json \
+AGENTDOJO_GRID_PLAN=/persistent/plans/recipient-separation-train-v1.json \
+OUT_ROOT=/persistent/results/scientific-v6-train \
+bash experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh
+```
+
+Use `RECIPIENT_EXPERIMENT=e2` for the E2 grid. The wrapper rejects every
+non-train split before dispatch. Grid construction also verifies the v6 hashes
+and exact preregistered E1/E2 cell matrices. Within one selected grid task the
+worker completes learned-runtime validation before model construction and
+reuses one immutable Qwen transport across matched cells; prompts, seeds,
+attacker wrappers, scenario environments, checkpoints, and result manifests
+remain trial/configuration local. Before constructing that client, run-stage
+validation recomputes the active scientific source-tree hash and requires both
+an exact match to the v6 authoring artifact and a clean 40-character Git
+checkpoint. A separate
+reviewed H200 command is still required: first run one frozen array task as the
+clean-runtime and attacker end-to-end pilot, validate its complete run
+manifest, and only then authorize the remaining train tasks. Do not infer
+permission to submit from the existence of the template, frozen artifacts,
+grid manifest, or wrapper.
+
 ```bash
 
 STAGE=run PAIR_MINING_ACTION=observe OBSERVATION_SPLIT=development \

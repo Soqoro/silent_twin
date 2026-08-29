@@ -52,6 +52,11 @@ from .pair_mining import (
     monitor_pair_binding,
     validate_pair_registry,
 )
+from .recipient_separation import (
+    RECIPIENT_SEPARATION_ATTACKER_IDENTITY,
+    RECIPIENT_SEPARATION_DISPOSITION,
+    RECIPIENT_SEPARATION_STRATEGY_SCHEMA_VERSION,
+)
 
 
 GRID_SCHEMA_VERSION = "silenttwin.agentdojo.grid.v1"
@@ -59,6 +64,9 @@ CATALOG_SCHEMA_VERSION = "silenttwin.agentdojo.catalog.v1"
 SPLITS_SCHEMA_VERSION = "silenttwin.agentdojo.splits.v1"
 STRATEGY_SCHEMA_VERSION = "silenttwin.agentdojo.candidate_strategy_catalog.v1"
 STRATEGY_SCHEMA_VERSION_V2 = SUBSET_STRATEGY_SCHEMA_VERSION
+STRATEGY_SCHEMA_VERSION_RECIPIENT_SEPARATION = (
+    RECIPIENT_SEPARATION_STRATEGY_SCHEMA_VERSION
+)
 PAIR_SCHEMA_VERSION = "silenttwin.agentdojo.pair_registry.v1"
 GRID_PLAN_SCHEMA_VERSION = "silenttwin.agentdojo.grid_plan.v1"
 FAKE_SMOKE_ARTIFACT_CLASS = "deterministic_fake_smoke_fixture"
@@ -84,6 +92,15 @@ SCENARIO_REQUIRED_FIELDS = (
 
 class AgentDojoGridError(AgentDojoConfigError):
     """A frozen artifact or deterministic grid is invalid."""
+
+
+def is_estimation_only_protocol_disposition(value: Any) -> bool:
+    """Return whether a protocol is restricted to nonconfirmatory estimation."""
+
+    return value in {
+        ESTIMATION_ONLY_DISPOSITION,
+        RECIPIENT_SEPARATION_DISPOSITION,
+    }
 
 
 def _artifact_payload(document: Mapping[str, Any], hash_field: str) -> dict[str, Any]:
@@ -161,6 +178,7 @@ def load_frozen_inputs(
     if strategy_schema not in {
         STRATEGY_SCHEMA_VERSION,
         STRATEGY_SCHEMA_VERSION_V2,
+        STRATEGY_SCHEMA_VERSION_RECIPIENT_SEPARATION,
     }:
         raise AgentDojoGridError("unsupported candidate-strategy catalog schema")
     strategy_hash = validate_hashed_document(
@@ -208,7 +226,9 @@ def load_frozen_inputs(
         "split_manifest_hash"
     ) != split_hash or pairs.get("candidate_strategy_catalog_hash") != strategy_hash:
         raise AgentDojoGridError("pair registry uses another upstream chain")
-    if pairs.get("protocol_disposition") == ESTIMATION_ONLY_DISPOSITION:
+    if is_estimation_only_protocol_disposition(
+        pairs.get("protocol_disposition")
+    ):
         try:
             validate_pair_registry(
                 pairs,
@@ -335,7 +355,9 @@ def load_frozen_inputs(
         for row in test_instantiations
         if isinstance(row, Mapping)
     }
-    if pairs.get("protocol_disposition") == ESTIMATION_ONLY_DISPOSITION:
+    if is_estimation_only_protocol_disposition(
+        pairs.get("protocol_disposition")
+    ):
         if observed_test_rows:
             raise AgentDojoGridError(
                 "estimation-only pair registry instantiates held-out scenarios"
@@ -561,9 +583,10 @@ class AgentDojoGrid:
         if self.protocol_disposition not in {
             "legacy_full_catalog",
             ESTIMATION_ONLY_DISPOSITION,
+            RECIPIENT_SEPARATION_DISPOSITION,
         }:
             raise AgentDojoGridError("grid has an unknown protocol disposition")
-        if self.protocol_disposition == ESTIMATION_ONLY_DISPOSITION:
+        if is_estimation_only_protocol_disposition(self.protocol_disposition):
             require_hash(
                 "action_eligibility_manifest_hash",
                 str(self.action_eligibility_manifest_hash),
@@ -618,8 +641,8 @@ class AgentDojoGrid:
     def metadata(self) -> dict[str, Any]:
         observed_suites = {task.suite for task in self.tasks}
         full_suite_coverage = observed_suites == set(AGENTDOJO_SUITES)
-        estimation_only = (
-            self.protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+        estimation_only = is_estimation_only_protocol_disposition(
+            self.protocol_disposition
         )
         confirmatory_coverage = full_suite_coverage and not estimation_only
         return {
@@ -684,6 +707,27 @@ def _models_from_plan(plan: Mapping[str, Any]) -> tuple[ModelIdentity, ...]:
     if any(not isinstance(row, Mapping) for row in rows):
         raise AgentDojoGridError("every grid-plan model must be an object")
     return tuple(ModelIdentity.from_mapping(row) for row in rows)
+
+
+def _validate_recipient_separation_models(
+    models: Sequence[ModelIdentity],
+) -> None:
+    """Require the exact preregistered attacker, with only runtime rebound."""
+
+    if len(models) != 1:
+        raise AgentDojoGridError(
+            "recipient-separation grid requires exactly one attacker identity"
+        )
+    observed = models[0].scientific_dict()
+    runtime_fingerprint = observed.pop("runtime_fingerprint", None)
+    if (
+        observed != RECIPIENT_SEPARATION_ATTACKER_IDENTITY
+        or not isinstance(runtime_fingerprint, str)
+        or not runtime_fingerprint.startswith("sha256:")
+    ):
+        raise AgentDojoGridError(
+            "recipient-separation attacker differs from the frozen protocol identity"
+        )
 
 
 def _models_for_cell(
@@ -921,7 +965,13 @@ def _validate_preregistered_cells(
             label="E1 feedback sources",
         )
         budgets = spec.get("query_budgets")
-        if budgets != [0, 4, 16, 32] or spec.get(
+        permitted_budget_schedules = ([0, 4, 16, 32],)
+        if (
+            analysis_plan.get("protocol_revision")
+            == "scientific-v6-feedback-recipient-separation-v1"
+        ):
+            permitted_budget_schedules = ([0, 4, 16],)
+        if budgets not in permitted_budget_schedules or spec.get(
             "crossing"
         ) != "complete_cartesian_product":
             raise AgentDojoGridError("analysis plan has invalid E1 coverage semantics")
@@ -1177,8 +1227,8 @@ def validate_grid_manifest_coverage(
         str(member["configuration"]["agentdojo_suite"]) for member in members
     }
     full_suite_coverage = observed_suites == set(AGENTDOJO_SUITES)
-    estimation_only = (
-        metadata.get("protocol_disposition") == ESTIMATION_ONLY_DISPOSITION
+    estimation_only = is_estimation_only_protocol_disposition(
+        metadata.get("protocol_disposition")
     )
     confirmatory_coverage = full_suite_coverage and not estimation_only
     if (
@@ -1220,9 +1270,34 @@ def build_grid(
     pair_disposition = inputs.pair_registry.get(
         "protocol_disposition", "legacy_full_catalog"
     )
-    estimation_only = pair_disposition == ESTIMATION_ONLY_DISPOSITION
+    estimation_only = is_estimation_only_protocol_disposition(pair_disposition)
     action_eligibility_hash: str | None = None
     eligible_scenarios: tuple[str, ...] | None = None
+    if pair_disposition == RECIPIENT_SEPARATION_DISPOSITION:
+        required_v6 = grid_plan.get("required_v6_artifact_hashes")
+        expected_v6 = {
+            "recipient_separation_protocol_hash": inputs.pair_registry.get(
+                "recipient_separation_protocol_hash"
+            ),
+            "candidate_strategy_catalog_hash": (
+                inputs.upstream.candidate_strategy_catalog_hash
+            ),
+            "pair_registry_hash": inputs.upstream.pair_registry_hash,
+        }
+        if (
+            grid_plan.get("protocol_revision")
+            != "scientific-v6-feedback-recipient-separation-v1"
+            or grid_plan.get("protocol_disposition")
+            != RECIPIENT_SEPARATION_DISPOSITION
+            or grid_plan.get("design_phase")
+            != "train_only_adaptive_feasibility"
+            or grid_plan.get("template_only") is not False
+            or required_v6 != expected_v6
+        ):
+            raise AgentDojoGridError(
+                "recipient-separation grid plan is not an exact materialized "
+                "scientific-v6 train freeze"
+            )
     if estimation_only:
         action_eligibility_hash = str(
             inputs.pair_registry.get("action_eligibility_manifest_hash", "")
@@ -1249,6 +1324,18 @@ def build_grid(
             if not eligible_scenarios:
                 raise AgentDojoGridError(
                     f"estimation-only protocol has no {dataset_split} scenarios"
+                )
+        if pair_disposition == RECIPIENT_SEPARATION_DISPOSITION:
+            permitted_splits = inputs.pair_registry.get(
+                "execution_permitted_splits"
+            )
+            if (
+                not isinstance(permitted_splits, list)
+                or dataset_split not in permitted_splits
+            ):
+                raise AgentDojoGridError(
+                    "recipient-separation development execution requires its "
+                    "separate immutable opening gate"
                 )
     elif pair_disposition not in {None, "legacy_full_catalog"}:
         raise AgentDojoGridError("pair registry has an unknown protocol disposition")
@@ -1330,6 +1417,8 @@ def build_grid(
                 "fake-smoke grid plan is not bound to the selected fixture artifacts"
             )
     models = _models_from_plan(grid_plan)
+    if pair_disposition == RECIPIENT_SEPARATION_DISPOSITION:
+        _validate_recipient_separation_models(models)
     heldout_freeze: dict[str, Any] | None = None
     heldout_binding: dict[str, Any] | None = None
     if dataset_split == "test":
@@ -1529,9 +1618,7 @@ def build_grid(
         upstream_binding_hash=inputs.upstream.binding_hash,
         heldout_freeze_binding=heldout_binding,
         protocol_disposition=(
-            ESTIMATION_ONLY_DISPOSITION
-            if estimation_only
-            else "legacy_full_catalog"
+            str(pair_disposition) if estimation_only else "legacy_full_catalog"
         ),
         action_eligibility_manifest_hash=action_eligibility_hash,
     )
@@ -1591,7 +1678,7 @@ def load_grid_manifest(path: Path | str) -> dict[str, Any]:
     action_eligibility_hash = metadata.get(
         "action_eligibility_manifest_hash"
     )
-    if protocol_disposition == ESTIMATION_ONLY_DISPOSITION:
+    if is_estimation_only_protocol_disposition(protocol_disposition):
         require_hash(
             "action_eligibility_manifest_hash", str(action_eligibility_hash)
         )
@@ -1602,7 +1689,7 @@ def load_grid_manifest(path: Path | str) -> dict[str, Any]:
         raise AgentDojoGridError("grid has an invalid protocol disposition")
     dataset_split = metadata.get("dataset_split")
     if (
-        protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+        is_estimation_only_protocol_disposition(protocol_disposition)
         and dataset_split == "test"
     ):
         raise AgentDojoGridError(
@@ -1721,7 +1808,9 @@ def load_grid_manifest(path: Path | str) -> dict[str, Any]:
         raise AgentDojoGridError("grid task IDs are incomplete")
     observed_suites = {item[0] for item in task_meta if item is not None}
     full_suite_coverage = observed_suites == set(AGENTDOJO_SUITES)
-    estimation_only = protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+    estimation_only = is_estimation_only_protocol_disposition(
+        protocol_disposition
+    )
     expected_coverage_status = (
         "full_four_suite_estimation_only"
         if full_suite_coverage and estimation_only
@@ -1906,6 +1995,7 @@ __all__ = [
     "SPLITS_SCHEMA_VERSION",
     "STRATEGY_SCHEMA_VERSION",
     "STRATEGY_SCHEMA_VERSION_V2",
+    "STRATEGY_SCHEMA_VERSION_RECIPIENT_SEPARATION",
     "AgentDojoGrid",
     "AgentDojoGridError",
     "FrozenInputs",
@@ -1913,6 +2003,7 @@ __all__ = [
     "GridTask",
     "ScenarioBundle",
     "build_grid",
+    "is_estimation_only_protocol_disposition",
     "load_frozen_inputs",
     "load_grid_manifest",
     "scenario_bundles",

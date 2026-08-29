@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from silenttwin.agentdojo.config import ModelIdentity
 from silenttwin.agentdojo.grid import build_grid, load_frozen_inputs, write_manifest
 from silenttwin.agentdojo.runtime_validation import (
     RuntimeArtifactError,
@@ -55,6 +56,98 @@ def _selected(grid):
 def _environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("AGENTDOJO_FAKE_MODEL", "1")
     monkeypatch.setenv("AGENTDOJO_REQUIRES_GPU", "0")
+
+
+def _learned_attacker_identity() -> ModelIdentity:
+    return ModelIdentity(
+        role="attacker",
+        implementation="local_transformers",
+        model_id="fixture/attacker",
+        model_revision="sha256:" + "a" * 64,
+        tokenizer_revision="sha256:" + "b" * 64,
+        checkpoint_fingerprint="sha256:" + "c" * 64,
+        runtime_fingerprint="sha256:" + "d" * 64,
+        prompt_hash="e" * 64,
+    )
+
+
+def test_grid_task_client_cache_loads_each_immutable_identity_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from silenttwin.agentdojo import runner
+
+    constructed: list[tuple[ModelIdentity, str | None, str | None]] = []
+
+    def client_factory(identity, *, cache_dir, device):
+        constructed.append((identity, cache_dir, device))
+        return object()
+
+    monkeypatch.setattr(runner, "_client_for_identity", client_factory)
+    identity = _learned_attacker_identity()
+    cache: dict = {}
+    first = runner._shared_task_client(
+        cache,
+        identity,
+        cache_dir="/persistent/cache",
+        device="cuda:0",
+    )
+    second = runner._shared_task_client(
+        cache,
+        identity,
+        cache_dir="/persistent/cache",
+        device="cuda:0",
+    )
+    other_device = runner._shared_task_client(
+        cache,
+        identity,
+        cache_dir="/persistent/cache",
+        device="cuda:1",
+    )
+
+    assert first is second
+    assert other_device is not first
+    assert len(constructed) == 2
+
+
+def test_recipient_separation_runtime_requires_exact_clean_authoring_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from silenttwin.agentdojo import runtime_validation
+    from silenttwin.agentdojo.recipient_separation import (
+        RECIPIENT_SEPARATION_DISPOSITION,
+    )
+
+    expected = "a" * 64
+    strategy = {
+        "protocol_disposition": RECIPIENT_SEPARATION_DISPOSITION,
+        "authoring_source_tree_hash": expected,
+    }
+    monkeypatch.setattr(runtime_validation, "source_tree_hash", lambda: expected)
+    monkeypatch.setattr(
+        runtime_validation,
+        "collect_provenance",
+        lambda: {
+            "code_dirty": False,
+            "code_revision": "b" * 40,
+            "source_tree_hash": expected,
+        },
+    )
+
+    runtime_validation._validate_recipient_separation_source_binding(strategy)
+
+    monkeypatch.setattr(
+        runtime_validation,
+        "collect_provenance",
+        lambda: {
+            "code_dirty": True,
+            "code_revision": "b" * 40,
+            "source_tree_hash": expected,
+        },
+    )
+    with pytest.raises(RuntimeArtifactError, match="exact clean authoring"):
+        runtime_validation._validate_recipient_separation_source_binding(
+            strategy
+        )
 
 
 def test_runtime_preflight_accepts_exact_checked_fixture(

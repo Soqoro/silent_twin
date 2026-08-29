@@ -17,6 +17,7 @@ ENTRYPOINTS = (
     "run_experiment_4_useful_work_agentdojo_tier2.sh",
     "run_experiment_5_assumption_ablations_agentdojo_tier2.sh",
     "run_agentdojo_ecological_tier2.sh",
+    "run_agentdojo_recipient_separation_train_tier2.sh",
     "run_agentdojo_checkpoint_conformance_tier2.sh",
 )
 SCHEDULER_ENVIRONMENT_VARIABLES = (
@@ -141,7 +142,7 @@ def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_exactly_nine_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
+def test_exactly_ten_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
     discovered = {
         path.name
         for path in EXPERIMENT_DIR.glob("*agentdojo*.sh")
@@ -158,6 +159,69 @@ def test_exactly_nine_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
             check=False,
         )
         assert result.returncode == 0, result.stderr
+
+
+def test_recipient_separation_entrypoint_requires_frozen_inputs() -> None:
+    values = _clean_scheduler_environment()
+    for name in (
+        "AGENTDOJO_STRATEGY_CATALOG",
+        "AGENTDOJO_PAIR_REGISTRY",
+        "AGENTDOJO_GRID_PLAN",
+    ):
+        values.pop(name, None)
+    values.update({"STAGE": "grid", "RECIPIENT_EXPERIMENT": "e1"})
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_recipient_separation_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "scientific-v6 recipient-separation candidate catalog" in result.stderr
+
+
+def test_recipient_separation_entrypoint_rejects_nontrain_split() -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "STAGE": "grid",
+            "RECIPIENT_EXPERIMENT": "e2",
+            "AGENTDOJO_STRATEGY_CATALOG": "/frozen/strategies.json",
+            "AGENTDOJO_PAIR_REGISTRY": "/frozen/pairs.json",
+            "AGENTDOJO_GRID_PLAN": "/frozen/plan.json",
+            "AGENTDOJO_DATASET_SPLIT": "development",
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_recipient_separation_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "recipient separation is train-only" in result.stderr
 
 
 def test_spooled_entrypoint_uses_explicit_repository_root(tmp_path: Path) -> None:

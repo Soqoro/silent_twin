@@ -17,6 +17,12 @@ DEFAULT_SPLITS_PATH = Path("configs/silenttwin/agentdojo/splits-v1.json")
 DEFAULT_ACTION_ELIGIBILITY_PATH = Path(
     "configs/silenttwin/agentdojo/action-eligibility-v1.json"
 )
+DEFAULT_RECIPIENT_SEPARATION_PROTOCOL_PATH = Path(
+    "configs/silenttwin/agentdojo/scientific-v6-recipient-separation-protocol-v1.json"
+)
+DEFAULT_RECIPIENT_SEPARATION_ANALYSIS_PATH = Path(
+    "configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json"
+)
 
 
 def _read_object(path: Path) -> dict[str, Any]:
@@ -117,7 +123,7 @@ def _clean_source_tree_hash() -> str:
         or len(revision) != 40
     ):
         raise ValueError(
-            "runtime-bound scientific-v5 artifacts require a clean Git checkpoint"
+            "runtime-bound scientific artifacts require a clean Git checkpoint"
         )
     return observed
 
@@ -515,15 +521,99 @@ def _freeze_scientific_v5_conformance_spec(
     }
 
 
+def _freeze_scientific_v6_recipient_separation(
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    from .recipient_separation import (
+        make_scientific_v6_recipient_separation_artifacts,
+    )
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "scientific-v6 recipient separation requires the development/test-"
+            "uninspected assertion"
+        )
+    if args.acknowledge_adaptive_use_of_v5_train_results is not True:
+        raise ValueError(
+            "scientific-v6 recipient separation requires acknowledgement that "
+            "scientific-v5 train geometry informed the redesign"
+        )
+    source_hash = _clean_source_tree_hash()
+    strategy_catalog, pair_registry = (
+        make_scientific_v6_recipient_separation_artifacts(
+            protocol=_read_object(args.protocol),
+            catalog=_read_object(args.catalog),
+            split_manifest=_read_object(args.splits),
+            action_eligibility_manifest=_read_object(
+                args.action_eligibility
+            ),
+            predecessor_strategy_catalog=_read_object(
+                args.predecessor_strategy_catalog
+            ),
+            predecessor_train_design_audit=_read_object(
+                args.predecessor_train_design_audit
+            ),
+            analysis_plan=_read_object(args.analysis_plan),
+            authoring_source_tree_hash=source_hash,
+        )
+    )
+    # Detect every collision before installing either half of the frozen pair.
+    for path, value in (
+        (args.strategy_catalog_output, strategy_catalog),
+        (args.pair_registry_output, pair_registry),
+    ):
+        if path.exists() and _read_object(path) != value:
+            raise ValueError(
+                f"refusing to overwrite conflicting frozen artifact {path}"
+            )
+    reused_strategy = _atomic_write_immutable(
+        args.strategy_catalog_output, strategy_catalog
+    )
+    reused_pair = _atomic_write_immutable(
+        args.pair_registry_output, pair_registry
+    )
+    selected = pair_registry["pilot_scenario_ids_by_split"]
+    return {
+        "recipient_separation_protocol_hash": pair_registry[
+            "recipient_separation_protocol_hash"
+        ],
+        "candidate_strategy_catalog_hash": strategy_catalog[
+            "candidate_strategy_catalog_hash"
+        ],
+        "pair_registry_hash": pair_registry["pair_registry_hash"],
+        "protocol_disposition": pair_registry["protocol_disposition"],
+        "authoring_source_tree_hash": source_hash,
+        "train_scenario_count": len(selected["train"]),
+        "development_scenario_count_reserved": len(
+            selected["development"]
+        ),
+        "test_scenario_count": len(selected["test"]),
+        "execution_permitted_splits": pair_registry[
+            "execution_permitted_splits"
+        ],
+        "security_experiments_ready": True,
+        "clean_repair_experiment_ready": False,
+        "development_submission_permitted": False,
+        "held_out_evaluation_permitted": False,
+        "strategy_catalog_output": str(args.strategy_catalog_output),
+        "pair_registry_output": str(args.pair_registry_output),
+        "reused_existing_strategy_catalog": reused_strategy,
+        "reused_existing_pair_registry": reused_pair,
+    }
+
+
 def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
-    from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
     from .config import AGENTDOJO_SUITES, bundle_hash
     from .freeze import (
         deterministic_test_allocation,
         make_agentdojo_sample_size_freeze,
         validate_development_analysis_manifest,
     )
-    from .grid import load_frozen_inputs, validate_structural_splits
+    from .grid import (
+        is_estimation_only_protocol_disposition,
+        load_frozen_inputs,
+        validate_structural_splits,
+    )
 
     inputs = load_frozen_inputs(
         catalog_path=args.catalog,
@@ -543,9 +633,8 @@ def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError(
                 f"{label} is an engineering-smoke fixture and cannot freeze held-out evidence"
             )
-    if (
+    if is_estimation_only_protocol_disposition(
         inputs.pair_registry.get("protocol_disposition")
-        == ESTIMATION_ONLY_DISPOSITION
     ):
         raise ValueError(
             "the action-representable pilot is estimation-only and cannot freeze "
@@ -961,6 +1050,68 @@ def _parser() -> argparse.ArgumentParser:
     )
     v5_conformance.set_defaults(
         handler=_freeze_scientific_v5_conformance_spec
+    )
+
+    v6_recipient = commands.add_parser(
+        "freeze-scientific-v6-recipient-separation",
+        help=(
+            "derive the train-only scientific-v6 authored-authorization "
+            "candidate catalog and pair registry"
+        ),
+    )
+    v6_recipient.add_argument(
+        "--protocol",
+        type=Path,
+        default=DEFAULT_RECIPIENT_SEPARATION_PROTOCOL_PATH,
+    )
+    v6_recipient.add_argument(
+        "--catalog", type=Path, default=DEFAULT_CATALOG_PATH
+    )
+    v6_recipient.add_argument(
+        "--splits", type=Path, default=DEFAULT_SPLITS_PATH
+    )
+    v6_recipient.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    v6_recipient.add_argument(
+        "--analysis-plan",
+        type=Path,
+        default=DEFAULT_RECIPIENT_SEPARATION_ANALYSIS_PATH,
+    )
+    v6_recipient.add_argument(
+        "--predecessor-strategy-catalog", type=Path, required=True
+    )
+    v6_recipient.add_argument(
+        "--predecessor-train-design-audit", type=Path, required=True
+    )
+    v6_recipient.add_argument(
+        "--strategy-catalog-output", type=Path, required=True
+    )
+    v6_recipient.add_argument(
+        "--pair-registry-output", type=Path, required=True
+    )
+    v6_recipient.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that no development or held-out outcome "
+            "informed the scientific-v6 freeze"
+        ),
+    )
+    v6_recipient.add_argument(
+        "--acknowledge-adaptive-use-of-v5-train-results",
+        action="store_true",
+        required=True,
+        help=(
+            "record that scientific-v5 train-only geometry informed the "
+            "recipient-separation redesign"
+        ),
+    )
+    v6_recipient.set_defaults(
+        handler=_freeze_scientific_v6_recipient_separation
     )
 
     sample = commands.add_parser(

@@ -15,7 +15,6 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from silenttwin.schemas import canonical_json as protocol_canonical_json
 
-from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
 from .config import (
     AGENTDOJO_SUITES,
     CONTROLLED_PROMPT_TEMPLATE,
@@ -34,6 +33,7 @@ from .freeze import (
 )
 from .grid import (
     AgentDojoGridError,
+    is_estimation_only_protocol_disposition,
     load_grid_manifest,
     validate_grid_manifest_coverage,
 )
@@ -2400,8 +2400,8 @@ def aggregate(
     protocol_disposition = metadata.get(
         "protocol_disposition", "legacy_full_catalog"
     )
-    estimation_only_protocol = (
-        protocol_disposition == ESTIMATION_ONLY_DISPOSITION
+    estimation_only_protocol = is_estimation_only_protocol_disposition(
+        protocol_disposition
     )
     if {leaf.configuration.experiment_id for leaf in leaves} != {experiment}:
         raise AgentDojoAggregationError("leaf experiments disagree with the grid")
@@ -2633,7 +2633,7 @@ def aggregate(
     if estimation_only_protocol:
         development_power = {
             "status": "not_applicable_estimation_only_protocol",
-            "claim_disposition": ESTIMATION_ONLY_DISPOSITION,
+            "claim_disposition": protocol_disposition,
             "reason": (
                 "action-representable pilot execution is restricted to "
                 "train/development estimation and cannot freeze a held-out sample"

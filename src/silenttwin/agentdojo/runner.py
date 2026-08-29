@@ -454,6 +454,31 @@ def _client_for_identity(
     )
 
 
+def _shared_task_client(
+    clients: dict[tuple[ModelIdentity, str | None, str | None], Any],
+    identity: ModelIdentity,
+    *,
+    cache_dir: str | None,
+    device: str | None,
+) -> Any:
+    """Construct one immutable learned client per identity within a grid task."""
+
+    if identity.implementation == "deterministic_fake":
+        raise AgentDojoRunnerError(
+            "deterministic fake clients are trial-local engineering fixtures"
+        )
+    key = (identity, cache_dir, device)
+    client = clients.get(key)
+    if client is None:
+        client = _client_for_identity(
+            identity,
+            cache_dir=cache_dir,
+            device=device,
+        )
+        clients[key] = client
+    return client
+
+
 def _controlled_condition(config: AgentDojoExperimentConfig) -> str:
     if config.experiment_id == "e2":
         assert config.condition is not None
@@ -510,6 +535,8 @@ def _run_controlled_member(
     shard_id: str,
     batch_hash: str,
     provenance: Mapping[str, Any],
+    attacker_client: Any | None = None,
+    monitor_clients: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     assignments = _assignment_cells(config)
     expected = tuple(
@@ -541,15 +568,21 @@ def _run_controlled_member(
     completed = store.load()
     attacker_identity = _model_identity(config, "attacker")
     cache_dir = os.environ.get("AGENTDOJO_MODEL_CACHE")
-    attacker_client: Any | None = None
-    if attacker_identity.implementation != "deterministic_fake":
-        attacker_client = _client_for_identity(
+    resolved_attacker_client = attacker_client
+    if (
+        attacker_identity.implementation != "deterministic_fake"
+        and resolved_attacker_client is None
+    ):
+        resolved_attacker_client = _client_for_identity(
             attacker_identity,
             cache_dir=cache_dir,
             device=os.environ.get("ATTACKER_DEVICE", "cuda"),
         )
-    monitor_clients: dict[str, Any] = {}
-    if config.monitor_family != "deterministic_task_policy":
+    resolved_monitor_clients = dict(monitor_clients or {})
+    if (
+        config.monitor_family != "deterministic_task_policy"
+        and monitor_clients is None
+    ):
         monitor_identity = _model_identity(config, "monitor")
         monitor_client = _client_for_identity(
             monitor_identity,
@@ -558,7 +591,9 @@ def _run_controlled_member(
         )
         for profile in strategy_catalog.get("monitor_profiles", ()):
             if isinstance(profile, Mapping):
-                monitor_clients[str(profile.get("profile_id"))] = monitor_client
+                resolved_monitor_clients[
+                    str(profile.get("profile_id"))
+                ] = monitor_client
     started_at = _utc_now()
     failures: list[dict[str, Any]] = []
     for scenario_id in config.scenario_ids:
@@ -585,13 +620,14 @@ def _run_controlled_member(
                 scenario=scenario,
                 strategy_catalog=strategy_catalog,
                 pair_registry=pair_registry,
-                monitor_clients=monitor_clients,
+                monitor_clients=resolved_monitor_clients,
             )
             client = (
                 DeterministicSmokeModelClient()
                 if attacker_identity.implementation == "deterministic_fake"
-                else attacker_client
+                else resolved_attacker_client
             )
+            assert client is not None
             attacker = StructuredControlledAttacker(
                 client,
                 immutable_model_revision=attacker_identity.model_revision,
@@ -1721,6 +1757,14 @@ def run_grid_task(*, grid_manifest: Path | str, task_id: int) -> list[dict[str, 
         dependency_lock_path,
         expected_runtime_fingerprints=learned_runtime_fingerprints,
     )
+    # A grid task is the model-initialization amortization boundary.  All
+    # selected members have already passed their complete frozen-artifact and
+    # runtime checks, so identical immutable identities can safely share one
+    # loaded transport while retaining separate prompts, seeds, configurations,
+    # checkpoints, and result manifests.
+    task_model_clients: dict[
+        tuple[ModelIdentity, str | None, str | None], Any
+    ] = {}
     manifests: list[dict[str, Any]] = []
     for member in members:
         scientific = member.get("configuration")
@@ -1776,11 +1820,45 @@ def run_grid_task(*, grid_manifest: Path | str, task_id: int) -> list[dict[str, 
                 provenance=provenance,
         )
         if config.experiment_id in {"e1", "e2"}:
+            attacker_identity = _model_identity(config, "attacker")
+            shared_attacker_client: Any | None = None
+            member_already_published = (
+                output_dir / MANIFEST_FILENAME
+            ).exists()
+            if (
+                not member_already_published
+                and attacker_identity.implementation != "deterministic_fake"
+            ):
+                shared_attacker_client = _shared_task_client(
+                    task_model_clients,
+                    attacker_identity,
+                    cache_dir=os.environ.get("AGENTDOJO_MODEL_CACHE"),
+                    device=os.environ.get("ATTACKER_DEVICE", "cuda"),
+                )
+            shared_monitor_clients: dict[str, Any] | None = None
+            if (
+                not member_already_published
+                and config.monitor_family != "deterministic_task_policy"
+            ):
+                monitor_identity = _model_identity(config, "monitor")
+                shared_monitor_client = _shared_task_client(
+                    task_model_clients,
+                    monitor_identity,
+                    cache_dir=os.environ.get("AGENTDOJO_MODEL_CACHE"),
+                    device=os.environ.get("MONITOR_DEVICE", "cuda"),
+                )
+                shared_monitor_clients = {
+                    str(profile.get("profile_id")): shared_monitor_client
+                    for profile in strategy_catalog.get("monitor_profiles", ())
+                    if isinstance(profile, Mapping)
+                }
             manifests.append(
                 _run_controlled_member(
                     **common,
                     strategy_catalog=strategy_catalog,
                     pair_registry=pair_registry,
+                    attacker_client=shared_attacker_client,
+                    monitor_clients=shared_monitor_clients,
                 )
             )
         elif config.experiment_id == "ecological":

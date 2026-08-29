@@ -27,6 +27,7 @@ from .monitors import (
     MonitorProfile,
 )
 from .pair_mining import validate_candidate_strategy_catalog, validate_pair_registry
+from .recipient_separation import RECIPIENT_SEPARATION_DISPOSITION
 from .visibility import public_value
 
 
@@ -40,7 +41,11 @@ def _validate_scenario_protocol(
     scenario: Mapping[str, Any],
     pair_registry: Mapping[str, Any],
 ) -> None:
-    if pair_registry.get("protocol_disposition") != ESTIMATION_ONLY_DISPOSITION:
+    disposition = pair_registry.get("protocol_disposition")
+    if disposition not in {
+        ESTIMATION_ONLY_DISPOSITION,
+        RECIPIENT_SEPARATION_DISPOSITION,
+    }:
         return
     if config.dataset_split not in {"train", "development"}:
         raise AssemblyError(
@@ -52,6 +57,13 @@ def _validate_scenario_protocol(
         raise AssemblyError(
             "scenario is outside the action-representable pilot cohort"
         )
+    if disposition == RECIPIENT_SEPARATION_DISPOSITION:
+        permitted = pair_registry.get("execution_permitted_splits")
+        if not isinstance(permitted, list) or config.dataset_split not in permitted:
+            raise AssemblyError(
+                "recipient-separation development assembly requires its separate "
+                "immutable opening gate"
+            )
 
 
 _PLACEHOLDERS = {
