@@ -2224,3 +2224,93 @@ qsub -P fs_ccds_asysong \
 Do not submit scientific-v4 train observation before conformance v5 passes,
 and do not submit development observation or pair reduction before the new
 train feasibility report sets `development_submission_permitted:true`.
+
+## Passed conformance v5 and resolved scientific-v4 train submission on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The scientific-v4
+candidate-pool and conformance-v5 freeze record was committed at
+`4af2ddda14c471bbb87d07b69249664dfe2c775f` (`Freeze scientific v4 candidate
+pool`). PBS job `54513.gaas` (`st-conform-v5`) then ran the explicitly approved
+single-H200 conformance gate and finished with `Exit_status = 0` in 1 minute
+20 seconds. It ran on `hpc-gaas-g25` in `gpu_free` under project
+`fs_ccds_asysong`, with one GPU and 12 CPUs. PBS recorded 1,283,696 KB host
+memory and 76,353,768 KB virtual memory.
+
+The report is at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/conformance/controlled-h200-checkpoint-conformance-report-v5.json`.
+Its file SHA-256 is
+`c542d831b2aeeb99dfacb426d40f07f971e46f56949fe5fd8a0154fa1507d0ad`;
+its internal conformance-report hash is
+`6ad740edb66eeb507e65bc37cb84a1055504016138313252a2d3a87260b2b9c0`.
+Independent domain validation rechecked the report self-hash, frozen catalog,
+split, engineering candidate catalog, spec, source, learned runtime, model
+identities, and every report invariant. All 8 checks passed, with no errors and
+zero external API calls.
+
+The report binds exactly:
+
+- conformance spec hash
+  `93496549355a5e26784aa7e0105434b435c085ef107519d514644c78302fc52c`;
+- engineering candidate-catalog hash
+  `1d106c9dfcbdb56cb56d8c87dc80db4099821b328ebc3a846d9df3e29bf50f31`;
+- executable source-tree hash
+  `22ad59fb04b7ee7bc493a32707bc7afd6ea35ef8d0f090290f0afcfc49971651`;
+  and
+- learned-runtime fingerprint
+  `sha256:eb63f7a9ff8533223bdef7d52a0a06d7eda1dfafbebfb126963b01d1e07dc7c6`.
+
+The H200 exposed 150,109,880,320 bytes. The protocol retained one Qwen
+attacker client and two distinct Granite monitor clients in one process. Peak
+allocation was 49,567,984,640 bytes and peak reservation was 50,319,065,088
+bytes. The only stderr content was the upstream Transformers `torch_dtype`
+deprecation warning and normal checkpoint weight-load progress. This remains
+engineering-only evidence and is not a scientific benchmark result.
+
+The scientific-v4 train preflight now passes against the four-strategy
+`candidate-strategies-v4.json`, its complete 772-plan model-free action audit,
+the checked action-eligibility manifest, the 108-distribution learned runtime,
+and the pinned Granite checkpoint. The train-only workload is 134 eligible
+scenarios, 536 scenario/strategy action executions, 1,072
+scenario/strategy/profile observation rows, and 1,768 Granite monitor calls.
+It does not load the Qwen attacker checkpoint.
+
+The following destinations are all absent and reserved for this attempt:
+
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v4.jsonl`;
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v4.manifest.json`; and
+- `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v4.json`.
+
+The preserved generic scientific-v3 `train.jsonl` and `train.manifest.json`
+will not be overwritten. No scientific-v4 development observation or pair
+reduction is authorized. After train completes, both outputs must pass full
+validation and a new versioned CPU feasibility report must set
+`development_submission_permitted:true` before any development job can be
+prepared.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only passed-conformance record;
+2. explicitly approve exactly one scalar scientific-v4 train-only submission
+   below;
+3. validate and freeze both versioned train outputs; and
+4. run the CPU-only feasibility gate before making any development decision.
+
+Resolved scientific-v4 train observation command (prepared, **not
+submitted**):
+
+```bash
+export PBS_PAIR_TRAIN_V4_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production,STAGE=run,PAIR_MINING_ACTION=observe,OBSERVATION_SPLIT=train,OBSERVATIONS_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v4.jsonl,OBSERVATION_MANIFEST_OUTPUT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/train-scientific-v4.manifest.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-v4.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v4.json,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_MONITOR_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--ibm-granite--granite-guardian-4.1-8b/snapshots/e30b8a2343efe8030479777d467ebb305ca109e9,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:eb63f7a9ff8533223bdef7d52a0a06d7eda1dfafbebfb126963b01d1e07dc7c6,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0,MONITOR_DEVICE=cuda:0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=01:00:00 \
+  -N st-pair-tr-v4 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/pair-mining/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/pair-mining/ \
+  -v "$PBS_PAIR_TRAIN_V4_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_pair_mining_tier2.sh
+```
+
+This job is train-only. It cannot inspect development or test outcomes, select
+pairs, run the feasibility gate, reduce evidence, or execute a benchmark grid.
