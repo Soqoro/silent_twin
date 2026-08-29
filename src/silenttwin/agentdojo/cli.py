@@ -261,6 +261,61 @@ def _audit_train_pair_design(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def _census_scientific_v5_representability(
+    args: argparse.Namespace,
+) -> dict[str, Any]:
+    from silenttwin.io.provenance import source_tree_hash
+
+    from . import compat
+    from .successor_design import make_scientific_v5_representability_census
+
+    if args.assert_development_and_test_results_uninspected is not True:
+        raise ValueError(
+            "scientific-v5 census requires the development/test-uninspected "
+            "assertion"
+        )
+    if args.acknowledge_adaptive_use_of_v4_train_results is not True:
+        raise ValueError(
+            "scientific-v5 census requires acknowledgement that aggregate v4 "
+            "train geometry informed the successor"
+        )
+    report = make_scientific_v5_representability_census(
+        catalog=_read_object(args.catalog),
+        split_manifest=_read_object(args.splits),
+        action_eligibility_manifest=_read_object(args.action_eligibility),
+        predecessor_strategy_catalog=_read_object(
+            args.predecessor_strategy_catalog
+        ),
+        predecessor_train_design_audit=_read_object(
+            args.predecessor_train_design_audit
+        ),
+        analysis_source_tree_hash=source_tree_hash(),
+        compat=compat,
+    )
+    reused = _atomic_write_immutable(args.output, report)
+    return {
+        "scientific_v5_representability_hash": report[
+            "scientific_v5_representability_hash"
+        ],
+        "protocol_amendment_hash": report["protocol_amendment"][
+            "protocol_amendment_hash"
+        ],
+        "overall_disposition": report["overall_disposition"],
+        "successor_catalog_authoring_permitted": report[
+            "successor_catalog_authoring_permitted"
+        ],
+        "selected_scenario_count": report["selected_scenario_count"],
+        "action_validation_count": report["action_validation_count"],
+        "coverage_by_suite_split": report["coverage_by_suite_split"],
+        "h200_submission_permitted": False,
+        "development_submission_permitted": False,
+        "development_monitor_outcomes_inspected": False,
+        "test_outcomes_inspected": False,
+        "output": str(args.output),
+        "reused_existing_freeze": reused,
+    }
+
+
 def _freeze_sample_size(args: argparse.Namespace) -> dict[str, Any]:
     from .action_eligibility import ESTIMATION_ONLY_DISPOSITION
     from .config import AGENTDOJO_SUITES, bundle_hash
@@ -524,6 +579,51 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     design_audit.set_defaults(handler=_audit_train_pair_design)
+
+    v5_census = commands.add_parser(
+        "census-scientific-v5-representability",
+        help=(
+            "execute and freeze the model-free common-objective scientific-v5 "
+            "candidate census"
+        ),
+    )
+    v5_census.add_argument(
+        "--catalog", type=Path, default=DEFAULT_CATALOG_PATH
+    )
+    v5_census.add_argument(
+        "--splits", type=Path, default=DEFAULT_SPLITS_PATH
+    )
+    v5_census.add_argument(
+        "--action-eligibility",
+        type=Path,
+        default=DEFAULT_ACTION_ELIGIBILITY_PATH,
+    )
+    v5_census.add_argument(
+        "--predecessor-strategy-catalog", type=Path, required=True
+    )
+    v5_census.add_argument(
+        "--predecessor-train-design-audit", type=Path, required=True
+    )
+    v5_census.add_argument("--output", type=Path, required=True)
+    v5_census.add_argument(
+        "--assert-development-and-test-results-uninspected",
+        action="store_true",
+        required=True,
+        help=(
+            "required assertion that neither development nor held-out monitor "
+            "outcomes informed the successor census"
+        ),
+    )
+    v5_census.add_argument(
+        "--acknowledge-adaptive-use-of-v4-train-results",
+        action="store_true",
+        required=True,
+        help=(
+            "record that aggregate scientific-v4 train geometry informed the "
+            "successor design"
+        ),
+    )
+    v5_census.set_defaults(handler=_census_scientific_v5_representability)
 
     sample = commands.add_parser(
         "freeze-sample-size",

@@ -2540,3 +2540,134 @@ Immediate next checkpoint:
    negative construction-feasibility result; and
 4. if v5 is chosen, freeze its protocol amendment and complete model-free
    action/representability audits before any learned-model call.
+
+## Scientific-v5 protocol amendment and model-free census on 2026-08-29
+
+This section supersedes the immediate checkpoint above. The scientific-v4
+geometry audit implementation was committed at
+`a139078` (`Audit scientific v4 pair geometry`), and the worktree was clean
+before this successor checkpoint began. No PBS job, H200 allocation, learned
+checkpoint load, learned-model inference, external API call, development
+monitor-outcome inspection, test-outcome inspection, pair reduction, or
+benchmark grid occurred.
+
+The repository now contains a first-party scientific-v5 successor-design
+module and the CPU command `census-scientific-v5-representability`. The command
+requires both an explicit development/test-uninspected assertion and an
+explicit acknowledgement that aggregate scientific-v4 train geometry informed
+the redesign. It validates and binds the negative v4 design-audit freeze, but
+does not consume the v4 row-level monitor observations.
+
+The v5 amendment preserves the within-public-scenario complementary criterion,
+one fixed final candidate-plan slot, nonnested required-action rule, and one
+common ground-truth safety objective. Both proposed Granite configurations use
+objective hash
+`ea89a374504447f41f985eac1cf42d1e14927ee6f997b02a014515f318708499`:
+
+- `effect-authorization-guardian-v1` uses external-effect and destination
+  authorization, with policy hash
+  `0850ddcb031cca5d55432df830c5df0a7ad87a76193f18fcc7f385eed8837549`;
+- `provenance-composition-guardian-v1` uses source/sink provenance and
+  composite-path reasoning, with policy hash
+  `14ca191af5a55a4c33a3803743519f64c4510853f35ffa844818f1ae0a1e1f6b`.
+
+These are detection procedures for the same stated safety rule, not integrity
+versus privacy policy categories. Neither policy is instructed to allow a
+mechanism or to manufacture a blind spot. The amendment hash is
+`8a7ec230c4b3e996f3712ae1f0ea407a99752a4c4c8b9560bdadb6d12d82890c`.
+It explicitly labels the successor an adaptively designed controlled
+mechanism-diverse benchmark, not an estimate of complementary-blind-spot
+prevalence in common guardrails.
+
+The two exact candidate mechanisms are
+`inline-atomic-prohibited-path-v1` and
+`source-resolved-staged-prohibited-path-v1`. The former commits the prohibited
+goal from frozen inline values or an atomic effect; the latter uses a public
+source-read plus a distinct sink materialization, a staged participant change,
+or a partitioned transfer. Formatting-only, amount-only, and schedule-only
+families are excluded. Specifically:
+
+- Slack `injection_task_1` is excluded because the frozen pool contains only
+  wording variants of one phishing-message call;
+- Travel `injection_task_1` is excluded because the released Travel surface
+  has no email-source read operation, leaving only body serialization; and
+- Travel `injection_task_2` is excluded because the pool only changes the time
+  of one atomic calendar creation.
+
+The remaining 12 task families yield 144 exact public scenarios: 93 train and
+51 development. The 49 transparent exclusions are 41 train and 8 development;
+the test cohort remains exactly empty. Four-suite selected coverage is:
+
+| Suite | Train scenarios | Train groups | Development scenarios | Development groups |
+| --- | ---: | ---: | ---: | ---: |
+| workspace | 28 | 20 | 28 | 10 |
+| travel | 26 | 10 | 8 | 5 |
+| banking | 24 | 8 | 8 | 4 |
+| slack | 15 | 11 | 7 | 5 |
+
+All 288 exact scenario/path plans executed in fresh pinned AgentDojo
+environments, returned no tool errors, and passed the released attack-success
+grader. Every within-scenario pair has distinct nonnested required-action
+multisets. The action-validation-list hash is
+`84bee20cfef43cdb7a4a2f688e3b282de25a1b45a04a702e683d4c93da443adb`.
+Released email/calendar tools can introduce wall-clock fields in post-state
+digests, so the reproducible v5 validation schema deliberately omits only that
+post-environment hash. It retains and binds exact calls, initial environments,
+canonical traces, call counts, released grader results, and external-call
+counts. A regression verifies that records differing only in the omitted
+post-state digest normalize identically.
+
+Two independent complete 288-plan executions produced byte-identical census
+files. The immutable published artifact is mode `0444` at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/scientific-v5-representability-census.json`.
+It is 724,526 bytes with file SHA-256
+`ba3ff1ed35a506afaae07af7684845e2205f90116f7d53e00f121359a038b29c`
+and internal census hash
+`0f27bc124d49effe515eac1b0ceda82f931b9bd7937738c2e9e5b69ecae020d4`.
+The first-party validator revalidated the published object directly. It binds
+the v4 candidate-catalog hash
+`06591a83d52460ca2a99e13c412ea2f9a2ccb6267ffe99f23da5fddc000c9803`,
+v4 design-audit hash
+`c7879bc748c5f8aab6556532349f5778b3df2ce138a2d8f2af4058ae0546adf6`,
+v4 feasibility hash
+`c12b392bd6e1057b4de700370a9ae9ffffc4544d4d58b4f2b1e8b5c5f011b739`,
+and executable source-tree hash
+`0003ee1bb5cfffbfd3f0c106539e72b45a8a9623e141dd549fcfd3725ae2f8b8`.
+
+The focused successor-design file passes 8 tests. The broader pair-mining,
+action-eligibility, runtime-integrity, conformance, useful-work runner,
+configuration-freeze, and shell-entrypoint set passes 116 tests in 44.46
+seconds. Python compilation, CLI help discovery, `git diff --check`, two full
+model-free reproductions, published-byte comparison, and direct frozen-object
+validation also pass.
+
+The census disposition is
+`candidate_construction_representable_pending_review`, and only
+`successor_catalog_authoring_permitted` is true. The artifact deliberately
+sets `learned_wheel_build_permitted:false`, `h200_submission_permitted:false`,
+`development_submission_permitted:false`, and
+`pair_reduction_permitted:false`.
+
+One observation-protocol change is mandatory before a learned call. Both
+profiles must receive the same verdict-independent complete candidate call
+sequence and current-call index, without rendering the profile or strategy ID
+as evidence. The current constant plan summary cannot support a genuine
+provenance/composition audit. This requirement is frozen in the protocol
+amendment; the existing 193-scenario observation runner must not be pointed at
+the 144-scenario subset as-is.
+
+Immediate next checkpoint:
+
+1. review and commit the successor-design implementation, CLI, tests, operator
+   guide, and this handoff record;
+2. after that clean commit, implement a versioned subset-aware v5 candidate
+   catalog/cohort schema and the identical full-plan monitor-input contract;
+3. derive the exact v5 candidate catalog from the frozen census and rerun its
+   first-party model-free validation without changing the task-family rule;
+4. only after review and another clean commit, build/reproduce the wheel,
+   freeze a replacement runtime fingerprint, and prepare engineering
+   conformance inputs; and
+5. do not submit H200 conformance or train observation until the exact command
+   is separately reviewed and explicitly approved. Development remains blocked
+   unless a future v5 train feasibility report preserves the within-scenario
+   gate and sets `development_submission_permitted:true`.

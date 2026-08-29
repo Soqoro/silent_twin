@@ -134,6 +134,48 @@ PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
   --assert-development-and-test-results-uninspected
 ```
 
+If that diagnostic rejects the scientific-v4 geometry, the bounded
+scientific-v5 successor begins with a model-free representability census, not
+another learned-model job. The amendment keeps one common ground-truth safety
+objective for both profiles and changes only their detection procedure:
+external-effect authorization versus source/sink provenance and composite-path
+reasoning. Its two candidate paths are inline/atomic versus source-resolved or
+staged. Formatting-only, amount-only, and schedule-only alternatives do not
+qualify.
+
+The census is explicitly adaptive: aggregate scientific-v4 train geometry
+informed the redesign. It consumes neither row-level v4 monitor observations
+nor development/test outcomes. Every selected path is executed from a fresh
+AgentDojo environment, must pass the released attack-success grader without a
+tool error, and must have a nonnested required-action multiset. The exact
+command is:
+
+```bash
+PYTHONPATH=src /persistent/venvs/agentdojo/bin/python3.11 \
+  -m silenttwin.agentdojo.cli census-scientific-v5-representability \
+  --predecessor-strategy-catalog \
+    /persistent/evidence/candidate-strategies-v4.json \
+  --predecessor-train-design-audit \
+    /persistent/evidence/train-pair-design-audit-scientific-v4.json \
+  --output \
+    /persistent/evidence/scientific-v5-representability-census.json \
+  --assert-development-and-test-results-uninspected \
+  --acknowledge-adaptive-use-of-v4-train-results
+```
+
+Even a passing census sets `h200_submission_permitted:false` and
+`development_submission_permitted:false`. It permits only review and exact
+successor-catalog authoring. The current 193-scenario observation interface
+must not be pointed at the selected subset until a separately reviewed,
+source-bound successor-catalog/cohort implementation exists. That successor
+must also give both profiles the same verdict-independent complete candidate
+call sequence and current-call index; the current constant plan summary is not
+enough for a provenance/composition profile to inspect a staged path. Profile
+or strategy identifiers cannot be rendered as evidence. The resulting
+experiment is a controlled mechanism-diverse causal benchmark; it cannot be
+reported as evidence that complementary blind spots are prevalent in common
+guardrails.
+
 ```bash
 
 STAGE=run PAIR_MINING_ACTION=observe OBSERVATION_SPLIT=development \
