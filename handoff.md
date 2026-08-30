@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v6 E1 task-0 H200 pilot completed and frozen)
+Last updated: 2026-08-30 (scientific-v6 remaining E1 tasks 1--7 prepared; not submitted)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3805,3 +3805,112 @@ Immediate next checkpoint:
    explicit approval before calling `qsub`; and
 4. validate every remaining E1 task before E1 aggregation and the train gate.
    Do not run E2 or access development/test outcomes at this checkpoint.
+
+## Scientific-v6 remaining E1 train-task preparation on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The task-0 pilot
+freeze was committed at `2f7cd275220a4828c52726edce210f06ccbdfb8b`
+(`Freeze scientific v6 E1 task-0 pilot`), and the worktree was clean before
+this preparation. No model was loaded, no GPU was allocated, no remaining-task
+output was created, and `qsub` was not called.
+
+Fresh checks reproduced executable source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and full Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+The immutable plan, E1 manifest, strategy catalog, pair registry, and local
+wheel remain mode `0444` and retain their recorded file SHA-256 values
+`592d9de4075ef7014bc8356dc6d983bdeb0d5ee23d65f6fd3e0aaea873d508d0`,
+`05f85cf591beca4161927bdf685fa244e89f3d436d970385bdf764b4f247f0bc`,
+`e9a17f2b3eb04a181a0459e489293aebe911ed0d939cbabf83dad2c3f5377b07`,
+`2e326c093011562b3a5f913b211b79c95ba2b9e73e36418645835d7f71306154`,
+and `76217db019e5816c57e527d60c5f7a0ea39490f6742c972c2be75c2b63075fa9`,
+respectively.
+
+The remaining selection is exactly E1 task IDs 1--7, 252 frozen members, 82
+scenarios, 7,872 trials, and at most 60,352 sequential local Qwen calls. Its
+canonical selected-member `stable_hash` is
+`9553638586cd837999ccdceffe30f8fbb952267a7aa767e10527ad964ceb4ca3`.
+Every task contains the same 36 preregistered policy/source/query cells; only
+the immutable suite-specific scenario bundle differs:
+
+| Task | Suite | Scenarios | Structural groups | Trials | Maximum model calls |
+| ---: | --- | ---: | ---: | ---: | ---: |
+| 1 | workspace | 13 | 8 | 1,248 | 9,568 |
+| 2 | workspace | 4 | 4 | 384 | 2,944 |
+| 3 | travel | 20 | 8 | 1,920 | 14,720 |
+| 4 | travel | 6 | 2 | 576 | 4,416 |
+| 5 | banking | 24 | 8 | 2,304 | 17,664 |
+| 6 | slack | 12 | 8 | 1,152 | 8,832 |
+| 7 | slack | 3 | 3 | 288 | 2,208 |
+
+Each query-budget stratum within a task contains one third of that task's
+trials. Extrapolating only for operations planning from task 0's 59-minute
+walltime gives roughly 7 hours 23 minutes of aggregate serial GPU time; the
+largest task projects to about 2 hours 10 minutes, leaving substantial margin
+under the per-subjob `04:00:00` limit. Invalid early selections may reduce
+actual inference calls, but the resource request is based on the conservative
+maximum. The filesystem has 630 GB available. Scaling task 0's observed bytes
+by scenario count suggests roughly 10.5 GB for tasks 1--7, so storage is not a
+constraint.
+
+The complete model-free run-stage validator was replayed separately for every
+task. All 252 members passed the clean authoring-source binding, installed
+AgentDojo and 108-distribution learned-runtime audit, upstream freeze chain,
+scenario/suite/structural-group binding, private-profile binding,
+preregistered full-grid coverage, sample-size boundary, and AgentDojo release
+compatibility check. All seven tasks bind upstream hash
+`ed317185bc3b80cee2cba520ac206c9d9abf84a70009ec41aab49498ea91f2f7`
+and remain `full_four_suite_estimation_only`, never confirmatory.
+
+The resolved launcher was additionally exercised for each synthetic PBS index
+1 through 7 on the login node. Every index passed scheduler authorization,
+array bounds, frozen member selection, production/fake-model agreement,
+persistent-path checks, and CUDA-device requirements, then stopped at the
+intended no-visible-GPU boundary before Python activation or output creation.
+The run root still contains only `task-0`; every `task-1` through `task-7`
+destination is absent. The prepared scheduler-log directory is empty and mode
+`0755`:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-remaining`
+
+Read-only PBS inspection found no active job for `suaq0001`. Queue `gpu_free`
+is enabled and started, requires exactly one GPU, permits `04:00:00`, and
+currently enforces `max_run = [u:PBS_GENERIC=1]`. Therefore the canonical
+supported array range `-J 1-7` will create exactly seven genuine PBS subjobs
+and the queue will run at most one for this user at a time. The command does
+not use a manually supplied `PBS_ARRAY_INDEX`, the optional `%1` parser form,
+or `qsub -V`. Its 22-variable allowlist has unique ordered keys and is 1,894
+UTF-8 bytes.
+
+Resolved remaining-E1 command (**prepared, not submitted**):
+
+```bash
+export PBS_E1_REMAINING_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train,STAGE=run,RECIPIENT_EXPERIMENT=e1,AGENTDOJO_DATASET_SPLIT=train,GRID_MANIFEST=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/plans/recipient-separation-train-v1.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json,AGENTDOJO_ANALYSIS_PLAN=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0,AGENTDOJO_OVERWRITE=0,ATTACKER_DEVICE=cuda:0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=04:00:00 \
+  -N st-v6-e1-rest \
+  -J 1-7 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-remaining/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-remaining/ \
+  -v "$PBS_E1_REMAINING_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh
+```
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only preparation so the run-stage clean-tree
+   gate can pass; the executable source hash must remain unchanged;
+2. immediately before submission, repeat the clean source/runtime/Qwen and
+   frozen-file checks, confirm the log directory is still empty, confirm tasks
+   1--7 remain absent, and recheck the queue's one-running-job limit;
+3. call `qsub` only after separate explicit approval to submit exactly the
+   command above; and
+4. after the array finishes, validate all seven tasks before any E1 aggregate
+   or train-gate computation. E2, development, test, and held-out execution
+   remain blocked.
