@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v6 recipient-separation design artifacts frozen)
+Last updated: 2026-08-30 (scientific-v6 clean wheel and learned runtime frozen)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3460,3 +3460,64 @@ Immediate next checkpoint:
 4. prepare a separate scalar H200 task-zero pilot for explicit approval. Do
    not submit the remaining train grid, development, or any held-out job before
    that pilot passes and the protocol authorizes the next checkpoint.
+
+## Scientific-v6 clean-wheel and learned-runtime freeze on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The artifact-freeze
+record was committed at `d47d6e93aa845dcdf530eaa16f1f5e2bbcb4534c`
+(`Record scientific v6 artifact freeze`), and the worktree was clean before
+the wheel build. That documentation-only commit does not change `src`,
+`pyproject.toml`, or `README.md` relative to the v6 source commit
+`9c85cb5bf34195a80aa1d076fcc44449867b7883`. The executable source-tree hash
+therefore remains
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+
+Before building v6, the exact offline recipe was replayed against commit
+`5a8b401fc54d3ad81a892f35dd3b9e942cec5165` and reproduced the preserved v5
+wheel byte-for-byte, including its documented SHA-256. The v6 build then used
+two independent `git archive` extractions of source commit `9c85cb5`, commit
+epoch `1788038195`, `SOURCE_DATE_EPOCH`, no index, no dependencies, and no
+build isolation. Both source tar files had SHA-256
+`5bc9a360adcdba84126c2662d02ad5808f99bd39f4b8c3e5136d4e1cb5f1fd0c`.
+Both builds produced byte-identical, ZIP-valid 475,707-byte wheels with
+SHA-256
+`76217db019e5816c57e527d60c5f7a0ea39490f6742c972c2be75c2b63075fa9`.
+
+One verified copy is archived read-only at mode `0444`:
+
+`/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3/silenttwin-0.1.0-py3-none-any.whl`
+
+That exact local wheel was force-reinstalled offline and without dependency
+resolution into
+`/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311`. Imports
+resolve from its `site-packages`, and `pip check` reports no broken
+requirements. All 113 immutable installed SilentTwin payload files match the
+wheel byte-for-byte. Their canonical payload-manifest SHA-256 is
+`d7083129b40bf5bc9b04a4d4f05f2a38656924d8d47ab0f77fb78d17cad078fc`;
+the installed RECORD identity is
+`2d9000523af1629560386cc6faf00c1acbb2d2c7d8a15a19d2967d44ab878730`;
+and the self-hashed installed-wheel verification identity is
+`89aaabaaba949e3c83ac23641bc3530d70247146848364ab81439062421a5dcd`.
+
+The learned environment contains 108 uniquely identified distributions. Its
+71-package AgentDojo core lock validates, and two independent derivations
+produced learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`.
+This checkpoint loaded no model or checkpoint, called no external API,
+inspected no development or test outcome, allocated no GPU, and submitted no
+PBS job.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only clean-wheel record;
+2. materialize an immutable executable copy of the checked v6 train grid
+   template, binding exactly the new learned-runtime fingerprint, strategy
+   catalog hash
+   `816ab194cee3d913ae26a40ed03a5f9d899a6a2ca69bc80a8c1601158f434686`,
+   and pair-registry hash
+   `e6227a40c4ccf53a29d319a3efe87b217cddf47443f45a96a650a66e8adfa3d1`;
+3. construct and inspect the model-free E1 and E2 train manifests and retain
+   the development/test fail-closure; and
+4. prepare a separate scalar H200 task-zero pilot for explicit review. Do not
+   call `qsub` or load Qwen until that exact resolved command is separately
+   approved.
