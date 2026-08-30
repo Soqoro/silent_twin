@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v5 geometry audit frozen; stop/redesign decision pending)
+Last updated: 2026-08-30 (scientific-v6 recipient-separation design artifacts frozen)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3412,3 +3412,51 @@ PYTHONPATH=/home/suaq0001/projects/silent_twin/src \
   --assert-development-and-test-results-uninspected \
   --acknowledge-adaptive-use-of-v5-train-results
 ```
+
+## Scientific-v6 recipient-separation artifact freeze on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The scientific-v6
+implementation was committed cleanly at
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` (`Add scientific v6 recipient
+separation protocol`). Its SilentTwin source-tree hash is
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+
+The prepared CPU-only freeze command completed successfully from that clean
+checkout. It loaded no model, performed no learned inference, called no
+external API, inspected no development or test outcome, and submitted no PBS
+job. Both reserved destinations were verified absent before the collision-safe
+write. The resulting files were then changed to mode `0444` under the project's
+immutable-artifact convention:
+
+- `candidate-strategies-scientific-v6-recipient-separation.json`: 215,548
+  bytes; file SHA-256
+  `e9a17f2b3eb04a181a0459e489293aebe911ed0d939cbabf83dad2c3f5377b07`;
+  internal candidate-strategy-catalog hash
+  `816ab194cee3d913ae26a40ed03a5f9d899a6a2ca69bc80a8c1601158f434686`.
+- `pair-registry-scientific-v6-recipient-separation-train.json`: 68,720
+  bytes; file SHA-256
+  `2e326c093011562b3a5f913b211b79c95ba2b9e73e36418645835d7f71306154`;
+  internal pair-registry hash
+  `e6227a40c4ccf53a29d319a3efe87b217cddf47443f45a96a650a66e8adfa3d1`.
+
+The first-party validators independently reloaded both frozen files and
+verified their self-hashes, embedded protocol, catalog and split bindings,
+action-eligibility binding, and cross-binding between the pair registry and
+strategy catalog. The frozen design contains two deterministic private-state
+profiles, two candidate strategies, four authorization pairs, 93 train
+scenarios, 51 reserved development scenarios, and zero test instantiations.
+The pair registry permits execution only on `train`; development submission,
+held-out evaluation, and confirmatory claims remain false.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only freeze record;
+2. build a byte-reproducible non-editable SilentTwin wheel from commit
+   `9c85cb5bf34195a80aa1d076fcc44449867b7883` and verify its payload/source
+   identity in the clean learned environment;
+3. bind the learned-runtime fingerprint and the two frozen v6 artifact hashes
+   into an executable train grid plan, then inspect the model-free E1/E2
+   manifests; and
+4. prepare a separate scalar H200 task-zero pilot for explicit approval. Do
+   not submit the remaining train grid, development, or any held-out job before
+   that pilot passes and the protocol authorizes the next checkpoint.
