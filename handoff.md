@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v6 executable train plan and grids frozen)
+Last updated: 2026-08-30 (scientific-v6 E1 task-0 H200 pilot prepared; not submitted)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3599,3 +3599,90 @@ Immediate next checkpoint:
 4. after task 0 finishes, validate its complete run manifest and scientific
    boundary before deciding whether any remaining E1 train tasks are
    authorized. E2, development, test, and array-wide execution remain blocked.
+
+## Scientific-v6 E1 task-0 pilot preparation on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The plan/grid record
+was committed at `c67f10df8dee3f4bdf9f6d72aaa0678ac54e7c2d` (`Record
+scientific v6 train grids`), and the worktree was clean throughout pilot
+preparation. No model was loaded, no GPU was allocated, no result directory
+was created, and `qsub` was not called.
+
+Read-only PBS inspection reconfirmed project `fs_ccds_asysong` membership in
+the `gpu_free` ACL. The queue requires exactly one GPU, has a four-hour maximum
+walltime, and permits one running job per user. The user had no current PBS
+job at inspection time. As recorded by the preceding conformance jobs, this
+site contract allocated NVIDIA H200. PBS exposes only `ngpus=1`, not a
+model-specific GPU resource, so the allocated GPU name must still be checked
+in the completed pilot provenance.
+
+Frozen E1 task 0 is workspace bundle
+`4b46e2907ac0bc47582b64ddc70bfe5788075ae13b442f389809f2417349e81c`:
+11 scenarios in eight structural groups, 36 preregistered cells, and cell
+indices 0--35. The query-budget strata contain 12 cells each at Q=0, Q=4, and
+Q=16. Accounting for the two ordinary private-state assignments and four
+matched-shuffled assignments, the task contains 1,056 trials and 8,096
+sequential Qwen completions: 352 at Q=0, 1,760 at Q=4, and 5,984 at Q=16.
+The 256-token cap gives a conservative maximum of 2,072,576 generated tokens;
+strict protocol outputs should normally be much shorter. The pilot therefore
+requests the queue's full `04:00:00` rather than the earlier one-hour
+observation-job default. Trial-level checkpointing permits an exact resume if
+the job is interrupted, but a partial task is not a passed pilot.
+
+The complete Python run-stage artifact validator passed for all 36 selected
+members. It rederived clean source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and upstream binding hash
+`ed317185bc3b80cee2cba520ac206c9d9abf84a70009ec41aab49498ea91f2f7`.
+A fresh full-byte audit of the local Qwen snapshot reproduced checkpoint
+fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+
+The fully resolved shell launcher was also exercised under a synthetic PBS
+task-0 context on the login node. It passed scheduler authorization, task
+bounds, frozen-manifest classification, persistent-path, fake-model, and GPU
+requirement checks, then stopped at the intended no-visible-GPU boundary
+before Python activation or output-directory creation. The task output remains
+absent at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/runs/task-0`.
+The empty mode-`0755` scheduler-log directory is prepared at
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-pilot`.
+
+The ordinary grid launcher intentionally accepts only the scheduler's genuine
+array index. A manually exported `PBS_ARRAY_INDEX=0` in a scalar job would
+weaken that authorization boundary. Therefore this one-task pilot is prepared
+as a canonical **one-subjob PBS array** (`-J 0-0%1`), not technically as a
+scalar PBS job. It still executes exactly E1 task 0 and nothing else. The
+22-variable allowlist has unique keys, contains no manual PBS index, and does
+not use `qsub -V`.
+
+Resolved E1 task-0 pilot command (**prepared, not submitted**):
+
+```bash
+export PBS_E1_TASK0_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train,STAGE=run,RECIPIENT_EXPERIMENT=e1,AGENTDOJO_DATASET_SPLIT=train,GRID_MANIFEST=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/plans/recipient-separation-train-v1.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json,AGENTDOJO_ANALYSIS_PLAN=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0,AGENTDOJO_OVERWRITE=0,ATTACKER_DEVICE=cuda:0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=04:00:00 \
+  -N st-v6-e1-t0 \
+  -J 0-0%1 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-pilot/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-pilot/ \
+  -v "$PBS_E1_TASK0_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh
+```
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only preparation record so the scientific-v6
+   clean-tree gate can pass;
+2. immediately before submission, recheck the source/runtime/checkpoint and
+   frozen artifact hashes, queue state, empty log directory, and absent task-0
+   result path;
+3. submit only the exact one-subjob command above after separate explicit user
+   approval; and
+4. validate task 0 completely before authorizing any remaining E1 task. E2,
+   development, test, and multi-task submission remain blocked.
