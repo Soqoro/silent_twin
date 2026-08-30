@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v6 E1 task-0 H200 pilot prepared; not submitted)
+Last updated: 2026-08-30 (scientific-v6 E1 task-0 H200 pilot completed and frozen)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3686,3 +3686,122 @@ Immediate next checkpoint:
    approval; and
 4. validate task 0 completely before authorizing any remaining E1 task. E2,
    development, test, and multi-task submission remain blocked.
+
+## Scientific-v6 E1 task-0 H200 pilot freeze on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The pilot preparation
+record was committed at `8942694d8e39ed533d92455991c7e026e4ad1157`
+(`Prepare scientific v6 E1 task-0 pilot`), and the worktree was clean at
+submission. Immediately before `qsub`, the source tree, installed learned
+runtime, frozen plan/grid/design inputs, local wheel, and full Qwen snapshot
+were revalidated. They reproduced source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+The scheduler-log directory was empty and the task output did not yet exist.
+
+This PBS release rejected both the prepared `-J 0-0%1` syntax and the
+degenerate `-J 0-0` range before creating a job. Its supported exact
+single-index representation is `-J 0-1:2`: the range starts at 0, advances by
+2, and therefore expands only index 0 before exceeding the upper bound 1. The
+otherwise unchanged command was submitted under project `fs_ccds_asysong` as
+array parent `54738[].gaas`; `qstat -t` showed exactly one subjob,
+`54738[0].gaas`, and no task-1 subjob.
+
+The subjob ran once on `hpc-gaas-g25` and finished with PBS state `F`,
+`Exit_status = 0`, and walltime `00:59:28`. It used one GPU, 12 CPUs, and a
+reported maximum of 31,282 MB GPU memory. PBS recorded `Stageout_status = 1`,
+but both requested log files are present and readable, the stdout completion
+record reports all 36 shards, and every persistent result passed independent
+strict validation. The scheduler logs are:
+
+- `54738[0].gaas.OU`: 2,473 bytes; SHA-256
+  `c7e49767ed7337cd2721eea79aa9fc1770fb8d5458af4fa81c0380e8ffa39420`;
+- `54738[0].gaas.ER`: 213 bytes; SHA-256
+  `b3230e51d145ff0970ed323f851874dc3936f1ac0304c24319acddb791710407`.
+
+The stderr file contains only the Transformers `torch_dtype` deprecation
+notice and successful weight-loading progress. Across the task, 7,907 local
+Qwen calls recorded `gpu_name: "NVIDIA H200"`, `local_files_only:true`, full
+checkpoint-tree SHA-256 verification, zero external API calls, and zero model
+transport errors. This is fewer than the conservative 8,096-call upper bound
+because invalid probe selections terminate the affected trial before every
+possible later call.
+
+The completed output is at:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/runs/task-0`
+
+It contains 1,236 regular files totaling 1,412,803,523 bytes: 36 published
+shards, 36 result streams, 36 failure ledgers, 36 completed checkpoint
+manifests, 36 run logs, and 1,056 trial checkpoints. Each shard was passed
+through first-party `validate_completed_run` with its exact frozen
+configuration, grid hash, shard ID, and source-tree hash. Validation rechecked
+canonical configuration identity, result and failure SHA-256 values,
+checkpoint publication status, checkpoint/result equality, trial ordering,
+unique IDs, run-log completion markers, scientific bindings, model/runtime
+provenance, and the evidence boundary. The observed directory set exactly
+equals frozen task-0 cell indices 0--35; all 36 shards are complete and their
+1,056 trial IDs are unique.
+
+For a compact immutable binding, the sorted 36-record list whose fields are
+`directory`, `manifest_sha256`, `configuration_hash`, `result_sha256`,
+`failures_sha256`, `checkpoint_manifest_hash`, `actual_trial_count`,
+`failure_count`, `grid_hash`, `grid_task_id`, `shard_id`,
+`source_tree_hash`, `scheduler_job_id`, and `status` has SilentTwin
+`stable_digest`
+`9c953e2e6dff2379e61adc231c3fe4719a876fc2e76469f68317a295aad53536`.
+Binding that list together with schema
+`silenttwin.scientific-v6-e1-task0-pilot-freeze.v1`, the absolute task root,
+regular-file count, and byte count gives pilot-freeze digest
+`c5ee629cf66152b9b88388bec5c34d2be996877d28c3577d9a10e9ca1163ae5b`.
+
+The scientific boundary also passed. Every row is production, train-only E1
+workspace evidence with `fixture_mode:false`, evidence class
+`agentdojo_benchmark_execution`, and `scientific_evidence_eligible:true`.
+There were zero final-effect commits, zero rejected-effect commits, and zero
+postselection outputs delivered back to the attacker; all 1,056 trials retired
+the attacker before settlement. No development or test outcome was accessed,
+and this one workspace bundle is estimation-only rather than confirmatory
+suite coverage.
+
+The pilot nevertheless exposed a material preregistered limitation. There are
+402 conservatively invalid rows (38.0682%). Of these, 380 have an invalid
+hidden-state prediction and 28 have an invalid probe selection, with six rows
+containing both error codes. Invalid-row counts by query budget are 96/352
+(27.2727%) at Q=0, 183/352 (51.9886%) at Q=4, and 123/352 (34.9432%) at
+Q=16. All 380 invalid final predictions are syntactically valid JSON but use
+the plan labels `candidate_0` (225) or `candidate_1` (155) where the frozen
+contract requires private-state labels `theta0` or `theta1`. This is a model
+label-space error, not a checkpoint, GPU, transport, or parser outage.
+
+Scientific-v6 preregisters invalid-output rate as an outcome. The frozen
+analysis scores an invalid prediction as incorrect and an invalid/error run as
+conservative attack success; these rows therefore remain scientifically
+eligible rather than being silently dropped. The high rate can reduce power
+and must be reported as a limitation. Do not normalize `candidate_*` into
+`theta*`, change the prompt, retry invalid rows, or replace task 0 in place.
+Any such change would require a new protocol/runtime identity and a complete
+restart under a new version.
+
+Disposition: the task-0 pilot passes the end-to-end engineering, provenance,
+completion, and scientific-boundary gate. This authorizes preparation for the
+remaining frozen E1 train tasks 1--7 under the unchanged scientific-v6 grid;
+it is not itself a positive scientific-signal result and does not authorize a
+submission without a separately inspected command. E2, development, test,
+held-out evaluation, and confirmatory claims remain blocked.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only pilot freeze; the executable
+   source-tree hash must remain unchanged;
+2. immediately before any new submission, recheck the clean worktree,
+   source/runtime/Qwen identities, immutable input hashes, queue state, and
+   absence of outputs for E1 tasks 1--7;
+3. resolve and inspect one PBS array command for exactly E1 tasks 1--7, using
+   the unchanged 22-variable allowlist and no `qsub -V`, and obtain separate
+   explicit approval before calling `qsub`; and
+4. validate every remaining E1 task before E1 aggregation and the train gate.
+   Do not run E2 or access development/test outcomes at this checkpoint.
