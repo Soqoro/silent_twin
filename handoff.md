@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v6 clean wheel and learned runtime frozen)
+Last updated: 2026-08-30 (scientific-v6 executable train plan and grids frozen)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -3521,3 +3521,81 @@ Immediate next checkpoint:
 4. prepare a separate scalar H200 task-zero pilot for explicit review. Do not
    call `qsub` or load Qwen until that exact resolved command is separately
    approved.
+
+## Scientific-v6 executable train-plan and grid freeze on 2026-08-30
+
+This section supersedes the immediate checkpoint above. The clean-wheel record
+was committed at `c18361adbc84c4078ec937127e69c35a3e176bed` (`Record
+scientific v6 clean wheel`), and the worktree was clean before plan
+materialization. No source or runtime identity changed: the executable
+source-tree hash remains
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+and the learned-runtime fingerprint remains
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`.
+
+The checked template was materialized with exactly five authorized semantic
+changes: executable schema, `template_only:false`, candidate-strategy hash,
+pair-registry hash, and attacker runtime fingerprint. An independent object
+comparison proved that no experiment cell, model checkpoint, tokenizer,
+prompt, dtype, decoding value, claim-boundary field, or scope field changed.
+The resulting plan is 5,929 bytes, mode `0444`, with file SHA-256
+`592d9de4075ef7014bc8356dc6d983bdeb0d5ee23d65f6fd3e0aaea873d508d0`:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/plans/recipient-separation-train-v1.json`
+
+It binds recipient-separation protocol hash
+`d4868e4c3af4ba6e16d2b4ad7aa435328b164c5594116a18f05034f7dfd6e394`,
+candidate-strategy-catalog hash
+`816ab194cee3d913ae26a40ed03a5f9d899a6a2ca69bc80a8c1601158f434686`,
+pair-registry hash
+`e6227a40c4ccf53a29d319a3efe87b217cddf47443f45a96a650a66e8adfa3d1`,
+and the exact Qwen/runtime identity above. Its only experiments are E1 and E2,
+and its only model role is attacker.
+
+Temporary independent grid construction succeeded before the persistent plan
+was published. The dedicated scientific-v6 entrypoint then generated the
+persistent manifests, which matched those independent files byte-for-byte.
+Both were reloaded through the first-party canonical-manifest and
+preregistered-cell-coverage validators before being changed to mode `0444`:
+
+- E1 manifest:
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/grid/grid-manifest.jsonl`;
+  1,220,460 bytes; file SHA-256
+  `05f85cf591beca4161927bdf685fa244e89f3d436d970385bdf764b4f247f0bc`;
+  grid hash
+  `6863c3cc15c7a2b84466c035571098de794eac83f4e3d4b3254ed6f8c35b7ba8`;
+  8 tasks and 288 members (36 preregistered cells per task).
+- E2 manifest:
+  `/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/grid/grid-manifest.jsonl`;
+  441,830 bytes; file SHA-256
+  `8a3f8523c6a775c81c8e0641a50dd140c26d4b27550a6f3951fe625e93fae6d3`;
+  grid hash
+  `d39cbe84be17f78892813ab52c3c7e4c5603958329cf9d79739838081ed0a90c`;
+  8 tasks and 104 members (13 preregistered cells per task).
+
+Each grid covers the exact 93-scenario train cohort and all four suites. The
+eight bundle tasks are distributed as workspace 3, travel 2, banking 1, and
+Slack 2, yielding canonical array range `0-7`. Coverage is explicitly
+`full_four_suite_estimation_only`; confirmatory coverage remains false. Every
+configuration uses the one frozen Qwen2.5-7B attacker identity and the current
+runtime fingerprint.
+
+Fail-closure was exercised after publication. The dedicated wrapper rejected
+`development` with status 2. Direct grid construction independently rejected
+development because no immutable opening gate exists and rejected test because
+the protocol forbids held-out grids. No model or checkpoint was loaded, no
+external API was called, no GPU was allocated, no result shard was generated,
+and no PBS job was submitted.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only plan/grid record so run-stage clean-tree
+   provenance can pass;
+2. resolve and inspect a scalar PBS command for **E1 task 0 only**, using the
+   frozen E1 manifest, plan, artifacts, wheel/runtime identity, Qwen snapshot,
+   H200 resource request, and persistent output root;
+3. do not call `qsub` until the exact resolved scalar command is separately
+   approved; and
+4. after task 0 finishes, validate its complete run manifest and scientific
+   boundary before deciding whether any remaining E1 train tasks are
+   authorized. E2, development, test, and array-wide execution remain blocked.
