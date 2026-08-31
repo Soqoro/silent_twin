@@ -1,6 +1,6 @@
 # Scientific-v6 train-only interface-realization protocol
 
-Status: preregistration template pending clean-wheel runtime binding
+Status: frozen train-only preregistration; no replay inference observed
 
 Protocol revision: `scientific-v6-interface-realization-train-v1`
 
