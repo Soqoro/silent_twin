@@ -1092,6 +1092,9 @@ def analyze_readout(
 ) -> dict[str, Any]:
     if output_path.exists():
         raise ForcedChoiceReadoutError(f"refusing to overwrite analysis: {output_path}")
+    analysis_provenance = collect_provenance()
+    if analysis_provenance.get("code_dirty") is not False:
+        raise ForcedChoiceReadoutError("analysis requires a clean git checkout")
     protocol = _load_object(protocol_path, label="protocol")
     protocol_hash = validate_protocol(protocol)
     input_metadata, inputs = load_inputs(input_path)
@@ -1134,20 +1137,21 @@ def analyze_readout(
                 stable_hash([context_index, source_index, context, source])[:8], 16
             )
             key = f"{context}:{source}"
+            metric_bindings = {
+                "paired_readout_validity": "paired_readout_valid",
+                "candidate_probability_mass": "candidate_probability_mass",
+                "greedy_allowed_rate": "greedy_allowed_rate",
+                "surface_absolute_difference": "surface_absolute_difference",
+                "raw_b_probability_mean": "raw_b_probability_mean",
+            }
             cell = {
-                metric: _mean_summary(
+                output_name: _mean_summary(
                     selected,
-                    metric=metric,
-                    seed=cell_seed ^ int(stable_hash(metric)[:8], 16),
+                    metric=input_name,
+                    seed=cell_seed ^ int(stable_hash(input_name)[:8], 16),
                     resamples=resamples,
                 )
-                for metric in (
-                    "paired_readout_valid",
-                    "candidate_probability_mass",
-                    "greedy_allowed_rate",
-                    "surface_absolute_difference",
-                    "raw_b_probability_mean",
-                )
+                for output_name, input_name in metric_bindings.items()
             }
             cell["target_auc_95"] = _auc_summary(
                 selected,
@@ -1225,6 +1229,15 @@ def analyze_readout(
         "cells": cells,
         "source_alignment_criteria": criteria,
         "context_auc_contrasts": context_contrasts,
+        "run_code_revision": manifest["code_revision"],
+        "run_source_tree_hash": manifest["source_tree_hash"],
+        "analysis_code_revision": analysis_provenance["code_revision"],
+        "analysis_source_tree_hash": analysis_provenance["source_tree_hash"],
+        "analysis_implementation_relation": (
+            "same_as_run"
+            if analysis_provenance["code_revision"] == manifest["code_revision"]
+            else "post_run_mechanical_analysis_repair"
+        ),
         "development_outcomes_inspected": False,
         "test_outcomes_inspected": False,
         "confirmatory_claim_permitted": False,

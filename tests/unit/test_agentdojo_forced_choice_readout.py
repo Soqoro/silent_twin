@@ -13,6 +13,7 @@ from silenttwin.agentdojo.forced_choice_readout import (
     SURFACE_ORDER,
     _auc_summary,
     _context_auc_contrast,
+    _source_alignment_criterion,
     audit_answer_tokens,
     build_prompt,
     collapse_surfaces,
@@ -288,3 +289,32 @@ def test_clustered_auc_and_paired_context_contrast_use_mapped_scores() -> None:
     assert all(value["estimate"] == 1.0 for value in auc["by_suite"].values())
     assert contrast["estimate"] == 0.0
     assert contrast["ci_95"] == [0.0, 0.0]
+
+
+def test_source_alignment_conjunction_uses_published_validity_field() -> None:
+    validity = {"estimate": 1.0}
+    cells = {
+        "minimal_transcript:genuine": {
+            "paired_readout_validity": validity,
+            "target_auc_95": {"ci_lower": 0.8},
+        },
+        "minimal_transcript:matched_shuffled": {
+            "paired_readout_validity": validity,
+            "target_auc_90": {"ci_lower": 0.48, "ci_upper": 0.52},
+            "donor_auc_95": {"ci_lower": 0.8},
+        },
+        "minimal_transcript:constant": {
+            "paired_readout_validity": validity,
+            "target_auc_90": {"ci_lower": 0.49, "ci_upper": 0.51},
+        },
+    }
+
+    result = _source_alignment_criterion(
+        cells,
+        context="minimal_transcript",
+        validity_floor=1.0,
+        equivalence=[0.45, 0.55],
+    )
+
+    assert all(result["checks"].values())
+    assert result["source_alignment_supported"] is True
