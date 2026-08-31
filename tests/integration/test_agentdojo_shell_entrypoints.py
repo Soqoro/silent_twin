@@ -20,6 +20,7 @@ ENTRYPOINTS = (
     "run_agentdojo_ecological_tier2.sh",
     "run_agentdojo_recipient_separation_train_tier2.sh",
     "run_agentdojo_interface_realization_train_tier2.sh",
+    "run_agentdojo_forced_choice_readout_train_tier2.sh",
     "run_agentdojo_checkpoint_conformance_tier2.sh",
 )
 SCHEDULER_ENVIRONMENT_VARIABLES = (
@@ -144,7 +145,7 @@ def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_exactly_eleven_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
+def test_exactly_twelve_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
     discovered = {
         path.name
         for path in EXPERIMENT_DIR.glob("*agentdojo*.sh")
@@ -235,6 +236,81 @@ def test_interface_realization_authorized_preflight_has_python_pin(tmp_path: Pat
 
     assert result.returncode == 2
     assert "missing frozen interface-realization protocol" in result.stderr
+    assert "unbound variable" not in result.stderr
+
+
+def test_forced_choice_entrypoint_rejects_nontrain_split() -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "FORCED_CHOICE_PROTOCOL": "/frozen/protocol.json",
+            "FORCED_CHOICE_INPUTS": "/frozen/inputs.jsonl",
+            "FORCED_CHOICE_OUTPUT": "/persistent/output",
+            "AGENTDOJO_DEPENDENCY_LOCK": "/frozen/lock",
+            "AGENTDOJO_MODEL_CACHE": "/persistent/cache",
+            "AGENTDOJO_ATTACKER_CHECKPOINT": "/persistent/checkpoint",
+            "AGENTDOJO_DATASET_SPLIT": "development",
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_forced_choice_readout_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "forced-choice readout is train-only" in result.stderr
+
+
+def test_forced_choice_authorized_preflight_has_python_pin(tmp_path: Path) -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "PBS_JOBID": "fixture.gaas",
+            "PBS_ENVIRONMENT": "PBS_BATCH",
+            "PBS_O_HOME": str(tmp_path),
+            "PBS_JOBDIR": str(tmp_path),
+            "PYTHON_BIN": sys.executable,
+            "FORCED_CHOICE_PROTOCOL": str(tmp_path / "missing-protocol.json"),
+            "FORCED_CHOICE_INPUTS": str(tmp_path / "missing-inputs.jsonl"),
+            "FORCED_CHOICE_OUTPUT": str(tmp_path / "output"),
+            "AGENTDOJO_DEPENDENCY_LOCK": str(tmp_path / "lock"),
+            "AGENTDOJO_MODEL_CACHE": str(tmp_path / "cache"),
+            "AGENTDOJO_ATTACKER_CHECKPOINT": str(tmp_path / "checkpoint"),
+            "AGENTDOJO_DATASET_SPLIT": "train",
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_forced_choice_readout_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "missing frozen forced-choice protocol" in result.stderr
     assert "unbound variable" not in result.stderr
 
 

@@ -90,3 +90,37 @@ def test_complete_chat_rejects_missing_template_and_ambiguous_messages(
             [{"role": "user", "content": "request", "hidden": "forbidden"}]
         )
 
+
+def test_score_next_tokens_preserves_exact_candidate_ids_and_chat_rendering(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = _client()
+    tokenizer = _ChatTokenizer()
+    client._tokenizer = tokenizer
+    monkeypatch.setattr(client, "_load", lambda: None)
+    captured: dict[str, Any] = {}
+
+    def fake_score(rendered: str, **kwargs):
+        captured["rendered"] = rendered
+        captured.update(kwargs)
+        return "fixture-score"
+
+    monkeypatch.setattr(client, "_score_rendered_next_tokens", fake_score)
+
+    score = client.score_next_tokens(
+        "forced choice request",
+        candidate_token_ids={"A": 32, "B": 33},
+    )
+
+    assert score == "fixture-score"
+    assert tokenizer.calls == [
+        (
+            [{"role": "user", "content": "forced choice request"}],
+            {"tokenize": False, "add_generation_prompt": True},
+        )
+    ]
+    assert captured == {
+        "rendered": "TOKENIZER_RENDERED_CHAT",
+        "input_prompt": "forced choice request",
+        "candidate_token_ids": {"A": 32, "B": 33},
+    }

@@ -179,6 +179,27 @@ class LocalModelConfig:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class NextTokenScore:
+    """Auditable next-token readout for a fixed set of answer tokens.
+
+    ``conditional_probabilities`` renormalizes only over the supplied answer
+    tokens and is therefore a forced-choice evidence readout.  The separate
+    full-vocabulary probabilities, allowed-token mass, and greedy token retain
+    the interface-realization information that conditional normalization would
+    otherwise hide.
+    """
+
+    candidate_logits: Mapping[str, float]
+    conditional_probabilities: Mapping[str, float]
+    full_vocabulary_probabilities: Mapping[str, float]
+    candidate_probability_mass: float
+    greedy_token_id: int
+    greedy_token_text: str
+    usage: ModelUsage
+    metadata: Mapping[str, Any]
+
+
 class LocalTransformersModelClient:
     """Lazy local checkpoint client implementing ``ModelClient``."""
 
@@ -567,6 +588,104 @@ class LocalTransformersModelClient:
             metadata=metadata,
         )
 
+    def _score_rendered_next_tokens(
+        self,
+        rendered: str,
+        *,
+        input_prompt: str,
+        candidate_token_ids: Mapping[str, int],
+    ) -> NextTokenScore:
+        """Score exact first-token alternatives without generating text."""
+
+        torch = self._torch
+        tokenizer = self._tokenizer
+        model = self._model
+        assert torch is not None and tokenizer is not None and model is not None
+        candidates = dict(candidate_token_ids)
+        if len(candidates) < 2:
+            raise ValueError("next-token scoring requires at least two candidates")
+        if any(
+            not isinstance(label, str)
+            or not label
+            or isinstance(token_id, bool)
+            or not isinstance(token_id, int)
+            or token_id < 0
+            for label, token_id in candidates.items()
+        ):
+            raise ValueError("candidate token labels and IDs must be non-empty/positive")
+        if len(set(candidates.values())) != len(candidates):
+            raise ValueError("candidate token IDs must be unique")
+        for label, token_id in candidates.items():
+            encoded_label = tokenizer.encode(label, add_special_tokens=False)
+            if encoded_label != [token_id]:
+                raise LocalModelUnavailableError(
+                    f"candidate {label!r} is not the frozen single token {token_id}"
+                )
+
+        encoded = tokenizer(rendered, return_tensors="pt")
+        encoded = {key: value.to(self.config.device) for key, value in encoded.items()}
+        input_tokens = int(encoded["input_ids"].shape[-1])
+        started = time.perf_counter()
+        with torch.inference_mode():
+            output = model(**encoded, use_cache=False)
+        logits = output.logits[0, -1, :].float()
+        latency_ms = (time.perf_counter() - started) * 1000.0
+        if max(candidates.values()) >= int(logits.shape[0]):
+            raise LocalModelUnavailableError(
+                "frozen candidate token ID is outside the model vocabulary"
+            )
+        ordered_labels = tuple(candidates)
+        indices = torch.tensor(
+            [candidates[label] for label in ordered_labels],
+            dtype=torch.long,
+            device=logits.device,
+        )
+        selected = logits.index_select(0, indices)
+        conditional = torch.softmax(selected, dim=0)
+        full_normalizer = torch.logsumexp(logits, dim=0)
+        full_probabilities = torch.exp(selected - full_normalizer)
+        candidate_mass = torch.exp(torch.logsumexp(selected, dim=0) - full_normalizer)
+        greedy_token_id = int(torch.argmax(logits).item())
+        chat_template = getattr(tokenizer, "chat_template", "") or ""
+        metadata = {
+            **self.failure_metadata(),
+            "scoring_mode": "next_token_forced_choice",
+            "candidate_token_ids": dict(candidates),
+            "chat_template_hash": hashlib.sha256(
+                chat_template.encode("utf-8")
+            ).hexdigest(),
+            "input_prompt_hash": hashlib.sha256(
+                input_prompt.encode("utf-8")
+            ).hexdigest(),
+            "rendered_input_hash": hashlib.sha256(
+                rendered.encode("utf-8")
+            ).hexdigest(),
+            "latency_ms": latency_ms,
+            "retries": 0,
+            "terminal_failure": None,
+        }
+        return NextTokenScore(
+            candidate_logits={
+                label: float(selected[index].item())
+                for index, label in enumerate(ordered_labels)
+            },
+            conditional_probabilities={
+                label: float(conditional[index].item())
+                for index, label in enumerate(ordered_labels)
+            },
+            full_vocabulary_probabilities={
+                label: float(full_probabilities[index].item())
+                for index, label in enumerate(ordered_labels)
+            },
+            candidate_probability_mass=float(candidate_mass.item()),
+            greedy_token_id=greedy_token_id,
+            greedy_token_text=tokenizer.decode(
+                [greedy_token_id], skip_special_tokens=False
+            ),
+            usage=ModelUsage(input_tokens=input_tokens, output_tokens=0),
+            metadata=metadata,
+        )
+
     def complete(
         self,
         prompt: str,
@@ -594,6 +713,35 @@ class LocalTransformersModelClient:
             input_prompt=prompt,
             seed=seed,
             max_tokens=max_tokens,
+        )
+
+    def score_next_tokens(
+        self,
+        prompt: str,
+        *,
+        candidate_token_ids: Mapping[str, int],
+    ) -> NextTokenScore:
+        """Return a forced-choice readout plus natural first-token diagnostics."""
+
+        self._load()
+        tokenizer = self._tokenizer
+        assert tokenizer is not None
+        if getattr(tokenizer, "chat_template", None):
+            rendered = tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                tokenize=False,
+                add_generation_prompt=True,
+            )
+        else:
+            rendered = prompt
+        if not isinstance(rendered, str):
+            raise LocalModelUnavailableError(
+                "tokenizer chat template did not render text"
+            )
+        return self._score_rendered_next_tokens(
+            rendered,
+            input_prompt=prompt,
+            candidate_token_ids=candidate_token_ids,
         )
 
     @staticmethod
@@ -672,5 +820,6 @@ __all__ = [
     "LocalModelConfig",
     "LocalModelUnavailableError",
     "LocalTransformersModelClient",
+    "NextTokenScore",
     "prepare_local_checkpoint_fingerprint",
 ]
