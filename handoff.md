@@ -4325,3 +4325,178 @@ Immediate next checkpoint:
 4. only if that audit supports proceeding, materialize and validate the exact
    frozen E2 train grid, then prepare a separate submission command without
    accessing development or test.
+
+## Scientific-v6 train-only interface-realization analysis freeze on 2026-08-31
+
+This section supersedes the immediate checkpoint above. After the frozen E1
+analysis exposed suite-dependent `candidate_*` versus `theta*` output failures,
+the explicitly adaptive train-only interface-realization study was implemented
+and preregistered. The implementation and protocol were committed at
+`808b1f7d` (`Add train-only interface realization protocol`), the exact learned
+runtime was bound at `05318f0` (`Freeze interface realization runtime`), and a
+PBS preflight defect was repaired at
+`3ff7d9b039394977d14899a71f8b5cb49bede671` (`Fix interface replay PBS
+preflight`). The source worktree was clean at that revision when the successful
+run began.
+
+The frozen machine protocol is
+`configs/silenttwin/agentdojo/scientific-v6-interface-realization-train-v1.json`.
+Its scientific protocol hash is
+`b5df760faf3e6d22b24f0aab7bdf27c2fa180a0ed43fb63353444f574037f678`.
+The successful run used the immutable v2 input freeze:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-interface-realization-train/inputs/interface-realization-inputs-v2.jsonl`
+
+That file contains 744 public train-only prediction inputs and expands to
+1,860 deterministic replay calls. Its file SHA-256 is
+`2cb542afbdce850ed8cd333f292b116c6b4e5ab6238c75a1cc89b7820fa4b34d`,
+its input-metadata hash is
+`2ee75665a3766598c16ee2a6cb2bd1e8106c04e3750e4593602b25a77f2a0afe`,
+and its ordered input-record hash is
+`4c6fb55d5f1f5beadeb00235dc6f960022e8fc91ad771aeab630043265854c14`.
+It binds source-tree hash
+`a34269f24d975d083e3113f218965fd4aadd89474c6aeed59fa3400a63bb7979`,
+code revision `3ff7d9b039394977d14899a71f8b5cb49bede671`, runtime fingerprint
+`sha256:4514377f5de26810018b844c8b121b6d840654c5f7e1ff6f24386bb9722cfbf8`,
+wheel SHA-256
+`6b94ddcff7cf8ca72a4ef2f6d36ed2f53dfcc0f91ea431ce6fff674f84779113`,
+and Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+The earlier v1 input file has identical ordered scientific rows but binds the
+pre-preflight-fix revision; it is superseded and was not used by the successful
+run.
+
+PBS job `55277.gaas` (`st-v6-ir`) reached terminal state `F` with
+`Exit_status = 0`. It ran once on `hpc-gaas-g25` with one NVIDIA H200, 12 CPUs,
+and 250 GB requested memory. The scheduler reports walltime `00:15:08`, CPU
+time `00:14:55`, peak resident memory `1,282,532 kb`, peak virtual memory
+`38,678,000 kb`, and peak GPU memory `17,968 MB`. The stdout file is 4,349
+bytes with SHA-256
+`85de2e98c05b8495e60071336bafb3a846484f8e5b7f1766c3fc4e5cd0812f59`;
+stderr is 213 bytes with SHA-256
+`efffb9fa3bf162f802e3b5e7ce094a4e3feb066c99ff9bcb16bb1978dfb3d6c5`
+and contains only the Transformers `torch_dtype` deprecation plus the normal
+weight-loading progress bar.
+
+The completed run root is:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-interface-realization-train/run`
+
+Its manifest has schema
+`silenttwin.agentdojo.interface_realization_run.v1`, status `complete`, exactly
+1,860 of 1,860 completed jobs, scientific self-hash
+`34af9a3083f3c9173f6cd7546d965b60390be3d29efd4c7839fe8d79eba239f9`,
+and file SHA-256
+`b983ffa8f470b3fe5916063ddea3e8e849cbc6833c50ce004e5e60c9a06af1c7`.
+The read-only 18,730,581-byte `result.jsonl` has SHA-256
+`3580c97e0890fa06fc947125d3a0b94a097d6f884e2cc5597646dc69648edc82`.
+There are exactly 1,860 unique checkpoint files totaling 19,476,441 bytes;
+the SHA-256 of their sorted `sha256sum` ledger is
+`a763f63b0ed46d17f9c96653bc3dbac89ef563b23eabcb3e53b3b5b71f498f8a`.
+
+Independent run validation found 1,860 unique job IDs, zero model errors, zero
+terminal model failures, zero retries, and zero external API calls. Every row
+records `NVIDIA H200`, train split, scientific-evidence eligibility `true`, and
+confirmatory-claim permission `false`. All 186 `original_exact` responses
+exactly reproduce their frozen E1 response hashes. All 186
+`length_matched_explicit_exact` prompts exactly match the corresponding frozen
+original rendered-token count. These checks establish that the response
+patterns below are model/interface outcomes, not scheduler, truncation,
+checkpoint, nondeterminism, or length-matching failures.
+
+The preregistered model-free analysis is the read-only file:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-interface-realization-train/analysis/interface-realization-analysis-v1.json`
+
+It has schema `silenttwin.agentdojo.interface_realization_analysis.v1`, 1,860
+rows, 49 independent structural groups, equal-suite weighting, 5,000
+suite-stratified cluster-bootstrap resamples, scientific self-hash
+`c9ca6a64125b359e5c9b3b366f7301d22a704f0c522369f6b62ea594ff632c82`,
+and file SHA-256
+`3cf902ec9d9792774efcde4b5316724c568e4b131a4207c39b3ef31c685010ed`.
+The analyzer revalidated the protocol, input cohort and order, completed run
+manifest, result hash, and every checkpoint self-hash before publishing it.
+
+### Frozen interface-realization estimates
+
+The preregistered primary contrast does **not** support the proposed explicit
+minimal-interface rescue. In Travel and Workspace, paired contract validity
+for `minimal_explicit_exact` minus `original_exact` is -0.178125 (95% cluster
+bootstrap CI -0.228125 to -0.125000). The explicit minimal arm has zero strict
+contract validity in all four suites.
+
+The preregistered mechanism contrasts are:
+
+| Contrast (arm A minus arm B) | Estimate | 95% CI |
+| --- | ---: | ---: |
+| Minimal implicit minus original exact, Travel/Workspace | +0.426042 | [+0.338542, +0.514583] |
+| Minimal explicit minus minimal implicit, Travel/Workspace | -0.604167 | [-0.675000, -0.537500] |
+| Length-matched explicit minus unpadded explicit | 0.000000 | [0.000000, 0.000000] |
+| Opaque-label explicit minus theta-label explicit | +0.460417 | [+0.426042, +0.490625] |
+| Original posterior-only minus original exact | +0.410938 | [+0.385938, +0.437500] |
+| Minimal explicit posterior-only minus minimal explicit exact | 0.000000 | [0.000000, 0.000000] |
+
+Selected equal-suite cells make the mechanism visible. `original_exact` has
+contract validity 0.589063, posterior validity 1.0, candidate-namespace
+substitution 0.410938, and target ROC-AUC 0.885208. `minimal_implicit_exact`
+has contract/posterior validity 0.590436 and target ROC-AUC 0.868530 among
+estimable posteriors. `original_posterior_only` is contract-valid on every row
+but its target ROC-AUC falls to 0.738126. `opaque_explicit_exact` recovers
+0.460417 contract validity and target ROC-AUC 0.800000. By contrast,
+`minimal_explicit_exact` has zero contract validity and only 0.090436 posterior
+validity; the length-matched explicit and minimal explicit posterior-only arms
+have zero posterior and contract validity.
+
+The zero-valued explicit cells are not empty or model failures. In the 186
+genuine `minimal_explicit_exact` responses, 138 use only a
+`private_authorization_state` top-level key, 26 use
+`authorization_state` plus `reason`, and 22 use `posterior` plus
+`private_authorization_state`; none emits the requested exact
+`prediction` plus `posterior` schema. In the 186 genuine explicit
+posterior-only responses, 160 use `private_authorization_state` and 26 use
+`authorization_state` plus `candidate_labels`. The same schema displacement
+occurs in every shuffled and constant source-control response. Opaque state
+labels restore the requested `prediction` plus `posterior` schema in 88 of 186
+rows, whereas the literal theta labels with explicit authorization semantics
+restore none.
+
+### Frozen scientific disposition
+
+The primary explicit-grounding hypothesis is refuted in direction: adding the
+semantic mapping makes strict interface realization worse. The broader
+adaptive channel--realization explanation nevertheless gains mechanism support
+from three prespecified observations: the original arm always emits a valid
+posterior with high target AUC despite frequent prediction-label substitution;
+the minimal implicit arm improves difficult-suite contract validity by 42.6
+points; and removing the prediction field from the original full interface
+raises contract validity by 41.1 points. The surprising negative grounding and
+positive opaque-label contrasts indicate a stronger, narrower hypothesis:
+literal label semantics can induce an alternative response schema, so output
+contract realization is itself an active part of the measured behavior rather
+than a neutral readout of a fixed latent posterior.
+
+Raw prompt length receives no positive support: exact inert length padding did
+not change the zero-validity explicit cell. Because both explicit cells are on
+the floor, this observation should be stated as no detected length effect, not
+as proof that length can never matter. The source-control predictions are
+unestimable: the sole preregistered source-control arm produced no valid
+posterior for genuine, matched-shuffled, or constant inputs. Those zeros must
+not be interpreted as target/donor chance behavior, and they do not repair the
+failed E1 shuffled-placebo gate.
+
+This entire result remains adaptive train-only evidence for one frozen Qwen
+checkpoint. No development or test outcome was inspected, no confirmatory
+claim is permitted, no E1 row or score changed, and no held-out gate opened.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only interface-realization freeze; do not
+   edit the frozen protocol or analysis artifact;
+2. redesign the next train-only source-control readout around a reliably
+   realizable, label-randomized output interface rather than reuse the failed
+   explicit-theta arm;
+3. preregister schema realization and evidence discrimination as separate
+   endpoints, with the source-control AUC estimable only after a frozen
+   contract-validity floor is met; and
+4. do not access development/test or run E2 until that design decision is
+   explicitly reconciled with the paper's revised claim boundary.
