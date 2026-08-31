@@ -4035,3 +4035,116 @@ Immediate next checkpoint:
    frozen eight-task run root, without accessing E2, development, or test; and
 4. run and validate the E1 aggregate before making any train-gate or E2
    decision.
+
+## Scientific-v6 E1 aggregate preparation on 2026-08-31
+
+This section supersedes the immediate checkpoint above. The complete-E1
+freeze was committed at `8d43f95e1cacabe6ac44ac27375ed560b18cb3ff`
+(`Freeze scientific v6 E1 completion`), and the worktree was clean before
+preparation. No aggregate result was created and `qsub` was not called.
+
+Fresh identity checks reproduced executable source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and full Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+The immutable plan, E1 grid, strategy catalog, pair registry, and local wheel
+remain mode `0444` with their previously frozen file SHA-256 values
+`592d9de4075ef7014bc8356dc6d983bdeb0d5ee23d65f6fd3e0aaea873d508d0`,
+`05f85cf591beca4161927bdf685fa244e89f3d436d970385bdf764b4f247f0bc`,
+`e9a17f2b3eb04a181a0459e489293aebe911ed0d939cbabf83dad2c3f5377b07`,
+`2e326c093011562b3a5f913b211b79c95ba2b9e73e36418645835d7f71306154`,
+and `76217db019e5816c57e527d60c5f7a0ea39490f6742c972c2be75c2b63075fa9`.
+The analysis-plan file SHA-256 is
+`70cdbb82bddd65d5fa506355047e44e699dd5f9e8fa23b9f8f1cd9aeb0efc84f`
+and its scientific `stable_hash` is
+`f76e10b58d8273e5e1ab3306bd2da993f8a907989b1f107febc269b0ca1eb353`.
+It retains 5,000 suite-stratified structural-scenario bootstrap resamples,
+seed `20260830`, and equal-suite weighting.
+
+The full-E1 input freeze was independently reconstructed again from the 288
+published manifests and checkpoint trial lists. It still contains 288 shards,
+8,928 globally unique trials, 10,368 regular files, and 10,275,769,869 bytes.
+Its binding digest remains
+`b5a1180deea65595e0ca1595d89823f94cfff441f06fc3d290227247ea470e43`,
+and its completion-freeze digest remains
+`42790386125b415a3daba6aefcef83181e61c82c7d7b5ed0d8ae88c9089fa8df`.
+
+The aggregate implementation is explicitly dependency-free and model-free.
+The core Python 3.11 environment at
+`/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python`
+imports aggregate schemas `silenttwin.agentdojo.aggregate.v1` and
+`silenttwin.agentdojo.analysis_manifest.v1`; it does not need the learned
+Torch environment or a model checkpoint at execution time. The focused
+aggregate metric suite passed (`9 passed`), and both the shared launcher and
+scientific-v6 entrypoint pass `bash -n`.
+
+A clean-environment shell probe used a temporary Python shim only to exercise
+launcher resolution. It resolved exactly:
+
+```text
+-m silenttwin.agentdojo.aggregate
+--input-root /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/runs
+--output-dir /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/aggregate
+--expected-grid-manifest /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/grid/grid-manifest.jsonl
+--analysis-plan /home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json
+```
+
+No `--allow-development-partial` or upstream-E1-manifest argument was
+resolved. The probe created no output and its temporary shim was removed. The
+real aggregate destination remains absent. The persistent scheduler-log
+directory was created empty at mode `0755`:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-aggregate`
+
+The aggregate first loads and strictly revalidates all 10.28 GB of run
+artifacts, then computes the frozen 5,000-resample statistics. It creates the
+aggregate directory only after those calculations and prints its sole success
+record at the end. Therefore an empty stdout log and an absent aggregate path
+while the PBS job is running are expected and are not evidence of a hang.
+Monitor PBS CPU, memory, and walltime instead. A successful run must exit zero
+and publish exactly `summary.json`, `analysis_manifest.json`,
+`validated_run_index.json`, and the copied `grid_manifest.jsonl`; each output
+must then be validated before use.
+
+Queue `gpu_free` is enabled and started, requires exactly one GPU, permits at
+most `04:00:00`, and enforces `max_run = [u:PBS_GENERIC=1]`. No job was active
+for `suaq0001` during preparation. Aggregation itself uses no GPU; the command
+requests one only because this site's available queue requires it. The 250 GB
+memory request leaves margin for Python's in-memory expansion of the 10.28 GB
+JSON corpus. This is one ordinary PBS job, not an array.
+
+The explicit environment allowlist below has 17 unique ordered keys and is
+1,526 ASCII bytes. It sets
+`AGENTDOJO_ALLOW_DEVELOPMENT_PARTIAL=0`, does not set
+`E1_ANALYSIS_MANIFEST`, and does not use `qsub -V`.
+
+Resolved E1 aggregate command (**prepared, not submitted**):
+
+```bash
+export PBS_E1_AGGREGATE_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python,PYTHONDONTWRITEBYTECODE=1,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train,STAGE=aggregate,RECIPIENT_EXPERIMENT=e1,AGENTDOJO_DATASET_SPLIT=train,GRID_MANIFEST=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/plans/recipient-separation-train-v1.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json,AGENTDOJO_ANALYSIS_PLAN=/home/suaq0001/projects/silent_twin/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/requirements-tier2-agentdojo.lock,AGENTDOJO_ALLOW_DEVELOPMENT_PARTIAL=0"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=04:00:00 \
+  -N st-v6-e1-agg \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-aggregate/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e1-aggregate/ \
+  -v "$PBS_E1_AGGREGATE_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh
+```
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only aggregate preparation; the executable
+   source-tree hash must remain unchanged;
+2. immediately before submission, recheck the clean worktree and frozen
+   source/input/analysis identities, reproduce the full-E1 completion digest,
+   require the aggregate destination to remain absent and the log directory to
+   remain empty, and recheck the live PBS queue/user state;
+3. call `qsub` only after separate explicit approval to submit exactly the
+   single job above; and
+4. after completion, validate all four aggregate artifacts and freeze the E1
+   analysis before interpreting the train gate or preparing E2.
