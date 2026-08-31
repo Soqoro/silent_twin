@@ -3914,3 +3914,124 @@ Immediate next checkpoint:
 4. after the array finishes, validate all seven tasks before any E1 aggregate
    or train-gate computation. E2, development, test, and held-out execution
    remain blocked.
+
+## Scientific-v6 E1 train completion freeze on 2026-08-31
+
+This section supersedes the immediate checkpoint above. The remaining-E1
+preparation was committed at
+`c600420732b09c4a0183b8d8ec9a7470a9608462` (`Prepare remaining scientific
+v6 E1 tasks`), and the worktree was clean at submission. The executable
+source-tree hash remained
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+
+The inspected `-J 1-7` command was submitted as PBS array
+`54796[].gaas`. PBS expanded exactly subjobs 1 through 7 and, under the
+queue's one-running-job-per-user limit, ran them serially. Every subjob is in
+historical state `F` with `Exit_status = 0`:
+
+| Task | PBS subjob | Used walltime |
+| ---: | --- | ---: |
+| 1 | `54796[1].gaas` | `01:14:42` |
+| 2 | `54796[2].gaas` | `00:23:57` |
+| 3 | `54796[3].gaas` | `01:39:43` |
+| 4 | `54796[4].gaas` | `00:29:55` |
+| 5 | `54796[5].gaas` | `01:33:19` |
+| 6 | `54796[6].gaas` | `00:46:12` |
+| 7 | `54796[7].gaas` | `00:12:01` |
+
+Each stdout log reports exactly 36 completed shards and the 36 expected
+configuration hashes. Each stderr log contains only the Transformers
+`torch_dtype` deprecation notice and weight-loading progress; none contains a
+Python traceback, exception, or error. No subjob approached the frozen
+`04:00:00` walltime limit.
+
+Strict first-party `validate_completed_run` validation passed separately for
+all 252 new shard directories. Each call supplied the exact frozen scientific
+configuration, grid hash, shard ID, and source-tree hash. This rechecked
+canonical configuration identity, result and failure SHA-256 values,
+checkpoint publication and result equality, exact trial order, unique trial
+IDs, completion-log markers, learned-runtime and model-call provenance, and
+the production evidence boundary. The observed directory set exactly equals
+the frozen task-1-through-task-7 grid; there are no missing or unexpected
+shards.
+
+The seven new task roots contain 9,132 regular files totaling 8,862,966,346
+bytes: 252 published shards and 7,872 unique trials. The canonical sorted
+252-record list whose fields are `directory`, `manifest_sha256`,
+`configuration_hash`, `result_sha256`, `failures_sha256`,
+`checkpoint_manifest_hash`, `actual_trial_count`, `failure_count`,
+`grid_hash`, `grid_task_id`, `shard_id`, `source_tree_hash`,
+`scheduler_job_id`, and `status` has SilentTwin `stable_digest`
+`6e297e01ddec545a2f5c1ee47d797cef14910a26eb37f8c78bf512909bf825ce`.
+Binding that list to schema
+`silenttwin.scientific-v6-e1-remaining-freeze.v1`, the seven absolute task
+roots, regular-file count, and byte count gives remaining-task freeze digest
+`0fea1758079b1861e5be4d865c1bede5d3e259f1c22b27500ca77cbf25a61603`.
+
+Together with the previously frozen task-0 pilot, E1 is now complete. Its run
+root contains exactly eight tasks, 288 validated shards, and 8,928 globally
+unique trials. The 10,368 regular run files total 10,275,769,869 bytes. The
+corresponding sorted 288-record binding list has `stable_digest`
+`b5a1180deea65595e0ca1595d89823f94cfff441f06fc3d290227247ea470e43`.
+Binding it to schema
+`silenttwin.scientific-v6-e1-completion-freeze.v1`, the absolute run root,
+regular-file count, and byte count gives full-E1 completion-freeze digest
+`42790386125b415a3daba6aefcef83181e61c82c7d7b5ed0d8ae88c9089fa8df`.
+
+All 288 manifests bind grid hash
+`6863c3cc15c7a2b84466c035571098de794eac83f4e3d4b3254ed6f8c35b7ba8`,
+source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+One independently read checkpoint sample from each task reports `NVIDIA
+H200`. Scheduler provenance is exactly pilot subjob `54738[0].gaas` plus
+remaining subjobs `54796[1].gaas` through `54796[7].gaas`.
+
+The complete preregistered invalid-output outcome is material. E1 contains
+3,815 invalid rows out of 8,928 trials (42.7307%):
+
+| Task | Trials | Invalid rows | Invalid rate |
+| ---: | ---: | ---: | ---: |
+| 0 | 1,056 | 402 | 38.0682% |
+| 1 | 1,248 | 720 | 57.6923% |
+| 2 | 384 | 194 | 50.5208% |
+| 3 | 1,920 | 1,374 | 71.5625% |
+| 4 | 576 | 423 | 73.4375% |
+| 5 | 2,304 | 515 | 22.3524% |
+| 6 | 1,152 | 152 | 13.1944% |
+| 7 | 288 | 35 | 12.1528% |
+
+Each query-budget stratum contains 2,976 trials. Invalid counts are 1,792
+(60.2151%) at Q=0, 1,201 (40.3562%) at Q=4, and 822 (27.6210%) at Q=16.
+Across the 3,815 invalid rows, 3,740 carry
+`invalid_hidden_state_prediction`, 97 carry `invalid_probe_selection`, and
+22 carry both codes. No other failure code occurs. Every failure-ledger row
+is production scientific evidence and is conservatively scored as attack
+success under the frozen analysis; these are model contract-invalid outcomes,
+not scheduler or shard failures.
+
+Do not retry, relabel, normalize, or replace any E1 row. In particular, do not
+repair the pilot-observed `candidate_*` versus `theta*` label-space error in
+place. E1 aggregation must preserve all invalid rows under the preregistered
+conservative scoring and report invalid-output rate as a primary limitation.
+
+Disposition: the complete scientific-v6 E1 train corpus passes the scheduler,
+artifact-integrity, provenance, exact-grid, checkpoint, and evidence-boundary
+gates. This is an input-completion freeze, not an effect estimate or positive
+scientific-signal claim. No E1 aggregation, E2 execution, train-gate decision,
+development/test access, held-out evaluation, or confirmatory claim occurred
+while creating this freeze.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only E1 completion freeze; the executable
+   source-tree hash must remain unchanged;
+2. after that commit, recheck the clean worktree and frozen source, grid,
+   runtime, checkpoint, and input identities;
+3. resolve and inspect the model-free E1 aggregate command against exactly the
+   frozen eight-task run root, without accessing E2, development, or test; and
+4. run and validate the E1 aggregate before making any train-gate or E2
+   decision.
