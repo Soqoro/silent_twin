@@ -135,7 +135,7 @@ def test_checked_protocol_binds_exact_runtime_and_adaptive_boundary() -> None:
 
     assert validate_protocol(protocol) == protocol["protocol_hash"]
     assert protocol["model"]["runtime_fingerprint"] == (
-        "sha256:2254f440ad764ac62140ba527d775321699fa83406865b87b9930c40703817ae"
+        "sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c"
     )
     assert protocol["design"]["expected_model_calls"] == 2976
     assert protocol["adaptive_design_disclosure"][
