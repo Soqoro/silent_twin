@@ -4148,3 +4148,180 @@ Immediate next checkpoint:
    single job above; and
 4. after completion, validate all four aggregate artifacts and freeze the E1
    analysis before interpreting the train gate or preparing E2.
+
+## Scientific-v6 E1 aggregate and analysis freeze on 2026-08-31
+
+This section supersedes the immediate checkpoint above. The aggregate
+preparation was committed at
+`7d8cffc009df45b389395b2f0072ff26fa552f7a` (`Prepare scientific v6 E1
+aggregate`), and the worktree was clean before this freeze. No executable,
+configuration, grid, model, or result artifact was changed while preparing
+this record.
+
+PBS job `55195.gaas` (`st-v6-e1-agg`) reached terminal state `F` with
+`Exit_status = 0`. The terminal scheduler record reported walltime `00:22:16`,
+CPU time `00:22:04`, CPU percent `85`, peak memory `7,830,924 kb`, peak virtual
+memory `7,853,688 kb`, and execution on `hpc-gaas-g25`. The job reserved 12
+CPUs and one GPU because of the site queue contract, although aggregation was
+model-free. The persistent stdout file is 184 bytes and contains exactly one
+JSON completion record for E1 with 288 leaves; the stderr file is empty. The
+job has since aged out of the live PBS query on the login node, so the terminal
+scheduler record, persistent logs, and immutable output files are the retained
+execution evidence.
+
+The aggregate output is:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/aggregate`
+
+It contains exactly four regular files:
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `analysis_manifest.json` | 78,619 | `5edaf84a10b0775eb4d3f53ace1bf39a3aaef4abb1203076e311f7389a5c1c03` |
+| `grid_manifest.jsonl` | 1,220,460 | `05f85cf591beca4161927bdf685fa244e89f3d436d970385bdf764b4f247f0bc` |
+| `summary.json` | 341,748 | `b1c3efed9479f353a80669bb12c24d5e5df7363b80994acea53026f7b0622cd5` |
+| `validated_run_index.json` | 112,202 | `c494f81c91b65dd3a6b6fc1ea3c3fb571d4126292da5d1bc4e36d23a8457af6b` |
+
+The four files total 1,753,029 bytes. The aggregate copy of
+`grid_manifest.jsonl` is byte-identical to the frozen E1 grid. The sorted
+canonical records `{filename, bytes, sha256}` have SilentTwin `stable_digest`
+`686e85dec22d6804219b9ace53f6f51420006868f8cd75de0bdff0ee467ef63c`.
+Binding that digest to schema
+`silenttwin.scientific-v6-e1-aggregate-freeze.v1`, the absolute output path,
+scheduler job `55195.gaas`, file and byte counts, analysis-manifest hash, and
+current-evidence hash gives aggregate-freeze digest
+`af466a93572e3e899725bf9cba6b0cbc54be8a2198ef53df60dab5306af2cb0c`.
+
+The analysis manifest's self-hash was independently recomputed after removing
+its `analysis_manifest_hash` field. It is
+`447eaf9bec1f86cf592efb8e7d9a89153736089864831920f89acb6e792b077e`.
+The canonical hash of `current_evidence_digest_payload` is
+`77c68d362667a0f624f9cac4e476dc24f06ac60f96a797b8f616bff8995ec651`,
+which exactly matches both `current_evidence_hash` and
+`development_evidence_hash`. The analysis-plan hash remains
+`f76e10b58d8273e5e1ab3306bd2da993f8a907989b1f107febc269b0ca1eb353`,
+and the upstream chain remains
+`ed317185bc3b80cee2cba520ac206c9d9abf84a70009ec41aab49498ea91f2f7`.
+
+Independent structural validation reproduced all of the following:
+
+- schemas `silenttwin.agentdojo.aggregate.v1`,
+  `silenttwin.agentdojo.analysis_manifest.v1`, and
+  `silenttwin.agentdojo.validated_run_index.v1`;
+- experiment `e1`, controlled track, train split, real AgentDojo backend, and
+  non-fixture execution;
+- disposition `controlled_authorization_recipient_separation_v1`, evidence
+  class `agentdojo_estimation_only`, scientific-evidence eligibility `true`,
+  and confirmatory-claim permission `false`;
+- exact expected-grid validation against grid hash
+  `6863c3cc15c7a2b84466c035571098de794eac83f4e3d4b3254ed6f8c35b7ba8`;
+- exactly 288 unique, canonically sorted configuration/shard identities whose
+  membership equals the frozen grid, with 8,928 trial rows; and
+- 49 independent structural groups: 20 workspace, 10 travel, 8 banking, and
+  11 slack.
+
+The executable source-tree hash independently reproduced as
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+The full input freeze remains 288 shards, 8,928 trials, 10,368 regular files,
+10,275,769,869 bytes, binding digest
+`b5a1180deea65595e0ca1595d89823f94cfff441f06fc3d290227247ea470e43`,
+and completion-freeze digest
+`42790386125b415a3daba6aefcef83181e61c82c7d7b5ed0d8ae88c9089fa8df`.
+
+### Frozen E1 estimates
+
+The preregistered equal-suite primary comparison, generic-failure genuine
+feedback at Q=16 minus the same condition at Q=0, estimates a 24.6023
+percentage-point accuracy gain (95% CI 18.0586 to 30.9848 points; paired
+sign-flip `p=0.02220`; 49 independent groups). The task-weighted sensitivity
+estimate is 15.3061 points (95% CI 8.8414 to 21.7687 points).
+
+The required matched-shuffled Q=16 minus Q=0 negative-control comparison
+estimates a 7.6491-point gain (90% CI 2.4336 to 12.7705 points; paired
+sign-flip `p=0.24858`; 49 independent groups). Its task-weighted sensitivity
+estimate is 4.4643 points (90% CI -1.0629 to 9.9490 points). The equal-suite
+90% interval is not wholly inside the frozen equivalence interval `[-0.05,
+0.05]`; therefore the preregistered placebo TOST equivalence criterion fails.
+The pointwise genuine-Q16 minus matched-shuffled-Q16 accuracy difference is
+16.9531 points, but the aggregate does not publish a preregistered paired
+interval for that direct contrast, so this value is descriptive and is not a
+substitute gate.
+
+Selected equal-suite generic-failure curve estimates are:
+
+| Source and budget | Accuracy | ROC-AUC | Invalid-output rate | Transcript AUC |
+| --- | ---: | ---: | ---: | ---: |
+| genuine Q=0 | 0.2180 | 0.5000 | 0.5639 | 0.5000 |
+| genuine Q=16 | 0.4641 | 0.7681 | 0.4109 | 1.0000 |
+| matched-shuffled Q=16 | 0.2945 | 0.5000 | 0.4109 | 0.5000 |
+
+Under conservative scoring, even genuine Q=16 accuracy remains 3.5938 points
+below the best state prior of 0.5 (95% CI -5.7292 to -1.3021 points). Thus the
+primary within-condition gain and AUC evidence are real features of this
+corpus, but raw prediction accuracy does not exceed the prior after retaining
+contract-invalid outputs.
+
+The suite-level generic genuine Q=16-minus-Q=0 results are heterogeneous:
+
+| Suite | Accuracy gain | 95% CI | ROC-AUC (95% CI) | Holm-adjusted p | Replicates criterion |
+| --- | ---: | ---: | ---: | ---: | --- |
+| banking | 0.5625 | [0.3958, 0.7292] | 1.0000 [1.0000, 1.0000] | 0.02344 | yes |
+| slack | 0.6591 | [0.5455, 0.7955] | 1.0000 [1.0000, 1.0000] | 0.00391 | yes |
+| travel | -0.0500 | [-0.1500, 0.0000] | 0.5000 [0.5000, 0.5000] | 1.00000 | no |
+| workspace | -0.1875 | [-0.3063, -0.0625] | 0.5725 [0.5000, 0.6503] | 0.02660 | no |
+
+Banking and slack therefore meet the frozen minimum-two-suite leakage
+replication observation, while travel and workspace show that the effect does
+not generalize uniformly across suites. The emitted gate statuses remain
+`not_confirmatory`, rather than being promoted to `pass`, because this entire
+action-representable protocol is explicitly estimation-only.
+
+The complete E1 corpus contains 3,815 invalid rows out of 8,928 (42.7307%).
+There are 3,740 `invalid_hidden_state_prediction` codes, 97
+`invalid_probe_selection` codes, and 22 rows carrying both. In the primary
+generic-failure curve, the invalid-output rate falls from 56.3920% at genuine
+Q=0 to 41.0938% at genuine Q=16; the matched-shuffled Q=16 cell has the same
+41.0938% rate. Accordingly, part of the observed accuracy change is an
+interaction/output-validity effect, and the placebo improvement prevents a
+clean attribution of the whole gain to target-state leakage. Per the frozen
+protocol, no row is retried, relabeled, normalized, or replaced.
+
+### Frozen scientific disposition
+
+The E1 aggregate passes scheduler completion, artifact integrity, provenance,
+exact-grid membership, balance, private-namespace, and evidence-boundary
+checks. The emitted `complete_cohorts=false` value is not missing data: the
+implementation defines complete cohorts as exact-grid membership *and*
+confirmatory suite eligibility, while this four-suite train protocol is
+deliberately marked estimation-only. Exact grid membership is independently
+true.
+
+Scientifically, E1 provides a strong but suite-dependent feedback-leakage
+signal, especially in banking and slack. It does not provide a clean positive
+train-opening gate. The matched-shuffled placebo is not equivalent to the
+prior-only condition within the preregistered five-point margin. Section 7 of
+the frozen protocol says that this condition keeps development closed.
+Therefore:
+
+- development and test remain closed;
+- the E1 manifest is not a permission-bearing upstream gate and no
+  confirmatory or held-out claim is permitted;
+- E2 cannot retroactively make the failed E1 placebo-equivalence criterion
+  pass or open development under the current frozen rules; and
+- E2 train remains scientifically useful and within the existing access
+  policy for estimating R2/R3: whether the interaction produces real
+  prohibited effects and whether recipient separation removes incremental
+  query benefit. It requires a separate value/readiness decision before any
+  grid materialization or `qsub` call.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only E1 aggregate/analysis freeze; the
+   executable source-tree hash must remain unchanged;
+2. after that commit, recheck the clean repository and all frozen E1 bindings;
+3. perform an E2-train scientific-value and readiness audit against the
+   immutable v6 protocol, explicitly treating E2 as estimation rather than as
+   a route around the failed E1 placebo gate; and
+4. only if that audit supports proceeding, materialize and validate the exact
+   frozen E2 train grid, then prepare a separate submission command without
+   accessing development or test.
