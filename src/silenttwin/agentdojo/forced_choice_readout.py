@@ -101,6 +101,10 @@ def validate_protocol(document: Mapping[str, Any]) -> str:
         raise ForcedChoiceReadoutError("protocol context order differs from code")
     if tuple(design.get("surface_order", ())) != SURFACE_ORDER:
         raise ForcedChoiceReadoutError("protocol surface order differs from code")
+    if design.get("surface_mappings") != {
+        surface: _surface_mapping(surface) for surface in SURFACE_ORDER
+    } or design.get("surface_assignment_depends_on_hidden_state") is not False:
+        raise ForcedChoiceReadoutError("protocol surface randomization differs from code")
     if design.get("expected_input_records") != 744 or design.get(
         "expected_model_calls"
     ) != 2976:
@@ -112,13 +116,22 @@ def validate_protocol(document: Mapping[str, Any]) -> str:
         raise ForcedChoiceReadoutError("protocol answer-token identity changed")
     if model.get("scoring_mode") != "next_token_forced_choice":
         raise ForcedChoiceReadoutError("protocol scoring mode changed")
+    prompt_bindings = document.get("prompt_bindings")
+    if (
+        not isinstance(prompt_bindings, Mapping)
+        or prompt_bindings.get("instruction") != FORCED_CHOICE_INSTRUCTION
+    ):
+        raise ForcedChoiceReadoutError("protocol prompt instruction differs from code")
     analysis = document.get("analysis")
     if (
         not isinstance(analysis, Mapping)
         or analysis.get("independent_unit") != "structural_group_id"
         or analysis.get("suite_weighting") != "equal_suite"
         or analysis.get("bootstrap_resamples") != 5000
+        or analysis.get("bootstrap_seed") != 20260831
         or analysis.get("minimum_paired_readout_validity") != 1.0
+        or analysis.get("positive_auc_confidence_level") != 0.95
+        or analysis.get("equivalence_confidence_level") != 0.9
         or analysis.get("chance_auc_equivalence_margin") != [0.45, 0.55]
     ):
         raise ForcedChoiceReadoutError("protocol analysis contract changed")
@@ -309,6 +322,10 @@ def freeze_inputs(
         != upstream["interface_input_metadata_hash"]
         or interface_metadata.get("input_records_hash")
         != upstream["interface_input_records_hash"]
+        or interface_metadata.get("protocol_hash")
+        != upstream["interface_protocol_hash"]
+        or interface_metadata.get("development_outcomes_inspected") is not False
+        or interface_metadata.get("test_outcomes_inspected") is not False
     ):
         raise ForcedChoiceReadoutError("interface input identity is inconsistent")
     if sha256_file(interface_analysis_path) != upstream["interface_analysis_file_sha256"]:
@@ -342,6 +359,17 @@ def freeze_inputs(
             checkpoint_path, model_cache_path, protocol["model"]
         )
     )
+    prompt_bindings = protocol["prompt_bindings"]
+    expected_token_audit = {
+        "answer_token_ids": dict(protocol["model"]["answer_token_ids"]),
+        "chat_template_hash": prompt_bindings["chat_template_hash"],
+        "rendered_prefix_hash": prompt_bindings[
+            "rendered_token_probe_prefix_hash"
+        ],
+        "token_audit_hash": prompt_bindings["token_audit_hash"],
+    }
+    if token_audit != expected_token_audit:
+        raise ForcedChoiceReadoutError("active tokenizer differs from protocol binding")
 
     records: list[dict[str, Any]] = []
     for source in interface_records:
