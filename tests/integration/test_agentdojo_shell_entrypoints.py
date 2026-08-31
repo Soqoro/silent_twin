@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -195,6 +196,46 @@ def test_interface_realization_entrypoint_rejects_nontrain_split() -> None:
 
     assert result.returncode == 2
     assert "interface-realization replay is train-only" in result.stderr
+
+
+def test_interface_realization_authorized_preflight_has_python_pin(tmp_path: Path) -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "PBS_JOBID": "fixture.gaas",
+            "PBS_ENVIRONMENT": "PBS_BATCH",
+            "PBS_O_HOME": str(tmp_path),
+            "PBS_JOBDIR": str(tmp_path),
+            "PYTHON_BIN": sys.executable,
+            "INTERFACE_REALIZATION_PROTOCOL": str(tmp_path / "missing-protocol.json"),
+            "INTERFACE_REALIZATION_INPUTS": str(tmp_path / "missing-inputs.jsonl"),
+            "INTERFACE_REALIZATION_OUTPUT": str(tmp_path / "output"),
+            "AGENTDOJO_DEPENDENCY_LOCK": str(tmp_path / "lock"),
+            "AGENTDOJO_MODEL_CACHE": str(tmp_path / "cache"),
+            "AGENTDOJO_ATTACKER_CHECKPOINT": str(tmp_path / "checkpoint"),
+            "AGENTDOJO_DATASET_SPLIT": "train",
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_interface_realization_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "missing frozen interface-realization protocol" in result.stderr
+    assert "unbound variable" not in result.stderr
 
 
 def test_recipient_separation_entrypoint_requires_frozen_inputs() -> None:

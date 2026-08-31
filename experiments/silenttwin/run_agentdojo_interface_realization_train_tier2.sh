@@ -20,6 +20,8 @@ source "$script_dir/_agentdojo_common.sh"
 : "${AGENTDOJO_DEPENDENCY_LOCK:?set the frozen AgentDojo dependency lock}"
 : "${AGENTDOJO_MODEL_CACHE:?set the persistent offline model cache}"
 : "${AGENTDOJO_ATTACKER_CHECKPOINT:?set the frozen Qwen checkpoint}"
+AGENTDOJO_PYTHON_PIN="${AGENTDOJO_PYTHON_PIN:-$AGENTDOJO_REPO_ROOT/configs/silenttwin/agentdojo/python-version.txt}"
+export AGENTDOJO_PYTHON_PIN
 
 if [[ "${AGENTDOJO_DATASET_SPLIT:-train}" != train ]]; then
     agentdojo_die "interface-realization replay is train-only"
