@@ -4694,3 +4694,90 @@ Immediate next checkpoint:
    or submitting any E2 grid; and
 4. keep development and test closed. Neither adaptive study is a route around
    the failed E1 gate.
+
+## Scientific-v6 E2 train value/readiness audit on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The forced-choice
+analysis freeze was committed at
+`6f561d371ac820836f7abb26c35cb44fcb9cbcf4` (`Freeze forced-choice readout
+analysis`). No E2 outcome, development outcome, or test outcome has been
+accessed.
+
+The prospective audit is recorded in
+`docs/scientific_v6_e2_train_readiness.md`. Its decision is to proceed only to
+the already frozen E2 train task-0 pilot. E2 remains adaptive estimation: it
+cannot repair the failed E1 placebo gate, open development/test, or support a
+confirmatory claim. It is scientifically useful because the forced-choice
+study placed the signal upstream of action, while E2 is the remaining frozen
+test of one-slot action transfer and recipient-separation closure.
+
+The audit found one important interpretation constraint. In the frozen
+implementation, an invalid hidden-state prediction makes the row invalid and
+therefore sets `conservative_attack_success=1`, even when the final action was
+separately selected and graded. In E1, genuine Q=16 and matched-shuffled Q=16
+had identical suite-level invalid-prediction rates (Banking 0, Slack 0, Travel
+1, Workspace 0.64375), whereas genuine Q=0 differed (0.5, 0.31818, 0.9,
+0.5375). The original conservative E2 endpoints remain mandatory, but their
+Q=16-versus-Q=0 contrast can mix action and interface validity. The already
+preregistered genuine-Q=16 minus matched-shuffled-Q=16
+`state_matched_selection` contrast is therefore fixed prospectively as the
+cleanest mechanism estimate. Final-effect commitment, valid-run attack
+success, invalidity, and error strata must be reported beside it.
+
+The immutable E2 grid remains unchanged: file SHA-256
+`8a3f8523c6a775c81c8e0641a50dd140c26d4b27550a6f3951fe625e93fae6d3`,
+grid hash
+`d39cbe84be17f78892813ab52c3c7e4c5603958329cf9d79739838081ed0a90c`,
+104 configurations, 13 cells per task, eight tasks, 93 train scenarios, and
+4,836 trials. The maximum model-call envelope is 45,756. Task 0 is an
+11-scenario Workspace bundle with 13 configurations, 572 trials, and at most
+5,412 Qwen completions. Its scientific effect direction is not a release gate
+for other suites; only structural/integrity failure or a rejected-effect
+commit can stop the frozen continuation.
+
+Current main has a later source-tree identity and cannot execute this grid.
+A persistent ignored checkout was created at:
+
+`/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5`
+
+It is clean at detached commit
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` and independently reproduces the
+required source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+Using the historical source and an isolated diagnostic runtime, all 13 task-0
+members passed the complete model-free source, artifact, grid, dependency,
+checkpoint-path, and runtime preflight. The diagnostic runtime reproduced the
+frozen learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+while the original learned environment remained at the later forced-choice
+fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`.
+
+The production pilot should use the previously verified procedure rather than
+the diagnostic clone: force-reinstall the archived historical wheel offline
+into the original learned-environment prefix, rederive the exact frozen
+fingerprint, run task 0 from the detached source checkout, and restore the
+forced-choice wheel only after the PBS job terminates. The historical wheel
+is mode `0444`, 475,707 bytes, and has SHA-256
+`76217db019e5816c57e527d60c5f7a0ea39490f6742c972c2be75c2b63075fa9`.
+The later restoration wheel is the preserved forced-choice artifact with
+SHA-256
+`c9c14bc9aa0b4a1ffaa7df89b097e49c90315eefc78d10e3b7c52a7431231bb3`.
+
+PBS inspection found no user job. `gpu_free` currently reports four running
+and 48 queued jobs, so a pilot may wait in queue. No log directory, E2 run
+directory, model load, GPU allocation, wheel swap, or `qsub` call has occurred
+at this checkpoint.
+
+Immediate next checkpoint:
+
+1. review and commit this readiness/proposal/handoff freeze;
+2. from the clean committed checkout, revalidate the detached historical
+   source, old and restoration wheel hashes, frozen E2 artifacts, Qwen
+   snapshot, queue state, and absent task-0 destination;
+3. perform the offline historical-wheel swap and verify runtime fingerprint
+   `sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`;
+4. prepare and submit only PBS array index 0 using the detached source checkout
+   and the immutable E2 grid; and
+5. do not restore the active wheel until the task-0 process terminates, then
+   validate all 572 rows before releasing any remaining E2 task.
