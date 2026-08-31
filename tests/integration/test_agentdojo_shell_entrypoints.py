@@ -18,6 +18,7 @@ ENTRYPOINTS = (
     "run_experiment_5_assumption_ablations_agentdojo_tier2.sh",
     "run_agentdojo_ecological_tier2.sh",
     "run_agentdojo_recipient_separation_train_tier2.sh",
+    "run_agentdojo_interface_realization_train_tier2.sh",
     "run_agentdojo_checkpoint_conformance_tier2.sh",
 )
 SCHEDULER_ENVIRONMENT_VARIABLES = (
@@ -142,7 +143,7 @@ def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_exactly_ten_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
+def test_exactly_eleven_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
     discovered = {
         path.name
         for path in EXPERIMENT_DIR.glob("*agentdojo*.sh")
@@ -159,6 +160,41 @@ def test_exactly_ten_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
             check=False,
         )
         assert result.returncode == 0, result.stderr
+
+
+def test_interface_realization_entrypoint_rejects_nontrain_split() -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "INTERFACE_REALIZATION_PROTOCOL": "/frozen/protocol.json",
+            "INTERFACE_REALIZATION_INPUTS": "/frozen/inputs.jsonl",
+            "INTERFACE_REALIZATION_OUTPUT": "/persistent/output",
+            "AGENTDOJO_DEPENDENCY_LOCK": "/frozen/lock",
+            "AGENTDOJO_MODEL_CACHE": "/persistent/cache",
+            "AGENTDOJO_ATTACKER_CHECKPOINT": "/persistent/checkpoint",
+            "AGENTDOJO_DATASET_SPLIT": "development",
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_interface_realization_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "interface-realization replay is train-only" in result.stderr
 
 
 def test_recipient_separation_entrypoint_requires_frozen_inputs() -> None:
