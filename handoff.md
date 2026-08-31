@@ -1,6 +1,6 @@
 # SilentTwin AgentDojo Tier-2 cross-platform handoff
 
-Last updated: 2026-08-30 (scientific-v6 remaining E1 tasks 1--7 prepared; not submitted)
+Last updated: 2026-09-01 (adaptive forced-choice source-readout analysis frozen)
 
 This file transfers operational context to a new Codex session on another
 platform. It does **not** transfer the internal state of the original chat.
@@ -4500,3 +4500,197 @@ Immediate next checkpoint:
    contract-validity floor is met; and
 4. do not access development/test or run E2 until that design decision is
    explicitly reconciled with the paper's revised claim boundary.
+
+## Scientific-v6 adaptive forced-choice source-readout freeze on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The interface-
+realization analysis freeze was committed at
+`1a7b96bdc11e9c54712c155c08c28100b4536a5f`. A second adaptive train-only
+study was then implemented at `96dc0d1` (`Add forced-choice source readout`),
+preregistered at `76e15b8` (`Preregister forced-choice train readout`), and
+bound to its exact runtime at `7732d8a` (`Freeze forced-choice readout
+runtime`). The model run began from a clean checkout at the last of those
+revisions. Development and test remained closed throughout.
+
+The frozen machine protocol is
+`configs/silenttwin/agentdojo/scientific-v6-forced-choice-readout-train-v1.json`.
+Its scientific protocol hash is
+`3459c05abb0a7c953439570f75acd959ebfe96a128c86bb3814ce94411d38384`.
+The study reuses the 744 immutable public Q=16 train inputs from the first
+interface replay. It scores every input under two contexts and both A/B label
+permutations, for exactly 2,976 deterministic next-token forward passes. The
+trusted target and donor states are retained only for scoring. The prompt
+builder rejects `theta0`, `theta1`, `actual_state`, and `donor_state`; no tool
+is rerun and no new authorization outcome is created.
+
+The reproducible wheel was built twice from `76e15b8` and was byte-identical.
+The read-only retained wheel is:
+
+`/home/suaq0001/projects/silenttwin-model-cache/runtime-artifacts/e46a2710fcc6bc86d9e05d0771c68a5b88cf3f8307c1b55aff2767509bc40c59/silenttwin-0.1.0-py3-none-any.whl`
+
+Its SHA-256 is
+`c9c14bc9aa0b4a1ffaa7df89b097e49c90315eefc78d10e3b7c52a7431231bb3`.
+The installed 115-file payload manifest hash is
+`b4684f80d3e1ac16f181ce395078843d0d57d1db40b5049bb90cc5748671bd23`,
+the installed RECORD identity is
+`8b95744fae02605efef8dd7f17bb358d7c00766347f1f3516bd432bac20698df`,
+and installed-wheel verification hash is
+`f304487f34c5a60cc430bbab2539310413eddeed98118217b502cb90b6c2e2b2`.
+The learned-runtime fingerprint is
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`.
+The Qwen revision and checkpoint fingerprint remain respectively
+`a09a35458c702b33eeacc393d103063234e8bc28` and
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+The tokenizer audit fixed A and B to token IDs 32 and 33 and recorded token-
+audit hash
+`8023a1ca4aefaa415bb1e84f9f548a1304b6019b153378fef3f02447941bd99b`.
+
+The immutable input file is:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-forced-choice-readout-train/inputs/forced-choice-inputs-v1.jsonl`
+
+It is mode `0444`, 11,411,085 bytes, and contains one metadata row plus 744
+input rows. Its file SHA-256 is
+`99418d584925445ca0e2707777b1b11ca46bcd95c1164941ea04e940bbf56bfe`,
+metadata hash is
+`68203c188fa36b6b5e2376d84e8eca620b0f5d522f1217396dd5f459606ad02e`,
+and ordered input-record hash is
+`7d4c489c40e8c0b0a3fe6e133a61c4c353b82457016bc7d3dbbadb88f29442ca`.
+It binds run source-tree hash
+`764f4e8b0ffa43dc95141c3c8a80d426a6656a9f9f848ff9c71fc0aa19ace9d7`.
+
+PBS job `55651.gaas` (`st-v6-fcr`) reached terminal state `F` with
+`Exit_status = 0`. It ran on `hpc-gaas-g25` with one NVIDIA H200, 12 CPUs,
+and 250 GB requested memory. The retained terminal record reported walltime
+`00:04:02`, CPU time `00:03:50`, CPU percent `97`, peak resident memory
+`1,185,136 kb`, peak virtual memory `48,918,800 kb`, and peak GPU memory
+28,092 MB. The job has since aged out of the live PBS query. Its 6,779-byte
+stdout has SHA-256
+`e2ad4e38b523c438993c77c37e8ec19a0b364bd4bed70f7ffdd54e473a21aac2`;
+the 213-byte stderr has SHA-256
+`413dafe7ca95d80743c5fca17cba6fe80296cc6dfdb0b593fcc3e7f4b63daefb`
+and contains only the Transformers `torch_dtype` deprecation and normal
+weight-loading progress.
+
+The completed run root is:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-forced-choice-readout-train/run`
+
+Its manifest reports exactly 2,976 of 2,976 jobs complete, scientific self-
+hash
+`a48f7f4c204b24a1ac0b13413d526c0f7eceee63788648cc127d5e2be96b5192`,
+and file SHA-256
+`dbea82499c017c4b1dc6e53009205ecc2e9e03558757c23de35202334ae55bdc`.
+The read-only 38,027,353-byte `result.jsonl` has SHA-256
+`b2e1afb28f43132cdd0cdbcc97393be5f832d3f87a0073870d9c1bdafddb7167`.
+There are 2,976 unique checkpoint files totaling 39,333,817 bytes. Independent
+validation found 2,976 unique job IDs, zero model errors, zero invalid paired
+readouts, zero retries, zero external calls, and the exact frozen token IDs on
+every row. Every row records an H200, train split, scientific-evidence
+eligibility `true`, confirmatory-claim permission `false`, and zero generated
+output tokens.
+
+The first model-free analysis attempt stopped before publishing an artifact
+because the analyzer named the computed metric `paired_readout_valid` but the
+criterion requested `paired_readout_validity`. No model result, protocol,
+cohort, estimand, threshold, bootstrap seed, or resample count was changed. A
+one-field mechanical binding plus a regression test was committed at
+`b03e5af5e6e648c726fc4c01f457add03533d26c` (`Fix forced-choice analysis
+validity field`). The analysis records both the run revision and this analysis
+revision and labels their relation `post_run_mechanical_analysis_repair`.
+
+The published read-only analysis is:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-forced-choice-readout-train/analysis/forced-choice-analysis-v1.json`
+
+It is mode `0444`, 40,951 bytes, with file SHA-256
+`6391ce62d0e6e078d506b474f2f365b5e930fa1d1c75b9d572df74b6bf80eacf`
+and scientific self-hash
+`3313653690eed616aa3bdef5afd8929caaeb6c199b49a270fae8d587528aa6f1`.
+The self-hash was independently recomputed. A clean second analysis into a
+temporary location reproduced the 40,951 bytes and both hashes exactly. The
+analysis source-tree hash is
+`f35a44c6c906906f4f2a7ff8864f4d12a23ce3586eb49f1b153409bd32865bea`.
+It validates all 2,976 raw rows and collapses them to 1,488 paired-surface
+observations over 49 structural groups with equal-suite weighting and 5,000
+suite-stratified cluster-bootstrap resamples.
+
+### Frozen forced-choice estimates
+
+The sole primary, five-part source-alignment conjunction passes in the
+preregistered minimal-transcript context. The prespecified full-context
+replication also passes:
+
+| Context | Genuine target AUC (95% CI) | Shuffled donor AUC (95% CI) | Shuffled target AUC (90% CI) | Constant target AUC (90% CI) |
+| --- | ---: | ---: | ---: | ---: |
+| Minimal transcript | 1.0000 [1.0000, 1.0000] | 1.0000 [1.0000, 1.0000] | 0.4995 [0.4870, 0.5176] | 0.5000 [0.5000, 0.5000] |
+| Full scenario | 0.9575 [0.9288, 0.9838] | 0.9575 [0.9281, 0.9844] | 0.5000 [0.5000, 0.5000] | 0.5000 [0.5000, 0.5000] |
+
+Paired-readout validity, full-vocabulary A/B probability mass, and
+unrestricted greedy A/B validity are all exactly 1.0 in every cell. Thus this
+intervention removes the free-form schema failure that made the first replay's
+source-control AUCs unestimable.
+
+The minimal-context genuine AUC is 1.0 in Banking, Slack, Travel, and
+Workspace separately. In full context it remains 1.0 in Banking, Slack, and
+Travel, but is 0.8300 in Workspace (95% CI 0.7175--0.9350). The equal-suite
+full-minus-minimal genuine-target AUC contrast is -0.0425 (95% CI -0.0706 to
+-0.0156); the shuffled donor contrast is also -0.0425 (95% CI -0.0706 to
+-0.0150). Full context therefore weakens source discrimination despite the
+same one-token contract. Because that arm jointly restores scenario text,
+candidate plans, and tool schemas, this is a bundled context effect and does
+not identify schema count or prompt length alone.
+
+Perfect minimal AUC must not be described as a large calibrated probability
+margin. After paired label collapse, the largest genuine target-negative score
+is approximately `2.27e-5` and the smallest target-positive score is only
+approximately `5.46e-5`; their ranks are perfectly separated even though the
+boundary can be numerically narrow. This is strong discrimination evidence,
+not probability calibration.
+
+The paired A/B intervention is also scientifically necessary. Mean mapped-
+probability surface discrepancy is only 0.000117 for the genuine and shuffled
+minimal cells, but is 0.185554 for the minimal constant cell, 0.303778 for the
+genuine and shuffled full cells, and 0.547202 for the full constant cell. Only
+the two signal-bearing minimal cells satisfy the prespecified 0.10 surface-
+invariance diagnostic. The source conclusions therefore apply to the paired,
+candidate-mapped score; an individual A/B rendering is not generally label-
+invariant.
+
+### Frozen scientific disposition
+
+This experiment resolves the narrow mechanism question left open by the first
+replay. The Qwen score follows the causal source of visible feedback: genuine
+feedback follows the target, matched-shuffled feedback follows its donor but
+not its target, and constant feedback follows neither. In the minimal readout,
+this holds in all four suites. The Banking/Slack versus Travel/Workspace E1
+split therefore cannot be explained by an absent feedback signal in the latter
+two suites. It appears after channel availability, during realistic-context
+integration, symbolic contract realization, or later action transfer.
+
+This supports a sharper three-stage measurement model: (1) source-aligned
+channel evidence, (2) interface/contract realization, and (3) operational
+action or prohibited effect. E1 combined all three; the first adaptive replay
+isolated realization but triggered a semantic schema displacement; this
+forced-choice replay isolates source-aligned discrimination and supplies valid
+negative controls. It does not itself show feedback-caused prohibited effects
+or recipient-separation utility.
+
+The result remains second-stage adaptive, train-only mechanism evidence for
+one frozen Qwen checkpoint. It does not change any E1 row, repair the failed E1
+placebo-equivalence gate, authorize E2, open development/test, establish
+held-out generalization, or permit a confirmatory claim.
+
+Immediate next checkpoint:
+
+1. commit this handoff freeze and update the proposal so the two completed
+   adaptive studies are no longer described as planned;
+2. make the paper's empirical spine the three-stage distinction between
+   channel evidence, interface realization, and action transfer, retaining the
+   original conservative E1 endpoint as the operational result;
+3. conduct a separate E2-train value/readiness audit for the remaining causal
+   question---whether source-aligned information changes prohibited effects
+   and whether recipient separation closes that increment---before freezing
+   or submitting any E2 grid; and
+4. keep development and test closed. Neither adaptive study is a route around
+   the failed E1 gate.
