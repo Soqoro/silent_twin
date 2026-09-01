@@ -4876,3 +4876,119 @@ Immediate next checkpoint:
 5. after all seven tasks finish, validate the complete 4,836-row E2 train
    corpus before preparing the model-free aggregate. Keep development and test
    closed.
+
+## Scientific-v6 remaining E2 train-task preparation on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The task-0 pilot
+freeze was committed at
+`ad586a0e99e2ed526f50676338f7f938915ddd39` (`Freeze scientific v6 E2
+task-0 pilot`). This checkpoint prepares, but does not submit, the unchanged
+train-only E2 tasks 1--7. No `qsub` call, GPU allocation, model load, or new E2
+result occurred. Development and test remain closed.
+
+The detached execution checkout remains clean at
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` with source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+The frozen E2 grid is still mode `0444`, 441,830 bytes, and has file SHA-256
+`8a3f8523c6a775c81c8e0641a50dd140c26d4b27550a6f3951fe625e93fae6d3`
+and grid hash
+`d39cbe84be17f78892813ab52c3c7e4c5603958329cf9d79739838081ed0a90c`.
+It retains 104 configurations, eight tasks, and upstream binding
+`ed317185bc3b80cee2cba520ac206c9d9abf84a70009ec41aab49498ea91f2f7`.
+The frozen grid plan, candidate-strategy catalog, and pair registry remain
+mode `0444` with file SHA-256 values
+`592d9de4075ef7014bc8356dc6d983bdeb0d5ee23d65f6fd3e0aaea873d508d0`,
+`e9a17f2b3eb04a181a0459e489293aebe911ed0d939cbabf83dad2c3f5377b07`,
+and
+`2e326c093011562b3a5f913b211b79c95ba2b9e73e36418645835d7f71306154`,
+respectively.
+
+The read-only historical wheel remains 475,707 bytes with SHA-256
+`76217db019e5816c57e527d60c5f7a0ea39490f6742c972c2be75c2b63075fa9`.
+The read-only restoration wheel remains 500,962 bytes with SHA-256
+`c9c14bc9aa0b4a1ffaa7df89b097e49c90315eefc78d10e3b7c52a7431231bb3`.
+A fresh full-byte audit of the Qwen snapshot reproduced checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+Its cached manifest has semantic hash
+`340840afe3792781a2b084f7100d9ea08d2d231d6e9c27b485546c85fcaa454a`
+and file SHA-256
+`3f068afb11c7b479aa2e53a1eb2cb3de1494824e03319997e0ea25c036fbb8f3`.
+
+The exact remaining envelope is:
+
+| Task | Suite | Scenarios | Structural groups | Grid members | Trials | Maximum model calls |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | Workspace | 13 | 8 | 13 | 676 | 6,396 |
+| 2 | Workspace | 4 | 4 | 13 | 208 | 1,968 |
+| 3 | Travel | 20 | 8 | 13 | 1,040 | 9,840 |
+| 4 | Travel | 6 | 2 | 13 | 312 | 2,952 |
+| 5 | Banking | 24 | 8 | 13 | 1,248 | 11,808 |
+| 6 | Slack | 12 | 8 | 13 | 624 | 5,904 |
+| 7 | Slack | 3 | 3 | 13 | 156 | 1,476 |
+| **Total** |  | **82** |  | **91** | **4,264** | **40,344** |
+
+All 91 selected members passed the complete historical model-free source,
+artifact-chain, grid-coverage, core-lock, checkpoint-path, and learned-runtime
+validator. This check used a controlled offline swap to the historical wheel,
+which reproduced runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`.
+The environment was immediately restored to the later wheel; its runtime
+fingerprint again equals
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`,
+and `pip check` reports no broken requirements.
+
+Each resolved launcher index from 1 through 7 also passed the shell-only PBS
+authorization, array-bound, frozen-manifest, fixture-mode, persistent-path,
+and learned-model checks. On the login node each invocation stopped at the
+intended pre-Python `nvidia-smi`/visible-GPU boundary. It therefore did not
+activate Python or create a task output. Only `task-0` exists; destinations
+`task-1` through `task-7` remain absent.
+
+The live `gpu_free` queue is enabled and started, requires and permits exactly
+one GPU, permits the requested four-hour wall time, and reports
+`max_run = [u:PBS_GENERIC=1]`. No job was listed for `suaq0001`, so the seven
+array elements will serialize without a `%1` array modifier. The empty
+persistent log directory
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-remaining`
+was created mode `0755`. There are 666,912,686,080 bytes free below `/home`.
+Linear scaling from the 38-minute, 948,783,554-byte task-0 pilot estimates
+about 4.74 serial GPU-hours and 7.07 GB for the remaining work; the largest
+task estimates to about 83 minutes, well below its four-hour request. These
+are planning estimates, not completion guarantees.
+
+The prepared `-v` allowlist contains exactly 22 unique variables and 2,194
+UTF-8 bytes. Its literal SHA-256 is
+`781f90a6ae3b97761ac431e7bd651e8dc7447ea36ea5d57a1d21c36eb6b47cef`.
+It matches the successful task-0 pilot's scientific environment and does not
+use `-V`, a manually supplied `PBS_ARRAY_INDEX`, or any development/test
+path. The exact prepared command is:
+
+```bash
+/opt/pbs/bin/qsub \
+  -P fs_ccds_asysong \
+  -q gpu_free \
+  -N st-v6-e2-rest \
+  -J 1-7 \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=04:00:00 \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-remaining \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-remaining \
+  -v 'AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-learned-py311/bin/python,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train,STAGE=run,RECIPIENT_EXPERIMENT=e2,AGENTDOJO_DATASET_SPLIT=train,GRID_MANIFEST=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/plans/recipient-separation-train-v1.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json,AGENTDOJO_ANALYSIS_PLAN=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/requirements-tier2-agentdojo.lock,AGENTDOJO_MODEL_CACHE=/home/suaq0001/projects/silenttwin-model-cache,AGENTDOJO_ATTACKER_CHECKPOINT=/home/suaq0001/projects/silenttwin-model-cache/hub/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28,AGENTDOJO_RUNTIME_FINGERPRINT=sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c,AGENTDOJO_REQUIRES_GPU=1,AGENTDOJO_FAKE_MODEL=0,AGENTDOJO_OVERWRITE=0,ATTACKER_DEVICE=cuda:0' \
+  /home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh
+```
+
+Immediate next checkpoint:
+
+1. review and commit this preparation-only handoff change;
+2. after a separate explicit submission instruction, repeat the absent-output,
+   queue, detached-source, frozen-input, wheel, and Qwen identity checks;
+3. swap the learned environment to the historical wheel, rederive runtime
+   fingerprint
+   `sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+   submit exactly the command above, and inspect the returned PBS array for
+   indices 1--7 and the exact resource/environment contract;
+4. do not restore the later wheel until every submitted array element is
+   terminal; and
+5. after termination, restore and verify the later wheel, validate the full
+   immutable 4,836-row E2 train corpus, and only then prepare the model-free
+   aggregate. Keep development and test closed.
