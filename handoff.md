@@ -4992,3 +4992,73 @@ Immediate next checkpoint:
 5. after termination, restore and verify the later wheel, validate the full
    immutable 4,836-row E2 train corpus, and only then prepare the model-free
    aggregate. Keep development and test closed.
+
+## Scientific-v6 remaining E2 train-task submission on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The preparation-only
+checkpoint was committed cleanly at
+`14e049efe539cf5c7590c063a58a807c30b811ed` (`Prepare remaining scientific
+v6 E2 tasks`). The separately authorized submission has now occurred exactly
+once. Development and test remain closed.
+
+Immediately before submission, the detached execution checkout was clean at
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` and reproduced source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+The grid, grid plan, candidate-strategy catalog, pair registry, both wheel
+archives, and full Qwen checkpoint each reproduced the identities recorded in
+the preparation checkpoint. The E2 run root contained only completed
+`task-0`; destinations `task-1` through `task-7` were absent, the persistent
+log directory was empty, and 666,909,016,064 bytes were free below `/home`.
+The live `gpu_free` queue was enabled and started with the exact one-GPU,
+four-hour, and per-user `max_run=1` contract, and no other job was listed for
+`suaq0001`.
+
+The original learned environment was then force-reinstalled offline from the
+read-only historical E2 wheel. Its installed payload matches that wheel with
+verification hash
+`89aaabaaba949e3c83ac23641bc3530d70247146848364ab81439062421a5dcd`
+and installed RECORD identity
+`2d9000523af1629560386cc6faf00c1acbb2d2c7d8a15a19d2967d44ab878730`.
+The active 108-distribution environment reproduces frozen runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and `pip check` passes. This historical wheel must remain active until every
+submitted array element is terminal.
+
+The exact prepared command was submitted once. PBS returned:
+
+`55970[].gaas`
+
+Machine-readable and full-text scheduler inspection confirms job name
+`st-v6-e2-rest`, project `fs_ccds_asysong`, queue `gpu_free`, submitted array
+indices exactly `1-7`, and launcher
+`/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh`.
+The parent record retains exactly one node, 12 CPUs, one GPU, one MPI process,
+250 GB memory, and wall time `04:00:00`; both output paths are the prepared
+persistent E2 log directory. Its scientific `-v` environment exactly matches
+the 22-variable prepared allowlist, including train split, E2, overwrite off,
+the frozen historical runtime fingerprint, and `cuda:0`. It did not inherit
+the ambient environment with `-V` and does not contain a manually supplied
+array index.
+
+At the first post-submit observation, the parent was state `B` (array begun),
+`55970[1].gaas` was running on `hpc-gaas-g25`, and indices 2--7 were queued as
+expected under `max_run=1`. Task 1 had already created its persistent root and
+15 trial checkpoints plus one checkpoint manifest, showing that it passed the
+scheduler/GPU/Python runtime preflight. This is startup evidence only, not a
+completed-shard or scientific-result validation. Tasks 2--7 were still absent,
+and scheduler stdout/stderr had not yet been staged into the log directory.
+
+Immediate next checkpoint:
+
+1. monitor the immutable array with
+   `/opt/pbs/bin/qstat -t '55970[].gaas'`;
+2. do not reinstall, upgrade, or otherwise alter the learned environment while
+   any element is queued, running, exiting, or otherwise nonterminal;
+3. do not aggregate, inspect development/test, retry a failed element, or
+   modify any task output while the array is active;
+4. after all seven elements reach terminal state, inspect every
+   `Exit_status`, retained scheduler log, and task publication before deciding
+   whether the run is complete; and
+5. only after termination, restore and verify the later forced-choice wheel,
+   then validate the full immutable 4,836-row E2 train corpus before preparing
+   a model-free aggregate.
