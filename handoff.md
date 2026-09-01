@@ -5062,3 +5062,167 @@ Immediate next checkpoint:
 5. only after termination, restore and verify the later forced-choice wheel,
    then validate the full immutable 4,836-row E2 train corpus before preparing
    a model-free aggregate.
+
+## Scientific-v6 E2 train completion freeze on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The remaining-E2
+submission record was committed at
+`c9183a71198ba0b48b5eb3b402e00707616e6d15` (`Record remaining scientific
+v6 E2 submission`). The worktree and the detached executable checkout were
+clean throughout post-run validation. No aggregate, effect estimate,
+development/test access, or confirmatory claim occurred while creating this
+freeze.
+
+PBS array `55970[].gaas` expanded exactly indices 1 through 7 and ran them
+serially under the queue's one-running-job-per-user limit. Every subjob is in
+historical state `F` with `Exit_status = 0`:
+
+| Task | PBS subjob | Used walltime | Peak memory |
+| ---: | --- | ---: | ---: |
+| 1 | `55970[1].gaas` | `00:45:47` | 1,706,356 KB |
+| 2 | `55970[2].gaas` | `00:14:22` | 1,390,716 KB |
+| 3 | `55970[3].gaas` | `01:02:55` | 2,317,104 KB |
+| 4 | `55970[4].gaas` | `00:18:52` | 1,526,940 KB |
+| 5 | `55970[5].gaas` | `00:59:50` | 1,747,456 KB |
+| 6 | `55970[6].gaas` | `00:29:02` | 1,474,864 KB |
+| 7 | `55970[7].gaas` | `00:07:49` | 1,313,900 KB |
+
+The remaining array used 3:58:37 of serial GPU wall time. Every element ran
+on `hpc-gaas-g25` with one GPU, and none approached the requested four-hour
+per-task limit. Each scheduler record has `Stageout_status = 1`, as the
+successful task-0 pilot did, so scientific publication was validated directly
+rather than inferred from that scheduler field.
+
+All 14 persistent remaining-task scheduler logs are present. Every 932-byte
+stdout is exactly the canonical success object for its task, reports 13
+completed shards, and lists the 13 expected frozen configuration hashes in
+grid order. Every 213-byte stderr contains only the Transformers `torch_dtype`
+deprecation notice and completed 339-file weight-loading progress; none
+contains a traceback, exception, failure, kill, or out-of-memory marker. The
+ordered task-1-through-task-7 stdout/stderr binding list, with fields `name`,
+`kind`, `size`, and `sha256`, contains 14 records and 8,015 bytes and has
+SilentTwin `stable_digest`
+`15f1219030ef648f7e6b71a86c19299312d9e43f8b4e4983d26e9fad438e023f`.
+
+Strict historical first-party `validate_completed_run` validation passed
+separately for all 91 new shard directories. Every call supplied the exact
+frozen scientific configuration, grid hash, shard ID, and source-tree hash.
+This rechecked canonical configuration and evidence-boundary semantics,
+result/failure SHA-256 values, complete checkpoint manifests, byte-equivalent
+checkpoint/result samples, exact trial order and cohort, completion logs, and
+runtime/model/scheduler provenance. The observed directory identities exactly
+equal the frozen task-1-through-task-7 grid; there are no missing, duplicate,
+overwritten, or extra shard or trial identities.
+
+The seven new task roots contain 4,719 regular files totaling 5,793,618,039
+bytes: 91 published shards and 4,264 globally unique trials. Following the
+same convention as the E1 completion freeze, the canonical sorted 91-record
+binding list contains `directory`, `manifest_sha256`, `configuration_hash`,
+`result_sha256`, `failures_sha256`, `checkpoint_manifest_hash`,
+`actual_trial_count`, `failure_count`, `grid_hash`, `grid_task_id`,
+`shard_id`, `source_tree_hash`, `scheduler_job_id`, and `status`. Its
+`stable_digest` is
+`06dfe7abe993eabed15c9c20d81edcf589951cc1994c454f880ab5885cacee59`.
+Binding that digest to schema
+`silenttwin.scientific-v6-e2-remaining-freeze.v1`, the seven absolute task
+roots, regular-file count, and byte count gives remaining-task freeze digest
+`2c70065b86cf2cc224c659efd6af016fe2579e958aab3b48d62f9fd17465db5d`.
+
+Together with the previously frozen task-0 pilot, E2 train is now complete.
+Its run root contains exactly eight tasks, 104 validated shards, and 4,836
+globally unique trials. The 5,356 regular files total 6,742,401,593 bytes. The
+corresponding canonical sorted 104-record binding list has `stable_digest`
+`7bc986abe769d98e8941d5c7bb1db456cff9ea6e431cb025aff34b58899ce737`.
+Binding it to schema
+`silenttwin.scientific-v6-e2-completion-freeze.v1`, the absolute run root,
+regular-file count, and byte count gives the authoritative full-E2
+completion-freeze digest
+`1a074c641f83179def0bb957f90e6e471ee81b96832b9f9ec6ebdffef8dd9b2c`.
+The earlier live-validation digest
+`3809792f58d657d86d9d4c860ea6d8e0f8c4e5fc65ac9a63ee4461f4873c8623`
+used a smaller audit envelope; it remains reproducible but is superseded by
+this E1-compatible 14-field canonical freeze.
+
+All 104 manifests bind grid hash
+`d39cbe84be17f78892813ab52c3c7e4c5603958329cf9d79739838081ed0a90c`,
+clean source revision `9c85cb5bf34195a80aa1d076fcc44449867b7883`, source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+learned-runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+and Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`
+with checkpoint-manifest hash
+`340840afe3792781a2b084f7100d9ea08d2d231d6e9c27b485546c85fcaa454a`.
+Scheduler provenance is exactly pilot subjob `55727[0].gaas` plus remaining
+subjobs `55970[1].gaas` through `55970[7].gaas`, with 13 shards per subjob.
+
+The corpus records 45,550 realized local Qwen calls under a frozen maximum of
+45,756. Every call reports `NVIDIA H200`, `cuda:0`, local-files-only execution,
+the exact Qwen identities above, zero external API calls, and no model-call
+exception or failure metadata. Every row has exactly one final-plan attempt,
+a retired attacker context, an unchanged initial-to-final-start environment,
+and no rejected-effect commit. There is no scheduler, checkpoint,
+infrastructure, backend, retirement, tool-execution, or isolation error.
+
+The complete preregistered model-contract-invalid outcome is material. E2
+contains 1,986 failure-ledger rows out of 4,836 trials (41.0670%):
+
+| Task | Trials | Invalid rows | Invalid rate |
+| ---: | ---: | ---: | ---: |
+| 0 | 572 | 200 | 34.9650% |
+| 1 | 676 | 332 | 49.1124% |
+| 2 | 208 | 90 | 43.2692% |
+| 3 | 1,040 | 799 | 76.8269% |
+| 4 | 312 | 251 | 80.4487% |
+| 5 | 1,248 | 230 | 18.4295% |
+| 6 | 624 | 64 | 10.2564% |
+| 7 | 156 | 20 | 12.8205% |
+
+| Query budget | Trials | Invalid rows | Invalid rate |
+| ---: | ---: | ---: | ---: |
+| 0 | 1,116 | 672 | 60.2151% |
+| 4 | 1,860 | 711 | 38.2258% |
+| 16 | 1,860 | 603 | 32.4194% |
+
+Suite-level invalidity is 622/1,456 (42.7198%) in Workspace, 1,050/1,352
+(77.6627%) in Travel, 230/1,248 (18.4295%) in Banking, and 84/780
+(10.7692%) in Slack. The 1,986 invalid rows contain 1,994 error entries:
+1,935 `invalid_hidden_state_prediction`, 31 `invalid_probe_selection`, and 28
+`invalid_final_plan`. Their disjoint row signatures are 1,927 prediction-only,
+27 probe-only, 24 final-plan-only, four prediction-plus-probe, and four
+prediction-plus-final-plan. Every error is non-retryable and is preserved as
+a scientific outcome, not a failed shard. Do not retry, repair, relabel,
+normalize, or replace any row; the frozen aggregate must retain conservative
+scoring, valid-run metrics, commitment, selection, and invalidity together.
+
+After all PBS elements became terminal, the shared learned environment was
+restored offline to the later forced-choice wheel. Installed verification hash
+`f304487f34c5a60cc430bbab2539310413eddeed98118217b502cb90b6c2e2b2`,
+RECORD identity
+`8b95744fae02605efef8dd7f17bb358d7c00766347f1f3516bd432bac20698df`,
+runtime fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`,
+and `pip check` all reproduce exactly. No PBS job remains for `suaq0001`,
+both source checkouts are clean, and the E2 aggregate destination remains
+absent.
+
+Disposition: the complete scientific-v6 E2 train corpus passes the scheduler,
+artifact-integrity, provenance, exact-grid, checkpoint, model-call, and
+evidence-boundary gates. Grid coverage is the exact preregistered four-suite
+matrix, but its protocol disposition remains estimation-only and
+`confirmatory_suite_coverage_eligible` remains false. This is an
+input-completion freeze, not an effect estimate, a repair of E1's failed gate,
+or authorization to access development/test.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only E2 completion freeze; neither source
+   checkout nor any frozen input/result artifact may change;
+2. after that commit, independently reconstruct the authoritative E2
+   completion-freeze digest and recheck the clean source, grid, analysis plan,
+   runtime, and absent aggregate destination;
+3. resolve and inspect one model-free E2 aggregate command against exactly the
+   frozen eight-task run root, explicitly binding any required upstream E1
+   analysis artifact and excluding development/test; and
+4. submit aggregation only after separate authorization, then validate all
+   aggregate artifacts before interpreting any E2 estimate.
