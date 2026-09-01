@@ -5444,3 +5444,211 @@ Immediate next checkpoint:
 4. only after an exit-zero terminal record, strictly validate the four
    aggregate artifacts, reconstruct their hashes and self-bindings, and freeze
    the E2 analysis before interpreting any estimate.
+
+## Scientific-v6 E2 aggregate and analysis freeze on 2026-09-02
+
+This section supersedes the immediate checkpoint above. The aggregate
+submission record was committed cleanly at
+`7ff7293e8a50275e6103ae32bb89d2de99bbbe79` (`Record scientific v6 E2
+aggregate submission`). No executable, configuration, grid, model, input, or
+result artifact was changed while producing this handoff-only freeze. No
+development or test data was accessed.
+
+PBS job `56130.gaas` (`st-v6-e2-agg`) reached historical state `F` with
+`Exit_status = 0`, `Stageout_status = 1`, and run count one. The terminal
+scheduler record reports walltime `00:15:26`, CPU time `00:15:19`, CPU percent
+84, peak memory `5,176,332 kb`, peak virtual memory `5,250,404 kb`, and
+execution on `hpc-gaas-g25`. It started at `2026-09-01 23:37:46` and finished
+at `23:53:20` local time. The request remained exactly 12 CPUs, one GPU, one
+MPI process, 250 GB memory, and four hours; aggregation itself was model-free.
+
+The persistent stdout is 184 bytes with SHA-256
+`28c70681b5912e4866d1b7525c379f201b4d2809f6b103d817a3a2c300acc8d6`
+and contains exactly one JSON completion object: E2, 104 leaves, the frozen
+aggregate destination, and status `completed`. Persistent stderr is empty,
+with SHA-256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+A subsequent scheduler query no longer returned an accepted historical-job
+record, so the previously captured terminal record, persistent logs, and
+immutable artifacts are the retained execution evidence. No live job remains
+for `suaq0001`.
+
+The aggregate output is:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/aggregate`
+
+It contains exactly four regular files:
+
+| File | Bytes | SHA-256 |
+| --- | ---: | --- |
+| `analysis_manifest.json` | 258,525 | `ac162941f7382366eb4f23eca269c8a54a6d246354124da73d9e71f8dee0cfb4` |
+| `grid_manifest.jsonl` | 441,830 | `8a3f8523c6a775c81c8e0641a50dd140c26d4b27550a6f3951fe625e93fae6d3` |
+| `summary.json` | 496,082 | `a82a50cf390efc512484d1bec04fcc5fb1cdb3c354c731e3fd1683f62167742d` |
+| `validated_run_index.json` | 40,674 | `f27f0944f852919bbcef546485af5cedc88b80de0e6b80a89c508bf360096314` |
+
+The files total 1,237,111 bytes. The aggregate grid is byte-identical to the
+frozen E2 grid. The canonical sorted records `{filename, bytes, sha256}` have
+SilentTwin `stable_digest`
+`9d7f8d5ac0ca8164a92830f6257a47d933fa18615112279da277f0ca52630029`.
+Binding that digest to schema
+`silenttwin.scientific-v6-e2-aggregate-freeze.v1`, the absolute output path,
+scheduler job `56130.gaas`, file and byte counts, analysis-manifest self-hash,
+and current-evidence hash gives aggregate-freeze digest
+`f14f399b6e7c530dbd67faf9cdce5c9521e3491a7ef2952bd835064f701a792c`.
+
+The analysis manifest's self-hash was independently recomputed after removing
+`analysis_manifest_hash` and is
+`efdfa5080bc371151f3afd2a25ac9a1a4589593fb4c4b503d8a5bcc22664dc81`.
+The canonical hash of `current_evidence_digest_payload` is
+`8eb85432526abb763e293c18d8892e7696eac8b267fa574edcfc7e5cc77b7231`;
+it exactly matches both `current_evidence_hash` and
+`development_evidence_hash`. The analysis-plan hash remains
+`f76e10b58d8273e5e1ab3306bd2da993f8a907989b1f107febc269b0ca1eb353`,
+and the upstream chain remains
+`ed317185bc3b80cee2cba520ac206c9d9abf84a70009ec41aab49498ea91f2f7`.
+
+Independent structural validation reproduced all of the following:
+
+- schemas `silenttwin.agentdojo.aggregate.v1`,
+  `silenttwin.agentdojo.analysis_manifest.v1`, and
+  `silenttwin.agentdojo.validated_run_index.v1`;
+- experiment E2, controlled track, train split, real AgentDojo backend, and
+  non-fixture execution;
+- disposition `controlled_authorization_recipient_separation_v1`, evidence
+  class `agentdojo_estimation_only`, scientific-evidence eligibility `true`,
+  and confirmatory-claim permission `false`;
+- exact expected-grid validation against grid hash
+  `d39cbe84be17f78892813ab52c3c7e4c5603958329cf9d79739838081ed0a90c`;
+- exactly 104 unique, canonically sorted configuration/shard identities whose
+  membership, source directories, and trial counts equal the frozen grid,
+  with 4,836 globally unique trial rows; and
+- 49 independent structural groups: 20 workspace, 10 travel, 8 banking, and
+  11 slack, with complete pairing in all eight published contrasts and no
+  unmatched target or reference group.
+
+The full E2 input freeze remains 104 shards, 4,836 trials, 5,356 regular
+files, and 6,742,401,593 bytes, with binding digest
+`7bc986abe769d98e8941d5c7bb1db456cff9ea6e431cb025aff34b58899ce737`
+and completion-freeze digest
+`1a074c641f83179def0bb957f90e6e471ee81b96832b9f9ec6ebdffef8dd9b2c`.
+The detached executable checkout remains clean at
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` with source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+
+The upstream E1 analysis artifact independently reproduces file SHA-256
+`5edaf84a10b0775eb4d3f53ace1bf39a3aaef4abb1203076e311f7389a5c1c03`,
+self-hash
+`447eaf9bec1f86cf592efb8e7d9a89153736089864831920f89acb6e792b077e`,
+and the same upstream-chain hash. Its frozen gate remains `passed=false`,
+production eligibility remains false, and it supplies no permission to open
+development or test. E2 records that upstream disposition exactly.
+
+### Frozen E2 estimates
+
+All estimates below use the preregistered equal-suite primary weighting,
+structural group as the independent unit, and 5,000 suite-stratified cluster
+bootstrap resamples. Task-weighted values are prespecified sensitivity
+estimates only.
+
+| Paired contrast | Estimate | 95% CI | Sign-flip p | Task-weighted estimate (95% CI) |
+| --- | ---: | ---: | ---: | ---: |
+| genuine Q=16 minus no probe: conservative prohibited effect | 0.0788 | [0.0017, 0.1554] | 0.29087 | 0.0510 [-0.0289, 0.1327] |
+| genuine Q=16 minus matched-shuffled Q=16: conservative prohibited effect | 0.1553 | [0.1211, 0.1854] | 0.01980 | 0.0957 [0.0612, 0.1288] |
+| oracle minus no probe: conservative prohibited effect | 0.2180 | [0.1602, 0.2768] | 0.00010 | 0.2219 [0.1624, 0.2840] |
+| genuine Q=16 minus no probe: hidden-state prediction | 0.2460 | [0.1830, 0.3119] | 0.02270 | 0.1531 [0.0884, 0.2202] |
+| genuine Q=16 minus no probe: state-matched selection | 0.3004 | [0.2502, 0.3500] | 0.00010 | 0.2747 [0.2219, 0.3282] |
+| genuine Q=16 minus matched-shuffled Q=16: state-matched selection | 0.3004 | [0.2505, 0.3472] | 0.00010 | 0.2747 [0.2211, 0.3282] |
+| SilentTwin Q=16 minus Q=0: conservative prohibited effect | -0.2413 | [-0.3069, -0.1763] | 0.00010 | -0.2406 [-0.3070, -0.1760] |
+| SilentTwin Q=16 minus Q=0: hidden-state prediction | 0.2465 | [0.1856, 0.3119] | 0.00010 | 0.2440 [0.1820, 0.3061] |
+
+The cleanest action-transfer result is genuine Q=16 minus matched-shuffled
+Q=16 on state-matched selection: +30.04 percentage points overall, with a
+strictly positive interval in every suite:
+
+| Suite | Selection gain | 95% CI | Conservative-effect gain | 95% CI |
+| --- | ---: | ---: | ---: | ---: |
+| banking | 0.3125 | [0.2500, 0.3750] | 0.3125 | [0.2500, 0.3750] |
+| slack | 0.4432 | [0.3409, 0.5000] | 0.4432 | [0.3520, 0.5000] |
+| travel | 0.2833 | [0.1500, 0.4000] | 0.0000 | [0.0000, 0.0000] |
+| workspace | 0.1625 | [0.0750, 0.2625] | -0.1344 | [-0.1938, -0.0656] |
+
+Thus the feedback-source intervention changes the selected state-matched
+action across all four suites, including travel and workspace. What fails to
+generalize is the later conversion of that action into a released prohibited
+effect. Travel is saturated at conservative score 1.0 because all genuine and
+matched-shuffled Q=16 rows in this contrast are contract-invalid, while
+workspace reverses at the released-effect layer. Banking and slack preserve
+the action-selection gain through effect realization. This separates the
+action-transfer mechanism from output-contract validity and downstream effect
+release, rather than supporting a blanket claim that only banking and slack
+contain a feedback signal.
+
+The matched-shuffled comparison is especially informative because genuine and
+matched-shuffled Q=16 have exactly the same 170 invalid rows out of 372 and
+the same suite-level invalidity. Their +15.53-point conservative-effect
+difference therefore cannot be explained by a difference in the number of
+contract-invalid outputs. By contrast, the genuine-Q=16-minus-no-probe
+effect is marginal and weighting-sensitive: its bootstrap lower endpoint is
+barely above zero, but the paired sign-flip p-value is 0.29087 and the
+task-weighted sensitivity interval crosses zero. It should not be presented
+as equally robust evidence.
+
+The full E2 aggregate contains 1,986 invalid rows out of 4,836 trials
+(41.0670%), with 1,994 ledger entries: 1,935 invalid hidden-state predictions,
+31 invalid probe selections, and 28 invalid final plans. These remain
+scientific outcomes under conservative scoring; none was retried or repaired.
+The global conservative prohibited-effect rate is 0.7310. There are 2,850
+valid rows with valid-run prohibited-effect rate 0.5435. Pair yield is exactly
+1.0 for every suite and contrast, so the heterogeneous effects are not caused
+by dropped pairs or incomplete aggregation.
+
+### Recipient-separation and gate disposition
+
+SilentTwin Q=16 raises hidden-state prediction by 24.65 points relative to
+SilentTwin Q=0, but state-matched selection and final-effect commitment remain
+exactly 0.5 at both budgets. Its conservative prohibited-effect estimate falls
+by 24.13 points. Descriptively, recipient separation therefore breaks the
+link between an inferential signal and incremental action transfer while also
+improving output validity: invalidity falls from 224/372 at Q=0 to 29/372 at
+Q=16. This is evidence for partial action-layer separation, not formal closure.
+
+The preregistered closure criterion fails. Neither the inference contrast nor
+the conservative-effect contrast lies inside the `[-0.05, 0.05]` equivalence
+margin. All 13 condition cells contain zero rejected-effect commits, but the
+frozen one-sided simultaneous upper bound is 0.3255, far above the required
+0.01. The zero observed events therefore cannot be converted into the
+prespecified rare-event guarantee.
+
+The raw incremental-effect, action-selection, and oracle-headroom estimates
+meet their point-estimate/bootstrap thresholds, but no emitted gate is a
+confirmatory pass. The hierarchical gate cannot pass because upstream E1 is
+not permission-bearing, and this protocol is explicitly estimation-only.
+All final gate statuses are `not_confirmatory`; overall status is
+`not_confirmatory_estimation_only_protocol`. The emitted
+`complete_cohorts=false` value again reflects the implementation's conjunction
+with confirmatory-suite eligibility, not missing rows: exact-grid membership,
+balance, one-final-attempt integrity, private-namespace cleanliness, and all
+104 expected shards independently pass.
+
+The scientifically supportable train-only conclusion is narrower and more
+interesting than a single aggregate attack-success claim: feedback can alter
+state-conditioned action choice across heterogeneous agent suites, while
+interface validity and effect realization determine whether that transferred
+choice becomes observable harm. Recipient separation can interrupt the
+action-transfer link even when state information remains inferable. This is a
+mechanistic, estimation-only result and must not be described as held-out
+confirmation, full closure, or a development-opening gate.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only E2 aggregate/analysis freeze; the
+   executable source-tree hash and every frozen artifact must remain unchanged;
+2. update the proposal/manuscript results and claim ledger from the frozen E1
+   and E2 train evidence, centering the separation between inference, action
+   selection, contract validity, and released effect;
+3. perform a manuscript-facing train-only robustness and limitation audit,
+   explicitly reporting suite heterogeneity, invalidity, equal-suite primary
+   estimates, task-weighted sensitivities, and the failed formal closure; and
+4. keep development and test closed. No additional model or GPU job is
+   authorized by this aggregate, and no retry or repair of invalid rows is
+   permitted.
