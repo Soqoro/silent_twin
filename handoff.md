@@ -5376,3 +5376,71 @@ Immediate next checkpoint:
    single job above; and
 4. after completion, validate and freeze all four aggregate artifacts before
    interpreting any E2 estimate. Development and test remain closed.
+
+## Scientific-v6 E2 aggregate submission on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The aggregate
+preparation was committed cleanly at
+`ee5a7490715ce56796a09ac8dd452f935a4cf119` (`Prepare scientific v6 E2
+aggregate`). The separately authorized command was submitted exactly once.
+No development or test data was accessed.
+
+Immediately before submission, both source checkouts were clean. The detached
+checkout remained at
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` and reproduced source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+The immutable plan, E2 grid, strategy catalog, pair registry, analysis plan,
+and dependency lock reproduced every file identity in the preparation
+checkpoint, and the core Python environment passed `pip check`.
+
+The complete E2 input was independently reconstructed once more as 104
+shards, 4,836 trials, and 5,356 files, with binding digest
+`7bc986abe769d98e8941d5c7bb1db456cff9ea6e431cb025aff34b58899ce737`
+and completion-freeze digest
+`1a074c641f83179def0bb957f90e6e471ee81b96832b9f9ec6ebdffef8dd9b2c`.
+The upstream E1 manifest reproduced file SHA-256
+`5edaf84a10b0775eb4d3f53ace1bf39a3aaef4abb1203076e311f7389a5c1c03`
+and self-hash
+`447eaf9bec1f86cf592efb8e7d9a89153736089864831920f89acb6e792b077e`.
+Its expected estimation-only gate result remained `passed=false`. The E2
+aggregate destination was absent, its scheduler-log directory was empty, the
+live queue contract matched preparation, and no other PBS job was listed for
+`suaq0001`.
+
+The exact prepared qsub command was then invoked once. PBS returned:
+
+`56130.gaas`
+
+Machine-readable scheduler inspection confirms job name `st-v6-e2-agg`,
+project `fs_ccds_asysong`, queue `gpu_free`, and one ordinary non-array job.
+Its resource request is exactly one node, 12 CPUs, one GPU, one MPI process,
+250 GB memory, and wall time `04:00:00`. Both persistent output paths are:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-aggregate/`
+
+The retained `Submit_arguments` names the detached scientific-v6 launcher and
+matches the prepared command. The scheduler's scientific variable list
+contains the exact 18-key allowlist, including train split, E2, partial
+development disabled, and the frozen E1 analysis manifest. It contains no
+model/runtime variable, manually supplied array index, `-J`, or `-V`; the
+additional `PBS_O_*` values are PBS-generated submission metadata rather than
+ambient-environment inheritance.
+
+At the recorded startup observation, job `56130.gaas` was state `R`, substate
+42, run count one, on `hpc-gaas-g25`. It started at `2026-09-01 23:37:46`
+local time. After 24 seconds it reported 83% CPU, 724,636 KB resident memory,
+and the exact allocated 12 CPUs and one GPU. The aggregate destination was
+still absent and no persistent scheduler log had been staged, which is the
+expected pre-publication state. This is scheduler/startup evidence only, not
+aggregate completion or scientific-result evidence.
+
+Immediate next checkpoint:
+
+1. monitor the immutable job with `/opt/pbs/bin/qstat -f 56130.gaas`;
+2. do not resubmit, retry, cancel, modify any frozen input, or access
+   development/test while the job is active;
+3. after it becomes terminal, inspect historical state, `Exit_status`, full
+   resource use, and both persistent logs before accepting publication; and
+4. only after an exit-zero terminal record, strictly validate the four
+   aggregate artifacts, reconstruct their hashes and self-bindings, and freeze
+   the E2 analysis before interpreting any estimate.
