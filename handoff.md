@@ -5226,3 +5226,153 @@ Immediate next checkpoint:
    analysis artifact and excluding development/test; and
 4. submit aggregation only after separate authorization, then validate all
    aggregate artifacts before interpreting any E2 estimate.
+
+## Scientific-v6 E2 aggregate preparation on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The complete-E2
+input freeze was committed at
+`56755a3ced5294ac58ac335a524c03bbbb456ba1` (`Freeze scientific v6 E2
+completion`), and both the main worktree and detached execution checkout were
+clean before preparation. No aggregate result was created, `qsub` was not
+called, and development and test remained closed.
+
+The full input freeze was independently reconstructed from the immutable E2
+run root after that commit. It still contains exactly 104 validated shards and
+4,836 trials. Its canonical 14-field binding digest remains
+`7bc986abe769d98e8941d5c7bb1db456cff9ea6e431cb025aff34b58899ce737`,
+and its authoritative completion-freeze digest remains
+`1a074c641f83179def0bb957f90e6e471ee81b96832b9f9ec6ebdffef8dd9b2c`.
+
+Aggregation is bound to the same clean detached source checkout used for E2
+execution:
+
+`/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5`
+
+It remains at revision
+`9c85cb5bf34195a80aa1d076fcc44449867b7883` with source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`.
+The aggregate, gate, shared-launcher, and E2-entrypoint bytes are unchanged
+between that checkout and current main. Using the detached checkout makes the
+analysis executable identity equal to the trajectory-generation identity
+despite later, unrelated train-only readout additions on main.
+
+Fresh file checks reproduced the frozen preparation identities:
+
+| Artifact | File SHA-256 |
+| --- | --- |
+| recipient-separation train grid plan | `592d9de4075ef7014bc8356dc6d983bdeb0d5ee23d65f6fd3e0aaea873d508d0` |
+| E2 grid manifest | `8a3f8523c6a775c81c8e0641a50dd140c26d4b27550a6f3951fe625e93fae6d3` |
+| candidate-strategy catalog | `e9a17f2b3eb04a181a0459e489293aebe911ed0d939cbabf83dad2c3f5377b07` |
+| train pair registry | `2e326c093011562b3a5f913b211b79c95ba2b9e73e36418645835d7f71306154` |
+| analysis-plan JSON | `70cdbb82bddd65d5fa506355047e44e699dd5f9e8fa23b9f8f1cd9aeb0efc84f` |
+| dependency lock | `0c1da0a4be1b183d243bd308751d3622a09a1553cae2f1ce031dc5e1250a6458` |
+| catalog | `e84bf25467d58b53c2ebda6fd444b7628bf2d9560ffa09b7bfe2643ad96df6ec` |
+| split manifest | `e1d51929fb86f1a1858c2f4f9c5f46dee84c2324d0d0b4844bbacc6b92cf8494` |
+| action-eligibility manifest | `2454055f6d24ecdde5c94c952cee8c0697616a2c844b2ccbfa6c0003173ddc34` |
+
+The plan's scientific `stable_hash` is still
+`f76e10b58d8273e5e1ab3306bd2da993f8a907989b1f107febc269b0ca1eb353`.
+It retains 5,000 suite-stratified structural-scenario bootstrap resamples,
+seed `20260830`, and equal-suite weighting.
+
+E2's required hierarchical input is explicitly fixed to the frozen E1
+analysis manifest:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/aggregate/analysis_manifest.json`
+
+The file is 78,619 bytes with SHA-256
+`5edaf84a10b0775eb4d3f53ace1bf39a3aaef4abb1203076e311f7389a5c1c03`.
+Its self-hash independently reproduces as
+`447eaf9bec1f86cf592efb8e7d9a89153736089864831920f89acb6e792b077e`,
+and it binds the same analysis-plan and upstream-chain hashes,
+`f76e10b58d8273e5e1ab3306bd2da993f8a907989b1f107febc269b0ca1eb353`
+and `ed317185bc3b80cee2cba520ac206c9d9abf84a70009ec41aab49498ea91f2f7`,
+required by E2. Historical first-party gate validation accepts the artifact's
+structure and identities and returns `production_eligible=false`,
+`compatible=false`, and `passed=false`, with both E1 gate statuses
+`not_confirmatory`. These values are the expected frozen estimation-only
+outcome. They will be carried into E2; the aggregate is not a route around the
+failed E1 gate and cannot authorize development, test, or a confirmatory
+claim.
+
+The aggregate is dependency-light and model-free. The core interpreter
+`/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python` is
+Python 3.11.15, imports aggregate schemas `silenttwin.agentdojo.aggregate.v1`
+and `silenttwin.agentdojo.analysis_manifest.v1` from the detached source, and
+passes `pip check`. It does not use the learned environment, Qwen, a model
+cache, or a runtime fingerprint. The two historical aggregate/statistics gate
+test files passed (`25 passed`), and the shared helper, E2 entrypoint, and
+scientific-v6 launcher all pass `bash -n`.
+
+A clean-environment launcher probe used a temporary no-output Python shim and
+resolved exactly:
+
+```text
+-m silenttwin.agentdojo.aggregate
+--input-root /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/runs
+--output-dir /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/aggregate
+--expected-grid-manifest /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/grid/grid-manifest.jsonl
+--analysis-plan /home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json
+--upstream-e1-analysis-manifest /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/aggregate/analysis_manifest.json
+```
+
+The probe created no output and was removed; the main worktree returned clean.
+`--allow-development-partial` did not resolve. The real aggregate destination
+remains absent. The persistent scheduler-log directory now exists empty at
+mode `0755`:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-aggregate`
+
+The implementation strictly validates and expands all 6.74 GB of frozen run
+artifacts, evaluates the upstream E1 binding, and computes the frozen
+5,000-resample E2 statistics before it creates the aggregate directory. It
+prints its sole completion object only after publishing. Therefore an absent
+aggregate path and empty stdout while the PBS job is running are expected and
+are not evidence of a hang. A successful run must exit zero and publish
+exactly `summary.json`, `analysis_manifest.json`,
+`validated_run_index.json`, and the byte-identical copied
+`grid_manifest.jsonl`; every output must be validated before interpretation.
+
+At preparation time, no PBS job was listed for `suaq0001`. Queue `gpu_free`
+was enabled and started, required exactly one GPU, allowed at most
+`04:00:00`, and enforced `max_run = [u:PBS_GENERIC=1]`. Aggregation itself is
+model-free; the job requests one GPU only because this site's available queue
+requires it. The 250 GB memory request retains the validated E1 aggregate
+margin for in-memory JSON expansion. This is one ordinary PBS job, not an
+array.
+
+The explicit qsub environment allowlist below has 18 unique ordered keys and
+is 1,978 ASCII bytes. It fixes the train split and E2 input, explicitly binds
+the frozen E1 analysis manifest, sets
+`AGENTDOJO_ALLOW_DEVELOPMENT_PARTIAL=0`, excludes all model/runtime variables,
+and does not use `qsub -V`.
+
+Resolved E2 aggregate command (**prepared, not submitted**):
+
+```bash
+export PBS_E2_AGGREGATE_VARIABLES="AGENTDOJO_REPO_ROOT=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5,PYTHON_BIN=/home/suaq0001/projects/.venvs/silenttwin-agentdojo-py311/bin/python,PYTHONDONTWRITEBYTECODE=1,OUT_ROOT=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train,STAGE=aggregate,RECIPIENT_EXPERIMENT=e2,AGENTDOJO_DATASET_SPLIT=train,GRID_MANIFEST=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/grid/grid-manifest.jsonl,AGENTDOJO_GRID_PLAN=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/plans/recipient-separation-train-v1.json,AGENTDOJO_CATALOG=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/catalog-v1.json,AGENTDOJO_SPLITS=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/splits-v1.json,AGENTDOJO_ACTION_ELIGIBILITY=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/action-eligibility-v1.json,AGENTDOJO_STRATEGY_CATALOG=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/candidate-strategies-scientific-v6-recipient-separation.json,AGENTDOJO_PAIR_REGISTRY=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/pair-registry-scientific-v6-recipient-separation-train.json,AGENTDOJO_ANALYSIS_PLAN=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/configs/silenttwin/agentdojo/analysis/recipient-separation-v1.json,AGENTDOJO_DEPENDENCY_LOCK=/home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/requirements-tier2-agentdojo.lock,AGENTDOJO_ALLOW_DEVELOPMENT_PARTIAL=0,E1_ANALYSIS_MANIFEST=/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e1/aggregate/analysis_manifest.json"
+
+qsub -P fs_ccds_asysong \
+  -q gpu_free \
+  -l select=1:ncpus=12:ngpus=1:mpiprocs=1:mem=250gb \
+  -l walltime=04:00:00 \
+  -N st-v6-e2-agg \
+  -o /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-aggregate/ \
+  -e /home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-e2-aggregate/ \
+  -v "$PBS_E2_AGGREGATE_VARIABLES" \
+  /home/suaq0001/projects/silent_twin/outputs/scientific-v6-e2-execution/source-9c85cb5/experiments/silenttwin/run_agentdojo_recipient_separation_train_tier2.sh
+```
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only aggregate preparation; neither source
+   checkout nor any frozen E1/E2 input artifact may change;
+2. immediately before submission, recheck both clean checkouts, reconstruct
+   the full-E2 completion digest, reproduce the E1 manifest self-hash and
+   compatibility result, require the aggregate destination to remain absent
+   and the log directory to remain empty, and inspect the live PBS queue/user
+   state;
+3. call `qsub` only after separate explicit approval to submit exactly the
+   single job above; and
+4. after completion, validate and freeze all four aggregate artifacts before
+   interpreting any E2 estimate. Development and test remain closed.
