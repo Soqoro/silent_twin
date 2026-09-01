@@ -4781,3 +4781,98 @@ Immediate next checkpoint:
    and the immutable E2 grid; and
 5. do not restore the active wheel until the task-0 process terminates, then
    validate all 572 rows before releasing any remaining E2 task.
+
+## Scientific-v6 E2 task-0 H200 pilot freeze on 2026-09-01
+
+This section supersedes the immediate checkpoint above. The E2 readiness
+freeze was committed at `a44a8e6` (`Freeze scientific v6 E2 readiness audit`).
+The post-outcome validation record is
+`docs/scientific_v6_e2_task0_pilot_freeze.md`. Development and test remained
+closed, and only frozen train task 0 was executed.
+
+PBS subjob `55727[0].gaas` reached terminal state `F` with `Exit_status = 0`.
+It ran on `hpc-gaas-g25` with one H200 and finished in `00:38:11`. Its retained
+stdout reports all 13 completed shards; the stderr contains only a Transformers
+deprecation notice and completed weight-loading progress. The scheduler record
+showed `Stageout_status = 1`, so persistent publication was independently
+checked rather than inferred from stageout.
+
+The completed output is at:
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-train/e2/runs/task-0`
+
+It contains 637 regular files totaling 948,783,554 bytes. All 13 frozen
+Workspace configurations passed historical first-party validation of their
+canonical identities, grid/shard/source bindings, artifact digests, complete
+checkpoint manifests, checkpoint/result equality, exact cohort and ordering,
+runtime provenance, evidence boundary, and completion log. There are exactly
+572 globally unique rows, with no missing, duplicate, overwritten, or extra
+row. The sorted 13-shard binding digest is
+`dcb840146cafc6657fd5a9e909fed88255f21054f897f235bd3810973b6b915b`;
+the enclosing pilot-freeze digest is
+`e70661d7ef02c061190c95343fb1210100f51bb73b0ce135b943465faed33ddf`.
+
+All artifacts bind clean source revision
+`9c85cb5bf34195a80aa1d076fcc44449867b7883`, source-tree hash
+`4bde504f2760e7a5cbaa9b62b82119b5f20aa115c6ff38bd549584d9b851b8d3`,
+runtime fingerprint
+`sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`,
+Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`,
+PBS identity `55727[0].gaas`, and `NVIDIA H200` / `cuda:0` call metadata.
+The 5,364 realized model calls were local-only with zero external calls,
+retries, terminal failures, or model-call exceptions.
+
+The structural scientific boundary passes. Every row is production,
+train-only E2 Workspace evidence, contains the required trusted fields, makes
+exactly one final-plan attempt, locks that plan before settlement, retires the
+attacker context, and starts final settlement from the untouched target
+environment. There is no infrastructure, checkpoint, backend, tool,
+retirement, or isolation error and no rejected effect is committed.
+
+The 200 failure-ledger rows exactly equal the 200 rows with model-contract
+errors: 192 `invalid_hidden_state_prediction` outcomes and eight
+`invalid_probe_selection` outcomes. All are non-retryable, and the two sets
+are disjoint. They are preserved scientific outcomes rather than failed
+shards. No row may be repaired or replaced.
+
+For transparency only, the one-bundle Workspace pilot has genuine-Q=16 minus
+matched-shuffled-Q=16 state-matched selection `+0.0909` and conservative
+attack success `-0.1818`. Genuine Q=16 minus no-probe Q=0 is `+0.0909` and
+`-0.0455` on those two measures. These unclustered pilot directions were not
+used for release. The four-suite frozen aggregate must report conservative
+attack success, state-matched selection, commitment, valid-run attack success,
+and invalidity together.
+
+After validation, the original learned environment was restored to the later
+forced-choice wheel. Its 115-file installed payload matches wheel SHA-256
+`c9c14bc9aa0b4a1ffaa7df89b097e49c90315eefc78d10e3b7c52a7431231bb3`,
+installed verification hash
+`f304487f34c5a60cc430bbab2539310413eddeed98118217b502cb90b6c2e2b2`,
+RECORD identity
+`8b95744fae02605efef8dd7f17bb358d7c00766347f1f3516bd432bac20698df`,
+and runtime fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`.
+`pip check` passes. Only `task-0` exists below the E2 run root; tasks 1--7
+remain absent.
+
+Disposition: the task-0 pilot passes the prospective release boundary. This
+authorizes preparation, not automatic submission, of unchanged E2 train tasks
+1--7. It does not repair E1, authorize development/test, or support a
+confirmatory claim.
+
+Immediate next checkpoint:
+
+1. review and commit this pilot-freeze record; the historical executable
+   source and frozen E2 grid must remain unchanged;
+2. from the clean commit, prepare and inspect one PBS array command for exactly
+   train tasks 1--7, with no development/test access;
+3. immediately before submission, verify absent task-1 through task-7
+   destinations, queue capacity, detached source and frozen inputs, both wheel
+   hashes, and the Qwen snapshot, then temporarily restore the historical E2
+   wheel and reproduce runtime fingerprint
+   `sha256:680748407797242c326d719177eff3a4a48612e97793ad6417d3135845da867c`;
+4. submit only after the resolved command has been separately authorized; and
+5. after all seven tasks finish, validate the complete 4,836-row E2 train
+   corpus before preparing the model-free aggregate. Keep development and test
+   closed.
