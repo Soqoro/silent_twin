@@ -5652,3 +5652,104 @@ Immediate next checkpoint:
 4. keep development and test closed. No additional model or GPU job is
    authorized by this aggregate, and no retry or repair of invalid rows is
    permitted.
+
+## Scientific-v6 E1/E2 proposal and claim-ledger checkpoint on 2026-09-02
+
+This section supersedes the immediate checkpoint above. The E2 aggregate and
+analysis freeze was committed at
+`f597ec643386e55788c9d97892be5dc377e91ad1` (`Freeze scientific v6 E2
+analysis`), and the worktree was clean before manuscript editing. No
+executable, configuration, grid, model, input, aggregate, or result artifact
+was changed. No development or test outcome was accessed, and no PBS or model
+job was submitted.
+
+The paper-facing source updated in this checkpoint is:
+
+`docs/silenttwin_feedback_recipient_separation_proposal.tex`
+
+It is now 901 lines and 86,730 bytes with SHA-256
+`ad60af9c0dddedc2d0548293aafc004f6eb7e7fe6721c689bda2cb813ac616c9`.
+The revision is bound only to the already frozen E1 and E2 train evidence.
+The E2 aggregate remains bound by analysis-manifest self-hash
+`efdfa5080bc371151f3afd2a25ac9a1a4589593fb4c4b503d8a5bcc22664dc81`,
+current-evidence hash
+`8eb85432526abb763e293c18d8892e7696eac8b267fa574edcfc7e5cc77b7231`,
+and aggregate-freeze digest
+`f14f399b6e7c530dbd67faf9cdce5c9521e3491a7ef2952bd835064f701a792c`.
+The E1 negative placebo gate and all access-policy boundaries remain
+unchanged.
+
+The abstract, introduction, Tier-2 status, metrics, falsification record,
+claim boundary, limitations, execution plan, and conclusion now consistently
+reflect completed E2. The former prospective E2-readiness paragraph was
+replaced by a full train-only E2 results section. It reports all of the
+following together rather than collapsing them into one attack-success
+number:
+
+- equal-suite primary estimates and task-weighted sensitivities;
+- scenario-level paired sign-flip values;
+- the genuine-versus-matched state-selection and conservative-effect
+  contrasts;
+- all four suite strata;
+- exact invalid-output accounting and valid-run attack success;
+- the SilentTwin inference, selection, commitment, invalidity, and
+  conservative-effect cells; and
+- the failed hierarchical and formal-closure disposition.
+
+The manuscript's main mechanistic interpretation is now a five-node causal
+chain: feedback source, inferable signal, contract realization, state-matched
+action, and released effect. E1 plus the adaptive readouts identify
+source-aligned information and its interface dependence. E2 estimates a
+30.04-point genuine-minus-matched action-selection gain with a strictly
+positive suite interval in Banking, Slack, Travel, and Workspace. The
+corresponding conservative prohibited-effect gain is 15.53 points overall but
+is positive in Banking and Slack, zero in Travel, and negative in Workspace.
+The proposal therefore no longer describes Travel and Workspace as lacking a
+feedback signal; their divergence occurs downstream of action choice.
+
+The revised SilentTwin claim is deliberately narrower than full closure.
+Between Q=0 and Q=16, hidden-state prediction rises by 24.65 points, while
+state-matched selection and final commitment stay at 0.5 and the conservative
+prohibited-effect score falls by 24.13 points. The paper calls this partial
+action-layer separation. It explicitly records that the inference and effect
+contrasts violate the frozen equivalence margin and that zero rejected commits
+produce a one-sided upper bound of 0.3255 rather than the required value below
+0.01.
+
+A new manuscript claim ledger freezes the allowed wording:
+
+- source-aligned private-state information: supported as controlled
+  train-only mechanism evidence;
+- state-conditioned action transfer: supported under the authored train
+  intervention;
+- released prohibited effects: supported only as an aggregate,
+  suite-heterogeneous train estimate;
+- recipient-separation action-layer interruption: supported descriptively;
+- full empirical closure: not supported by the frozen criterion;
+- realistic clean-repair utility: open; and
+- cross-model, held-out, prevalence, and deployment generalization: open.
+
+Two consecutive `pdflatex` passes over the updated source succeed and produce
+a 19-page PDF in a temporary directory. Second-pass inspection finds no
+undefined citation/reference, overfull or underfull box, float-size, or LaTeX
+error warning. The only diagnostic is the pre-existing Latin Modern
+bold-small-caps font substitution for `\method{}` in a bold context. Rendered
+inspection of the E2 and claim-ledger pages confirms that headings, tables,
+captions, causal chain, and continuation text appear in reading order. The
+temporary PDF and build intermediates were not added to the repository.
+`git diff --check` passes.
+
+Disposition: the proposal now contains the strongest defensible E1/E2 story
+without promoting train estimates into confirmation. Development and test
+remain closed, full closure and clean-repair utility remain unclaimed, and no
+additional GPU run follows from this manuscript update.
+
+Immediate next checkpoint:
+
+1. review and commit the proposal plus this handoff-only manuscript record;
+2. preserve all E1/E2 aggregates and the current claim ledger unchanged;
+3. if continuing the empirical program, first author and independently review
+   the missing benign-repair, dependency, and atomicity task definitions under
+   a new train-only protocol; and
+4. do not open development, held-out data, or a stronger-model phase without a
+   separately frozen design and permission-bearing gate.

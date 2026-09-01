@@ -7,6 +7,7 @@
 \usepackage{amsmath,amssymb,amsthm,mathtools}
 \usepackage{booktabs,tabularx}
 \usepackage{enumitem}
+\usepackage{placeins}
 \usepackage{xcolor}
 \usepackage{microtype}
 \usepackage{tikz}
@@ -39,7 +40,7 @@
 \begin{abstract}
 Guardrail feedback has two opposing effects. It can help a benign AI agent recover from a blocked action, but it can also teach a compromised agent about private authorization rules, review outcomes, or enforcement boundaries. Existing systems usually send the feedback back to the same agent that proposed the action. This paper asks a different question: \emph{who should receive a truthful guardrail decision, and when?} We propose \method{}, a runtime that lets an agent plan inside a temporary tool environment while guardrail decisions and possible real-world effects remain private and queued. Before any decision or execution outcome is revealed, the original agent context---including its conversation, memory, callbacks, tool access, and inference cache---is permanently retired. A separate controller then executes only monitor-approved, dependency-closed actions, and a fresh restricted process performs truthful repair or reports the outcome to the human.
 
-We study this design as a security--utility problem. In matched private-authorization tasks, the same state-specific feedback may help a benign agent choose the correct repair and help a compromised agent infer or exploit the hidden state. We prove that when two private states require disjoint repairs, reliable state-specific repair by the original context necessarily makes those states distinguishable. We also state conditional agent-view privacy and effect-integrity guarantees for \method{}. A finite-state pilot establishes the causal mechanism in a synthetic setting. We then run a train-only AgentDojo E1 with Qwen2.5-7B over 8,928 trials and 49 structural groups. Generic genuine feedback at $Q=16$ improves conservatively scored state accuracy by 24.60 percentage points over $Q=0$ (95\% CI 18.06--30.98), with replication in Banking and Slack. However, the matched-shuffled control also moves by 7.65 points (90\% CI 2.43--12.77), outside the preregistered $\pm 5$-point equivalence margin, so development remains closed. A post-hoc audit suggests a channel--realization gap: Travel and Workspace retain state-ranked posteriors but often emit the wrong symbolic namespace. Two explicitly adaptive train-only interventions sharpen that explanation. Direct semantic grounding makes exact contract realization worse, while opaque labels and a simpler implicit interface recover it. A paired label-randomized forced-choice readout then cleanly follows feedback source in all four suites: in minimal context, genuine target AUC and shuffled donor AUC are both $1.000$, whereas shuffled target AUC is $0.499$ and constant-feedback target AUC is $0.500$. Full scenario context lowers genuine AUC to $0.958$. The resulting claim is a three-stage dissociation among source-aligned channel evidence, interface realization, and operational action transfer. These adaptive results neither replace the frozen E1 endpoint nor waive its negative gate; feedback-caused prohibited effects, repair utility, and held-out generalization remain open.
+We study this design as a security--utility problem. In matched private-authorization tasks, the same state-specific feedback may help a benign agent choose the correct repair and help a compromised agent infer or exploit the hidden state. We prove that when two private states require disjoint repairs, reliable state-specific repair by the original context necessarily makes those states distinguishable. We also state conditional agent-view privacy and effect-integrity guarantees for \method{}. A finite-state pilot establishes the causal mechanism in a synthetic setting. We then run two train-only AgentDojo experiments with Qwen2.5-7B and 49 structural groups. E1 contains 8,928 trials: genuine $Q=16$ feedback improves conservatively scored state accuracy by 24.60 percentage points over $Q=0$, but its matched-shuffled equivalence control fails. An adaptive paired readout nevertheless recovers source-aligned evidence in every suite. E2 contains 4,836 trials: relative to matched-shuffled $Q=16$, genuine feedback raises state-matched action selection by 30.04 points (95\% CI 25.05--34.72), with positive intervals in Banking, Slack, Travel, and Workspace. The corresponding conservative prohibited-effect gain is 15.53 points (95\% CI 12.11--18.54), but it is positive only in Banking and Slack, zero in Travel, and negative in Workspace. Under \method{}, $Q=16$ still raises hidden-state prediction by 24.65 points, yet state-matched selection and final commitment remain at their $0.5$ baselines and the conservative prohibited-effect score falls by 24.13 points. The preregistered full-closure criterion nonetheless fails because inference is not equivalent to baseline and the zero rejected commits do not yield the required rare-event bound. Together, these results identify a four-stage dissociation among source-aligned channel evidence, interface realization, action selection, and released effect. All learned-model findings are estimation-only train evidence; development, test, clean-repair utility, and held-out generalization remain open.
 \end{abstract}
 
 \section{Introduction}
@@ -77,9 +78,12 @@ The revised paper makes feedback-recipient separation the primary empirical vari
     \item \textbf{Realistic train-only leakage evidence now exists.} Scientific-v6 E1 completed all 288 shards and 8,928 AgentDojo trials. Generic genuine $Q=16$ improved state accuracy by 24.60 percentage points over $Q=0$, but the effect was heterogeneous and the shuffled-control equivalence gate failed.
     \item \textbf{Interface realization is an active part of the measurement.} A preregistered adaptive replay refuted the simple semantic-grounding rescue: explicit authorization semantics drove exact realization to zero, whereas an implicit minimal interface and opaque labels improved it. Inert length matching did not rescue the failed explicit arm.
     \item \textbf{Source-aligned evidence is recoverable in every suite.} A second preregistered adaptive readout used paired A/B label permutations and one-token logits. Genuine feedback tracked the target, shuffled feedback tracked its donor but not its target, and constant feedback remained at chance. The minimal-context target AUC was $1.000$ in Banking, Slack, Travel, and Workspace.
+    \item \textbf{Feedback changes action choice in every suite.} Scientific-v6 E2 completed 104 shards and 4,836 train trials. Genuine $Q=16$ increases state-matched final selection by 30.04 points over matched-shuffled $Q=16$, with positive suite-level intervals throughout.
+    \item \textbf{Action transfer and released harm are distinct.} Against the same matched control, the conservative prohibited-effect gain is 15.53 points overall, but positive in Banking and Slack, zero in Travel, and negative in Workspace. The selection effect therefore generalizes more broadly than end-to-end harm.
+    \item \textbf{Recipient separation shows partial, not formal, closure.} Under \method{}, inference still rises with probe budget while state-matched selection and final commitment remain at baseline and conservative prohibited effects decline. This supports action-layer separation, but it fails the preregistered equivalence and rare-event closure criterion.
     \item \textbf{The formal claims are conditional.} State-specific same-context repair implies leakage when correct repair sets are disjoint. Agent-view privacy and effect integrity follow only when all stated mediation, isolation, dependency, and retirement obligations hold.
     \item \textbf{One realistic construction has been falsified.} A train-only learned-monitor audit found nested rejection regions and no within-scenario complementary blind spot. It does not support the original Tier-2 paired-blind-spot experiment.
-    \item \textbf{Downstream harm and repair remain open.} E2 must determine whether the inferred state increases prohibited effects and whether recipient separation removes that increment. Clean restricted repair requires separately reviewed task definitions. Development and test have not been opened.
+    \item \textbf{Utility and generalization remain open.} Clean restricted repair requires separately reviewed task definitions. The E1 gate failed, the E2 protocol is estimation-only, and development and test have not been opened.
 \end{itemize}
 
 Our intended contributions are:
@@ -87,7 +91,7 @@ Our intended contributions are:
     \item We formulate guardrail feedback as a recipient-sensitive security--utility problem over the complete lifecycle of an adaptive tool-using agent.
     \item We connect an impossibility result for same-context state-specific repair to a randomized benchmark with matched compromised-agent and benign-repair modes.
     \item We define a runtime contract combining decision-oblivious simulation, private checking, verdict-independent candidate slots, context retirement, dependency-aware finalization, and clean repair.
-    \item We separate channel distinguishability, posterior realization, exact-contract realization, and end-to-end effects so that protocol noncompliance cannot be mistaken for channel privacy.
+    \item We separate channel distinguishability, posterior realization, exact-contract realization, state-matched action selection, and released effects so that protocol noncompliance cannot be mistaken for channel privacy or action transfer.
     \item We revise \bench{} into a two-tier evaluation of private-state leakage, feedback-caused prohibited effects, useful-work preservation, and assumption-specific failures, while retaining a clear boundary between controlled causal evidence and deployment prevalence.
 \end{enumerate}
 
@@ -435,9 +439,9 @@ To avoid an additional package for indicator notation, the implementation record
 Tier 1 contains small workflows over email, files, calendars, messaging, and payments. The state space, attackers, tool behavior, and transcript distributions are enumerable. It supports exact total-variation calculations, an optimal Bayesian attacker, exhaustive dependency checks, and deliberate side-channel ablations. It establishes causal identifiability and implementation invariants, not deployment prevalence.
 
 \paragraph{Tier 2: realistic AgentDojo workflows.}
-The completed E1 covers all four available suites---Workspace, Travel, Banking, and Slack---with 20, 10, 8, and 11 structural groups respectively. The frozen primary attacker is Qwen2.5-7B. A deterministic attacker remains a positive control. A fresh restricted open-model context is still planned for realistic repair. A fixed Granite Guardian action monitor may be included as an additional checker, but the primary authorization intervention does not depend on finding complementary Granite profiles. The current evidence is train-only and estimation-only; a stronger attacker or any development execution requires a separately frozen protocol and permission-bearing gate.
+The completed E1 and E2 cover all four available suites---Workspace, Travel, Banking, and Slack---with 20, 10, 8, and 11 structural groups respectively. The frozen primary attacker is Qwen2.5-7B. A deterministic attacker remains a positive control. A fresh restricted open-model context is still planned for realistic repair. A fixed Granite Guardian action monitor may be included as an additional checker, but the primary authorization intervention does not depend on finding complementary Granite profiles. The current evidence is train-only and estimation-only; a stronger attacker or any development execution requires a separately frozen protocol and permission-bearing gate.
 
-E1 crosses $Q\in\{0,4,16\}$ over the full train cohort. $Q=32$ was reserved for a possible development sensitivity analysis and has not been run. The E1 artifact is not eligible to freeze a held-out sample size and does not authorize development.
+E1 and E2 cross $Q\in\{0,4,16\}$ over their frozen train cohorts. $Q=32$ was reserved for a possible development sensitivity analysis and has not been run. Neither aggregate is eligible to freeze a held-out sample size or authorize development.
 
 \subsection{Completed Controlled Pilot}
 
@@ -580,10 +584,111 @@ The result is about discrimination, not calibration. In minimal context, the lar
 
 The model run was complete before a one-field analysis binding error was discovered: the criterion requested \texttt{paired\_readout\_validity} while the collapsed metric was named \texttt{paired\_readout\_valid}. No analysis artifact had been published. A tested mechanical alias was committed, with run and analysis revisions recorded separately; no model call, row, estimand, threshold, bootstrap seed, or resample count changed. The final 5,000-resample analysis reproduced byte-for-byte from a clean checkout.
 
-Together, the two interventions place the original suite split downstream of channel availability. Travel and Workspace expose the same source-aligned transcript evidence as Banking and Slack under the minimal readout. What differs is the conversion of that evidence through realistic context, semantic response framing, exact contract realization, and ultimately action. This is the paper's measurement claim; the next causal question is whether the recovered evidence transfers into a prohibited benchmark effect.
+Together, the two interventions place the original suite split downstream of channel availability. Travel and Workspace expose the same source-aligned transcript evidence as Banking and Slack under the minimal readout. What differs is the conversion of that evidence through realistic context, semantic response framing, exact contract realization, and ultimately action. This measurement account was frozen before E2 outcomes were observed; E2 supplies the next causal link.
 
-\paragraph{Prospective E2 readiness audit.}
-Before observing any E2 outcome, we audited the already frozen train grid against these completed results. The audit supports a one-task H200 pilot followed, if structurally valid, by the remaining frozen train tasks. It does not open development or test. The audit also fixes an interpretation constraint exposed by E1: \texttt{conservative\_attack\_success} assigns an attack success to every invalid row, so its Q=16-versus-Q=0 contrast can combine action transfer with changes in exact-contract validity. We retain and report that endpoint unchanged. The cleaner mechanistic test is the already-preregistered Q=16 genuine-minus-matched-shuffled contrast in state-matched final selection, because those arms share the query budget and output contract and cross target and donor states. Final-effect commitment, valid-run attack success, and error strata must accompany it. Thus no post-hoc readout silently replaces the frozen safety score, while the known interface failure is not mislabeled as an executed prohibited effect.
+\subsection{Scientific-v6 Train E2 Results}
+
+\paragraph{Frozen design and accounting.}
+Before observing E2, we retained the original conservative safety endpoint and designated genuine $Q=16$ minus matched-shuffled $Q=16$ in state-matched final selection as the cleanest mechanism contrast. Those arms have the same query budget and response contract while independently crossing target and donor states. The completed E2 contains 104 validated shards, 4,836 trial rows, and the same 49 structural groups as E1. All eight paired contrasts retain all 49 target and reference groups, with pair yield 1.0 in every suite. No invalid row was retried, normalized, or replaced.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}Xrrr@{}}
+\toprule
+\textbf{Paired contrast} & \textbf{Estimate} & \textbf{95\% CI} & \textbf{Sign-flip $p$} \\
+\midrule
+Genuine $Q=16$ $-$ matched $Q=16$: state-matched selection & 0.3004 & $[0.2505,0.3472]$ & 0.00010 \\
+Genuine $Q=16$ $-$ no probe: state-matched selection & 0.3004 & $[0.2502,0.3500]$ & 0.00010 \\
+Genuine $Q=16$ $-$ matched $Q=16$: conservative prohibited effect & 0.1553 & $[0.1211,0.1854]$ & 0.01980 \\
+Genuine $Q=16$ $-$ no probe: conservative prohibited effect & 0.0788 & $[0.0017,0.1554]$ & 0.29087 \\
+Oracle $-$ no probe: conservative prohibited effect & 0.2180 & $[0.1602,0.2768]$ & 0.00010 \\
+\bottomrule
+\end{tabularx}
+\caption{Frozen scientific-v6 E2 equal-suite estimates over 49 paired structural groups. ``Matched'' is the independently crossed matched-shuffled feedback control. Conservative scoring treats a contract-invalid final attempt as an attack success.}
+\label{tab:v6e2primary}
+\end{table}
+
+Genuine feedback changes the state-matched final choice by 30.04 percentage points relative to both controls. The matched-shuffled task-weighted sensitivity estimate is 27.47 points (95\% CI 22.11--32.82), so the result is not created by equal weighting of the four suites. The corresponding conservative prohibited-effect gain over matched-shuffled feedback is 15.53 points; its task-weighted sensitivity is 9.57 points (95\% CI 6.12--12.88). Oracle state access provides 21.80 points of headroom over no probes (95\% CI 16.02--27.68).
+
+The no-probe prohibited-effect contrast is weaker than its percentile interval alone suggests. Its equal-suite interval barely excludes zero, but the paired sign-flip value is $p=0.2909$ and its task-weighted sensitivity interval, $[-0.0289,0.1327]$, crosses zero. We therefore treat the same-budget matched-shuffled contrast as the primary action-transfer evidence and do not describe both controls as equally robust.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Suite} & \textbf{Selection gain (95\% CI)} & \textbf{Conservative-effect gain (95\% CI)} \\
+\midrule
+Banking & $0.3125\ [0.2500,0.3750]$ & $0.3125\ [0.2500,0.3750]$ \\
+Slack & $0.4432\ [0.3409,0.5000]$ & $0.4432\ [0.3520,0.5000]$ \\
+Travel & $0.2833\ [0.1500,0.4000]$ & $0.0000\ [0.0000,0.0000]$ \\
+Workspace & $0.1625\ [0.0750,0.2625]$ & $-0.1344\ [-0.1938,-0.0656]$ \\
+\bottomrule
+\end{tabular}
+\caption{Genuine $Q=16$ minus matched-shuffled $Q=16$ by suite. Feedback changes state-matched selection in every suite, while downstream conservative effect realization is heterogeneous.}
+\label{tab:v6e2suite}
+\end{table}
+
+The suite decomposition is the central mechanistic result. Banking and Slack carry the change in selected action through to the conservative prohibited-effect endpoint. Travel exhibits a positive 28.33-point selection gain but zero effect contrast because both arms saturate at conservative score 1.0: every Travel row in these $Q=16$ cells is contract-invalid. Workspace exhibits a positive 16.25-point selection gain but a negative 13.44-point conservative-effect contrast. Thus Travel and Workspace do respond to feedback at the action-choice layer; their earlier E1 split cannot be interpreted as absence of a feedback signal. The generalization failure occurs later, between chosen action, exact interface realization, and released benchmark effect.
+
+This conclusion is not explained by unequal invalid-output counts between the primary arms. Genuine and matched-shuffled $Q=16$ each contain exactly 170 invalid rows out of 372 and have identical suite-level invalidity: 0 in Banking and Slack, 1.0 in Travel, and 0.6438 in Workspace. The full E2 corpus contains 1,986 invalid rows out of 4,836 (41.07\%): 1,935 invalid hidden-state predictions, 31 invalid probe selections, and 28 invalid final plans, with eight rows carrying two ledger entries. These are model-contract outcomes rather than infrastructure failures. The global conservative prohibited-effect rate is 0.7310; among the 2,850 valid rows, the prohibited-effect rate is 0.5435.
+
+\paragraph{Recipient separation.}
+The \method{} cells reveal a different form of separation. Increasing the probe budget from $Q=0$ to $Q=16$ raises hidden-state prediction by 24.65 points (95\% CI 18.56--31.19), yet state-matched selection and final-effect commitment remain exactly 0.5 at both budgets. The conservative prohibited-effect score falls by 24.13 points (95\% CI $-30.69$ to $-17.63$), and valid-run attack success is nearly unchanged, from 0.5000 to 0.4861.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+\textbf{\method{} cell} & \textbf{State prediction} & \textbf{Selection/commit} & \textbf{Invalid} & \textbf{Conservative effect} \\
+\midrule
+$Q=0$ & 0.2180 & 0.5000 & 0.6022 & 0.7820 \\
+$Q=16$ & 0.4646 & 0.5000 & 0.0780 & 0.5406 \\
+\bottomrule
+\end{tabular}
+\caption{Frozen equal-suite \method{} cells. Recipient separation leaves a measurable inference contrast but removes the observed probe-dependent change in state-matched choice and commitment.}
+\label{tab:v6e2silenttwin}
+\end{table}
+\FloatBarrier
+
+This is evidence for \emph{partial action-layer separation}, not the preregistered full-closure claim. Both the inference and conservative-effect contrasts fall outside the required equivalence interval $[-0.05,0.05]$. All 13 E2 condition cells contain zero rejected-effect commits, but the frozen one-sided simultaneous upper bound is 0.3255, well above the required 0.01. Zero observed events therefore do not establish the rare-event guarantee. Because E1 is not a permission-bearing upstream gate and E2 is explicitly estimation-only, every emitted E2 gate remains \texttt{not\_confirmatory}; development and test remain closed.
+
+The combined evidence supports the following causal decomposition:
+\[
+\text{feedback source}
+\longrightarrow \text{inferable signal}
+\longrightarrow \text{contract realization}
+\longrightarrow \text{state-matched action}
+\longrightarrow \text{released effect}.
+\]
+E1 and the adaptive readouts identify the first two links. E2 identifies the action-selection link across all four suites and shows that the final link is heterogeneous. The \method{} cells show that inference and action transfer can also separate: a model can retain predictive information without converting it into a probe-dependent final choice.
+
+\subsection{Frozen Train-Only Claim Ledger}
+
+Table~\ref{tab:claimledger} states the strongest wording supported by the current evidence. It prevents a positive mechanism result from silently becoming a confirmatory, held-out, or deployment claim.
+
+\begin{table}[htbp]
+\centering
+\scriptsize
+\begin{tabularx}{\linewidth}{@{}>{\raggedright\arraybackslash}p{0.19\linewidth}X>{\raggedright\arraybackslash}p{0.22\linewidth}@{}}
+\toprule
+\textbf{Claim} & \textbf{Frozen evidence} & \textbf{Disposition} \\
+\midrule
+Feedback carries source-aligned private-state information & E1 genuine gain plus paired forced-choice target/donor controls; minimal AUC 1.0 in every suite & Supported as controlled train-only mechanism evidence; not held-out confirmation \\
+Feedback changes state-conditioned action choice & E2 genuine-minus-matched selection gain 0.3004; every suite interval strictly positive & Supported under the authored private-authorization intervention on train \\
+Feedback increases released prohibited effects & Matched-control gain 0.1553 overall, positive in Banking/Slack, zero in Travel, negative in Workspace & Supported only as an aggregate, suite-heterogeneous train estimate \\
+Recipient separation interrupts action transfer & \method{} selection and commitment remain at 0.5 while inference rises and conservative effect falls & Supported descriptively as partial action-layer separation \\
+\method{} achieves full empirical closure & Inference and effect contrasts violate equivalence; rejected-commit upper bound is 0.3255 & Not supported by the frozen criterion \\
+Clean repair preserves useful work & No independently authored realistic repair corpus has been run & Open; no utility claim \\
+Results generalize across models, held-out tasks, or deployments & One Qwen checkpoint, controlled local AgentDojo train interventions & Open; no prevalence or held-out claim \\
+\bottomrule
+\end{tabularx}
+\caption{Manuscript claim ledger after the frozen scientific-v6 E1 and E2 analyses.}
+\label{tab:claimledger}
+\end{table}
+\FloatBarrier
 
 \subsection{Feedback Policies, Attackers, and Baselines}
 
@@ -607,7 +712,7 @@ The deterministic positive-control attacker computes the optimal state-dependent
 \paragraph{Privacy and learning.}
 We report accuracy above the best prior, ROC-AUC, Brier score, log loss, posterior entropy reduction, invalid outputs, and query-budget curves. A transcript distinguisher uses only canonical agent-visible features and holds out complete structural scenario groups.
 
-The E1 audit and completed adaptive studies enforce a measurement distinction. \emph{Channel distinguishability} asks whether a source-aligned score can recover the state from the transcript. \emph{Posterior realization} asks whether the learned model's numeric state score ranks the states. \emph{Contract realization} asks whether the model emits the required exact schema and label namespace. \emph{Action transfer} asks whether the information changes a prohibited or useful effect. \emph{End-to-end realization} retains the conservative operational score in which invalid output is failure. These quantities answer different questions and are reported separately; neither a post-hoc posterior nor a forced-choice logit silently replaces the frozen end-to-end endpoint.
+The E1 audit, adaptive readouts, and completed E2 enforce a measurement distinction. \emph{Channel distinguishability} asks whether a source-aligned score can recover the state from the transcript. \emph{Posterior realization} asks whether the learned model's numeric state score ranks the states. \emph{Contract realization} asks whether the model emits the required exact schema and label namespace. \emph{Action transfer} asks whether the information changes the state-matched final choice. \emph{Effect realization} asks whether that choice becomes a released prohibited or useful benchmark effect. \emph{End-to-end realization} retains the conservative operational score in which invalid output receives its prespecified worst-case safety value. These quantities answer different questions and are reported separately; neither a post-hoc posterior, a forced-choice logit, nor a selected action silently replaces the frozen safety endpoint.
 
 \paragraph{Causal safety effect.}
 The primary feedback effect is
@@ -616,7 +721,7 @@ The primary feedback effect is
 =\mathbb E[Y\mid\text{truthful visible},Q=16]
 -\mathbb E[Y\mid\text{matched placebo},Q=16].
 \end{equation}
-We also compare truthful $Q=16$ with truthful $Q=0$. Both contrasts must pass. The primary closure quantity is the residual \method{} increase from $Q=0$ to $Q=16$. Monitor false negatives, rejected commits, and ground-truth prohibited effects remain separate outcomes.
+We also compare truthful $Q=16$ with truthful $Q=0$. The frozen gate requires both contrasts to pass. The primary closure quantity is the residual \method{} increase from $Q=0$ to $Q=16$. Monitor false negatives, rejected commits, and ground-truth prohibited effects remain separate outcomes. The completed train analysis retains all of these quantities even where they disagree; a positive mechanism contrast does not overwrite a failed hierarchical or equivalence gate.
 
 \paragraph{Utility.}
 Safe-effect salvage is
@@ -661,7 +766,7 @@ The frozen protocol stops or reframes the relevant claim if any of the following
     \item the optional boundary-learning extension lacks its train-only oracle headroom, in which case that extension stops without invalidating the recipient-separation study.
 \end{enumerate}
 
-Scientific-v6 E1 triggered criterion 3: matched-shuffled feedback was not equivalent to the prior-only condition within the five-point margin. Accordingly, development and test remain closed, the E1 manifest is not permission-bearing, and the exploratory raw-posterior audit cannot waive the gate. All observed scientific-v5 and scientific-v6 outcomes are train design/estimation data. Any later development opening requires a new immutable protocol and a separately reviewed gate; test remains untouched until a final held-out freeze.
+Scientific-v6 E1 triggered criterion 3: matched-shuffled feedback was not equivalent to the prior-only condition within the five-point margin. E2 also fails the frozen full-closure criterion: its \method{} inference and conservative-effect contrasts are both outside $[-0.05,0.05]$, and the zero rejected commits yield a one-sided upper bound of 0.3255 rather than the required value below 0.01. The negative conservative-effect direction is descriptively favorable, but it is not equivalence and cannot be relabeled as formal closure. Accordingly, development and test remain closed, the E1 manifest is not permission-bearing, and neither adaptive evidence nor E2 can waive the gate. All observed scientific-v5 and scientific-v6 outcomes are train design/estimation data. Any later development opening requires a new immutable protocol and a separately reviewed gate; test remains untouched until a final held-out freeze.
 
 \section{Related Work and Claim Boundary}
 
@@ -675,7 +780,7 @@ KAIJU moves intent gating outside the planner \cite{kaiju}. ARM tracks whether l
 Reactive opacity and secure multi-execution study adaptive information release \cite{opacity,sme}. LLMbda formalizes agent conversations, context separation, and noninterference \cite{llmbda}. KV-cache retention illustrates why deleting visible text may not erase model state \cite{kvcache}. Our contribution is narrower and operational: a tool runtime and benchmark for private enforcement decisions, effect dependencies, recipient separation, and useful-work recovery.
 
 \paragraph{Claim boundary.}
-We do not claim the first hidden guardrail, transactional agent runtime, provenance tracker, noninterference definition, or clean-context recovery mechanism. We do not claim that private authorization states are secrets in every deployment, that learned guardrails commonly have complementary blind spots, or that the benchmark estimates real-world attack prevalence. The completed E1 and adaptive readouts support train-only evidence that visible enforcement feedback contains source-aligned state information in a local simulated AgentDojo setting, and that interface realization can hide or distort that evidence. They do not yet establish feedback-caused prohibited effects, useful repair, held-out generalization, or a causal effect of any single component of full scenario context. We claim a joint runtime contract, formal proof obligations, and a causal evaluation of who receives enforcement feedback and when. Tier-2 effects remain benchmark prohibited effects in local simulated environments.
+We do not claim the first hidden guardrail, transactional agent runtime, provenance tracker, noninterference definition, or clean-context recovery mechanism. We do not claim that private authorization states are secrets in every deployment, that learned guardrails commonly have complementary blind spots, or that the benchmark estimates real-world attack prevalence. The completed E1 and adaptive readouts support train-only evidence that visible enforcement feedback contains source-aligned state information in a local simulated AgentDojo setting, and that interface realization can hide or distort that evidence. E2 further supports a controlled train-only causal effect on state-matched action selection and an aggregate, suite-heterogeneous prohibited-effect contrast. It does not establish full \method{} closure, useful repair, held-out generalization, or a causal effect of any single component of full scenario context. We claim a joint runtime contract, formal proof obligations, and a layered causal evaluation of who receives enforcement feedback and when. Tier-2 effects remain benchmark prohibited effects in local simulated environments.
 
 \section{Limitations and Execution Plan}
 
@@ -685,7 +790,9 @@ The method applies only to mediated tools whose relevant behavior can be simulat
 
 The private-authorization pairs are controlled interventions. This strengthens causal identification but limits ecological claims. The optional boundary-learning study provides a stricter test with a learned monitor, yet may fail because realistic monitors block nearly every candidate or offer little actionable headroom. Such a failure will be reported rather than repaired by selecting favorable tasks.
 
-E1 also exposes a measurement limitation. Exact-contract failure is operationally relevant and must remain failure in the primary score, but it can hide information present in a model-generated posterior or forced-choice rank. The post-hoc audit and two adaptive studies use one Qwen checkpoint and already observed train transcripts. The interface contrasts identify effects of their bundled prompt interventions, not a universal semantic-grounding law. The full-context forced-choice arm changes scenario text, candidate plans, and tool schemas jointly; it does not prove that schema count or prompt length causes attenuation. Its perfect minimal AUC is rank separation rather than probability calibration, and several cells remain sensitive to the A/B surface before paired averaging. Generalization to other models, natural agent actions, development, and held-out tasks is unknown.
+E1 also exposes a measurement limitation. Exact-contract failure is operationally relevant and must remain failure in the primary score, but it can hide information present in a model-generated posterior or forced-choice rank. The post-hoc audit and two adaptive studies use one Qwen checkpoint and already observed train transcripts. The interface contrasts identify effects of their bundled prompt interventions, not a universal semantic-grounding law. The full-context forced-choice arm changes scenario text, candidate plans, and tool schemas jointly; it does not prove that schema count or prompt length causes attenuation. Its perfect minimal AUC is rank separation rather than probability calibration, and several cells remain sensitive to the A/B surface before paired averaging.
+
+E2 makes the operational consequence of that limitation explicit. Contract-invalid final attempts receive the frozen worst-case conservative safety score. This is defensible for safety accounting, but it can saturate a suite and obscure whether an action would have been executable: all primary Travel $Q=16$ rows are invalid, so its conservative-effect contrast is exactly zero despite a positive action-selection contrast. The no-probe effect also depends on weighting and inferential summary. We therefore report equal-suite and task-weighted estimates, sign-flip values, valid-run effects, invalidity, action selection, and commitment together. The four suites are only four heterogeneous domains, all outcomes are train-only, and all learned-model studies use one Qwen checkpoint. Generalization to other models, natural agent actions, development, and held-out tasks is unknown.
 
 Completed and remaining work is staged as follows:
 \begin{enumerate}
@@ -695,18 +802,21 @@ Completed and remaining work is staged as follows:
     \item \textbf{Complete:} preregister and run the adaptive train-only interface-realization replay, transparently retain its negative primary result, and run the paired forced-choice source readout needed to make its source controls estimable;
     \item \textbf{Complete:} audit the already frozen E2 train grid before observing any E2 outcome, retain the original conservative endpoint, and prospectively fix the matched-shuffled state-selection contrast as the cleanest action-transfer mechanism estimate;
     \item \textbf{Complete:} run and strictly validate one Workspace E2 task as an H200 integrity pilot without using its effect direction as a release gate;
-    \item \textbf{Next:} complete the remaining frozen E2 train tasks and report the prespecified four-suite clustered analysis;
-    \item author and independently review the missing benign-repair, dependency, and atomicity tasks before any scientific utility experiment; and
-    \item consider development, held-out evaluation, a stronger attacker, or the fixed-monitor extension only under a new immutable protocol and its own permission-bearing gate.
+    \item \textbf{Complete:} execute and validate the remaining E2 train grid, freeze the four-suite aggregate, report action transfer and effect heterogeneity, and retain the failed formal-closure disposition;
+    \item \textbf{Complete:} perform the manuscript-facing robustness audit and freeze the claim ledger, including equal-suite/task-weighted sensitivity, invalid-output strata, and suite heterogeneity;
+    \item \textbf{Next:} author and independently review the missing benign-repair, dependency, and atomicity tasks before any scientific utility experiment; and
+    \item consider a new development protocol, held-out evaluation, a stronger attacker, or the fixed-monitor extension only as a separate future phase with its own immutable design and permission-bearing gate.
 \end{enumerate}
 
-The immediate scientific risk is no longer whether the transcript contains source-aligned evidence or whether Qwen can express it under a controlled readout. It is whether that evidence changes a prohibited action and whether recipient separation closes the increment. The main utility risk remains benchmark authoring and independent dependency review. The repository already contains the AgentDojo catalog and splits, PBS execution, provenance validation, aggregation, Tier-1 causal runner, and engineering coverage for E1--E5. No scientific-v5 development, pair reduction, or held-out job is reused under the revised claim.
+The immediate scientific risk is no longer whether the transcript contains source-aligned evidence or whether that evidence can change a state-conditioned action. The remaining risks are whether the layered train-only mechanism generalizes beyond one model and authored intervention, whether a revised protocol can obtain permission-bearing evidence without weakening the failed controls, and whether clean recipient-separated repair preserves useful work. The repository already contains the AgentDojo catalog and splits, PBS execution, provenance validation, aggregation, Tier-1 causal runner, and engineering coverage for E1--E5. No scientific-v5 development, pair reduction, or held-out job is reused under the revised claim.
 
 \section{Conclusion}
 
 A guardrail response is useful information. The central design question is therefore not simply whether to reveal it, but whether the context receiving it can continue an attack. Same-context state-specific repair can improve legitimate task completion and reveal private enforcement state at the same time. \method{} moves truthful decision use across a retirement boundary: the potentially compromised context plans only against a decision-oblivious temporary world, while private checking, real execution, and state-specific repair occur after that context is permanently closed.
 
-The controlled pilot demonstrates that verdict-correlated feedback can produce both state inference and additional synthetic prohibited effects under a fixed opportunity budget. Scientific-v6 E1 shows a strong but heterogeneous learned-model end-to-end signal: Banking and Slack realize it under the exact contract, while Travel and Workspace often fail at the symbolic interface. The adaptive studies explain why that heterogeneity is not channel privacy. Under a paired minimal readout, genuine feedback tracks the target and shuffled feedback tracks only its donor with AUC $1.000$ in every suite; constant feedback remains at chance. At the same time, literal semantic grounding can induce an alternative response schema, and restoring full scenario context attenuates discrimination. The frozen E1 placebo criterion still fails, so all findings remain train-only and development stays closed. The next evidence must establish whether source-aligned information changes prohibited effects, whether \method{} closes that increment, and whether clean repair preserves useful work. If those stages succeed, the paper's strongest contribution will be both architectural and methodological: truthful feedback can be moved away from a potentially compromised context, and privacy evaluation must distinguish a quiet channel from evidence that is present but lost during interface realization or action transfer.
+The controlled pilot demonstrates that verdict-correlated feedback can produce both state inference and additional synthetic prohibited effects under a fixed opportunity budget. Scientific-v6 E1 shows a strong but heterogeneous learned-model end-to-end signal: Banking and Slack realize it under the exact contract, while Travel and Workspace often fail at the symbolic interface. The adaptive studies explain why that heterogeneity is not channel privacy. Under a paired minimal readout, genuine feedback tracks the target and shuffled feedback tracks only its donor with AUC $1.000$ in every suite; constant feedback remains at chance. Scientific-v6 E2 then shows that genuine feedback changes the state-matched final action in every suite, while only Banking and Slack carry that change through to the conservative prohibited-effect endpoint. This turns the earlier suite split into a layered mechanism result rather than a binary leakage/non-leakage result.
+
+Under \method{}, hidden-state prediction still increases with probe budget, but state-matched selection and commitment do not, and the conservative prohibited-effect score decreases. Recipient separation therefore exhibits partial action-layer separation without satisfying the stronger empirical closure criterion. The frozen E1 placebo failure and E2 closure failure keep every learned-model result train-only and keep development closed. The paper's strongest current contribution is both architectural and methodological: truthful feedback can be moved away from a potentially compromised context, and guardrail evaluation must distinguish information availability, interface realization, action selection, and released effect. The next scientific phase should test useful clean repair and robustness under a new immutable protocol, not reinterpret the completed train evidence as held-out confirmation.
 
 \begin{thebibliography}{21}
 \footnotesize
