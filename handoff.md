@@ -6106,3 +6106,75 @@ Immediate next checkpoint:
 4. freeze the complete run before interpreting aggregate utility; and
 5. only then execute the preregistered CPU analysis. Development and test
    remain closed.
+
+## Scientific-v6 clean-repair complete run freeze on 2026-09-02
+
+PBS job `56460.gaas` reached terminal state `F` with `Exit_status = 0`,
+`Stageout_status = 1`, and run count one. The terminal scheduler record was
+captured before it aged out of live `qstat`. It ran on `hpc-gaas-g25` with 12
+CPUs, one H200, and 250 GB requested memory. Wall time was `00:06:09`, CPU time
+was `00:06:03`, CPU utilization was 100%, peak resident memory was 1,289,120
+kb, peak virtual memory was 39,023,096 kb, and maximum GPU memory was 17,188
+MB. It started at 13:35:17 and finished at 13:41:31 local time. Persistent
+publication was independently validated rather than inferred from the PBS
+stageout status.
+
+Stdout is 398 bytes with SHA-256
+`eeea46abe8a0f68286701910a98777ed89ebf7738f8c89c9b2ca3fcc3ddd49ca`.
+It reports status `complete`, 49 completed tasks, 245 completed jobs, 147 model
+calls, 147 invalid runs, 51 utility successes, no reused run, and result SHA
+`139c2a25f22b905f2f0d58ff84d69c329fd5beffc3df41e0622ad840ab18f42d`.
+Stderr is 213 bytes with SHA-256
+`80318f14b2d2c4300838d02e0055c24c51341a21502b49d95e2072d69bc1c35e`;
+it contains only the Transformers `torch_dtype` deprecation notice and a
+completed 339/339 weight-loading progress record.
+
+The complete run manifest is 2,565 bytes with mode `0600`, file SHA-256
+`23e5b97282fb5c7797887630f57c97b6418fd9a31294cbd7e4a569e66f6ac7f4`,
+and canonical self-hash
+`01f344e031494e4f01c806974fef439542b43d0229cf9a93532d7b02ddadaf16`.
+Its status is `complete`; it binds the frozen protocol, input, task records,
+expected job IDs, detached revision and source tree, 108-distribution runtime,
+local Qwen snapshot, prompt hashes, PBS job, result filename, and result SHA.
+It records zero external API calls and confirms that neither development nor
+test outcomes were inspected.
+
+The immutable `result.jsonl` is 6,439,671 bytes with mode `0444` and SHA-256
+`139c2a25f22b905f2f0d58ff84d69c329fd5beffc3df41e0622ad840ab18f42d`,
+exactly matching the manifest. There are exactly 245 mode-`0444` checkpoint
+files totaling 7,598,339 bytes. Their canonical filename/SHA/size binding
+digest is
+`0c7a6cdd8efddeb50aaf4c973ea6f3547790bbb69730b5ded2fb695c58cebf59`.
+All five pilot checkpoint SHA values remain unchanged.
+
+A strict read-only reopening from detached source revision
+`ac45c4caa092341e49c7fb754ecb45a4ba4f8cca` validated the protocol, immutable
+inputs, manifest, every checkpoint, and every published result row. The
+checkpoint records are byte-for-byte identical to the result records in the
+frozen order. The matrix contains exactly 49 unique task IDs and exactly one
+row for each of the five prespecified arms per task: 49
+`clean_start_full_tools`, 49 `fresh_repair_full_tools`, 49
+`fresh_repair_restricted_tools`, 49 `no_repair`, and 49
+`oracle_ground_truth`. All 245 rows pass atomic replay accounting. There are
+zero boundary failures, zero replay-accounting failures, zero failure-scoring
+failures, zero prompt-binding failures, and zero provenance failures.
+
+All 147 learned rows contain exactly one authentic H200/local-Qwen/offline
+model call with exact checkpoint, decoding, prompt, source, and runtime
+provenance. All 147 are nevertheless model-contract invalid under the frozen
+strict JSON contract, so the learned-arm valid-run count is zero. The 98
+nonlearned rows are valid. This observation is frozen here as run integrity and
+contract realization, without yet interpreting aggregate utilities or testing
+the preregistered feasibility criteria. It does not authorize post-hoc parser,
+prompt, retry, or schema repair.
+
+Immediate next checkpoint:
+
+1. commit this completion freeze without modifying source, protocol, inputs,
+   checkpoints, result, or learned environment;
+2. execute the preregistered model-free CPU analysis from the same detached
+   source over this exact immutable result;
+3. validate and freeze the analysis artifact, estimates, confidence intervals,
+   suite/task accounting, and feasibility decision; and
+4. use only train findings to decide whether a separately preregistered repair
+   interface study is warranted. Keep development and test closed.
