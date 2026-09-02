@@ -5967,3 +5967,94 @@ Immediate next checkpoint:
    scalar resume without `CLEAN_REPAIR_MAX_NEW_TASKS`; and
 5. otherwise diagnose and freeze any repair before another model call. Keep
    development and test closed.
+
+## Scientific-v6 clean-repair one-task pilot integrity freeze on 2026-09-02
+
+The pilot submission record above was committed as `26c53e9` (`Record clean
+repair H200 pilot submission`). PBS job `56459.gaas` reached terminal state
+`F` with `Exit_status = 0`, `Stageout_status = 1`, and run count one. It ran on
+`hpc-gaas-g25` for 43 seconds with 12 CPUs, one H200, 250 GB requested memory,
+peak resident memory 1,223,736 kb, peak virtual memory 38,857,724 kb, and
+maximum GPU memory 16,290 MB. Persistent publication was independently
+validated rather than inferred from the stageout flag.
+
+Stdout is 153 bytes with SHA-256
+`2997a4abfc062f42a5127a6851d342380e77e85e1b7776c54af4c29cd0fd28cb`
+and reports exactly `partial_integrity_pilot`, five completed jobs, one
+completed task, 245 expected jobs, no result file, and no reused run. Stderr is
+213 bytes with SHA-256
+`be826f69c4ab5749954456ca0c1bffd65640a3a2f988b451a98148134d8367b3`;
+it contains only the Transformers `torch_dtype` deprecation notice and a
+completed 339/339 weight-loading progress record.
+
+The persistent run manifest is 2,392 bytes with file SHA-256
+`3b61e0f358cefa76f712b871e00ed7c59f6b625a360546bfb269ab72c7e6d83e`
+and self-hash
+`6eb123b327244e3b85ed1559a869e321bcb0f8d741f795ad2d19c3921d15ecd4`.
+It exactly reproduces the frozen protocol, input SHA, task-record hash,
+revision, source-tree hash, learned runtime, Qwen identity, 49/245/147 design,
+and train-only access boundary. Its status is `partial_integrity_pilot`, its
+completed counts are 1 task and 5 jobs, and both result filename and result
+SHA remain null. No `result.jsonl` exists.
+
+There are exactly five mode-`0444` checkpoints totaling 170,799 bytes, one for
+each prespecified arm of task
+`b8d64498158af5a4fab07aa6fdd4ce49f360cf8921fadafe25da83ee674829a0`.
+The canonical filename/SHA/size binding digest is
+`c4c3e8d0b08be521c0a8fbb8dc15754b75409e8b3ee5b8c25fee44d4078919d4`.
+Individual checkpoint SHA-256 values are:
+
+- `5a28cb5904d49e3b470daff0671a3f136ba2fc491fca93c4fc38a014de9a0df2.json`:
+  `400befb8d4693389a8654cd56a4cf6e72170ffb68e64e7a2f6f5580137e92604`;
+- `6c6a198919ac9a14f5aff2a2c26f7a315264545a0578e6700d1bec8fb833d2e9.json`:
+  `9a0588334071e20850624e9fa101cce2f2ba8c576c3b721db5f715dedf09362b`;
+- `9fb76692394607714b20b87867c312998a9746c8460b6251c96fc47d88ee5684.json`:
+  `eeb5ebfaecbb093919c33dd01bff7fcc1af22882969a6f8a31a79518a26a54e4`;
+- `aca0f01502e89060b9074562879184b03d4ccf550eaf2c820c79822b2a9a3320.json`:
+  `f5b841ad26c68ba667a8c5193fa80b026dd5e579a8ab3934cb6a2839844870a5`;
+  and
+- `c22f2b8d0e13e70d3d9ec7eadfa7658d4ba34346d2b029d677a4175ae5cb6370.json`:
+  `e093353d914d6fd8c301aafdfb6efa5903219886d405c8644c5cf700de478d5d`.
+
+Strict reopening and internal checkpoint validation pass for all five rows.
+The three learned rows contain exactly three model calls; all 3/3 have exact
+H200, local Qwen checkpoint, offline, decoding, and arm-specific prompt
+provenance. All five rows pass atomic replay accounting. There are zero
+sanitization/private-boundary failures, zero replay-accounting failures, zero
+failure-scoring failures, and zero external API calls. Development and test
+remain uninspected.
+
+All three learned first attempts are model-contract invalid. This was audited
+to distinguish model behavior from an implementation failure:
+
+- `clean_start_full_tools` emitted fenced JSON, raw-response hash
+  `c4bb8494c4806b89673a2ded57da4f5cefa03169ee54fe56967d9cbca0aa09ee`,
+  and received `tool-loop output is not JSON`;
+- `fresh_repair_full_tools` emitted a JSON object without the required
+  `content` key, raw-response hash
+  `f3c3acbf1c1e035c70d91d64e77148a3a03863a99c0eb2a7e4ca29c4b8dd6bff`,
+  and received the exact-key contract error; and
+- `fresh_repair_restricted_tools` emitted fenced JSON, raw-response hash
+  `86ecfef7676cb9e3a496cb7c935c54c8285b75d710b5957300ea185c270d5719`,
+  and received `tool-loop output is not JSON`.
+
+Each response is retained once with no retry or schema repair, null parsed
+output, no locked learned calls, and utility zero under the frozen failure
+rule. This is a train-only contract-realization outcome, not prompt,
+checkpoint, runtime, transport, retirement, or replay drift. The preregistered
+continuation criterion is identity/boundary integrity and explicitly forbids
+selection on effect or utility direction. That criterion passes; changing the
+parser or prompt now would invalidate the frozen comparison.
+
+Immediate next checkpoint:
+
+1. review and commit this pilot integrity freeze without changing executable
+   source, protocol, inputs, checkpoints, or model environment;
+2. revalidate the same identities, the unchanged five-checkpoint prefix, an
+   absent published result, an idle account, and `gpu_free` availability;
+3. submit one scalar resume to the same `run-v1` directory without
+   `CLEAN_REPAIR_MAX_NEW_TASKS`, preserving all five pilot checkpoints;
+4. allow every remaining frozen task exactly one attempt per learned arm and
+   retain every contract-invalid output without repair; and
+5. after the run is complete, validate all 245 checkpoints and only then run
+   the preregistered train-only analysis. Keep development and test closed.
