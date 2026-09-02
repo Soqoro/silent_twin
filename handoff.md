@@ -6351,3 +6351,78 @@ Immediate next checkpoint:
    `NATIVE_TOOL_MAX_NEW_TASKS=1`; and
 5. continue independently of utility only if identity, boundary, parser,
    checkpoint, and replay integrity pass. Keep development and test closed.
+
+## Scientific-v6 native tool-interface executable/input freeze on 2026-09-02
+
+The native-interface protocol, implementation, tests, launcher, and design
+record above were committed together at
+`74f60eebefaa447a0623c5570a1e35978a2c12bf` (`Add native Qwen
+tool-interface qualification`). A detached execution checkout was created at
+
+`/home/suaq0001/projects/silent_twin/outputs/scientific-v6-native-tool-interface-execution/source-74f60ee`
+
+and is clean at that exact revision. Its executable source-tree hash is
+`73ffc585fe0739dd054d722e28237ea42db660ac0046495416a92f2dd7797f5a`.
+The clean 535,301-byte wheel is retained read-only at mode `0444` at
+
+`/home/suaq0001/projects/silent_twin/outputs/scientific-v6-native-tool-interface-execution/wheel-74f60ee/silenttwin-0.1.0-py3-none-any.whl`
+
+with SHA-256
+`3cddc1eada8fdf22dcf327ee07f0b8adc7276d78729f1921bb44e821eb34be93`.
+
+Building that wheel inside the detached checkout initially left ignored
+`build/` and `src/silenttwin.egg-info/` metadata. The runtime auditor correctly
+rejected the first production freeze attempt because that metadata exposed a
+second discoverable `silenttwin` distribution. The attempt failed before
+publication, and the intended production path remained absent. The two
+generated directories were moved intact to the recoverable quarantine
+`/tmp/silenttwin-native-build-metadata.3ISn1j`; neither source nor scientific
+data was deleted. Fresh checks then required both paths to be absent and the
+detached checkout to remain clean before retrying.
+
+The successful model-free freeze was run from the detached checkout and wrote
+the immutable artifact
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/native-tool-interface-train-inputs-v1.jsonl`
+
+It is 147,602 bytes, mode `0444`, and has file SHA-256
+`8b71b77a9dfb19a3d595a57dfabb93c0d33d8c4a6c305de39ccff3f719640611`
+and canonical metadata hash
+`f15ac08ba04d3b59f01c830889644da1989af414a6e388992fca03a01aaf2689`.
+Those bytes exactly reproduce the prior isolated dry freeze. Strict reopening
+through `native_tool_interface.load_inputs` succeeds and binds code revision
+`74f60ee`, the source-tree hash above, protocol hash
+`eacb04ce3501fada590a9107d3d9eabf14b53a7b1cd8b883ced4924333660cea`,
+task-record hash
+`fd0d03aa437cc2b61d142bd8d5144e000e8384795d8a1f37ee0b9791407ef87b`,
+and learned-runtime fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`.
+
+The artifact contains exactly 49 unique train tasks: 8 banking, 11 slack, 10
+travel, and 20 workspace. It records zero model-inference calls, zero external
+API calls, no private or adversarial fields, and no development or test
+inspection. The upstream clean-repair input file and metadata hashes are
+`cf7874832b8bc1d460cc5238319ca62b89a5903a97fb18893ee4a89f42bb0768`
+and `3fb34d5bf37b07d1c65a5ec863f0822da71da2872e50c3fe302ae8d72e674228`.
+The failed clean-repair result, analysis file, and analysis self-hash remain
+bound exactly as
+`139c2a25f22b905f2f0d58ff84d69c329fd5beffc3df41e0622ad840ab18f42d`,
+`42fc7908ef04dd83ec15bfd9bbd5750012f619f2401401d05a45258f786f5574`,
+and `9ce39304cf5d16f24ceda7add55b97437f7bc11025fe499e96a96d218b94a38c`.
+The upstream oracle remains perfect, and confirmatory claims and
+development/test progression remain prohibited.
+
+Immediate next checkpoint:
+
+1. commit this executable/input freeze before any model call;
+2. revalidate the detached source, immutable input, runtime, checkpoint, empty
+   output destination, scheduler-log destination, account, and live queue;
+3. submit one scalar `gpu_free` H200 pilot with project
+   `fs_ccds_asysong`, 12 CPUs, one GPU, 250 GB memory, four-hour walltime, and
+   `NATIVE_TOOL_MAX_NEW_TASKS=1`;
+4. after termination, require one immutable checkpoint, a
+   `partial_integrity_pilot` manifest, exact source/runtime/model/native-render
+   provenance, clean boundary retirement, and atomic replay; and
+5. decide whether to resume the other 48 tasks using only the preregistered
+   integrity criteria, never the pilot's utility direction. Keep development
+   and test closed.
