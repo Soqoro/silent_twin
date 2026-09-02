@@ -6514,3 +6514,47 @@ Immediate next checkpoint:
    before running the preregistered model-free validity analysis; and
 5. do not use utility direction to decide progression. Keep development and
    test closed.
+
+## Scientific-v6 native tool-interface full-train resume submission on 2026-09-02
+
+The one-task pilot integrity freeze above was committed as `b476927` (`Freeze
+native tool-interface H200 pilot`) before resumption. Fresh pre-submission
+checks reproduced the immutable input and pilot-checkpoint file hashes, found
+exactly one checkpoint and no result file, and found both the main and detached
+source checkouts clean. The dedicated resume-log destination was absent before
+being created empty. No job was listed for `suaq0001`, and the live `gpu_free`
+queue retained the validated one-H200/four-hour contract.
+
+The resume `-v` allowlist contains exactly 11 unique variables and 1,182 UTF-8
+bytes, with literal SHA-256
+`036d238bd680d1c3dca6d75d6122ff5c4f3e97dc771de9852397f841c57c16db`.
+It is identical to the pilot scientific environment except that
+`NATIVE_TOOL_MAX_NEW_TASKS` is absent. It does not use `-V`, an array index,
+development/test data, API fallback, or mock fallback.
+
+PBS accepted scalar job `56557.gaas` with name `st-v6-nt-full`, project
+`fs_ccds_asysong`, queue `gpu_free`, one node, 12 CPUs, one H200, one MPI
+process, 250 GB memory, and walltime `04:00:00`. Immediate machine-readable
+inspection reproduced all 11 submitted scientific variables, including the
+detached revision, immutable protocol/input, same resumable `run-v1` output,
+learned runtime, pinned local Qwen snapshot, train split, and `cuda:0`; it also
+confirmed that the pilot-limit variable is absent. The job entered state `R`
+with `run_count=1` on `hpc-gaas-g25` at 16:08:13 local time. Stdout and stderr
+are directed to
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/logs/scientific-v6-native-tool-interface-resume/`.
+
+Immediate next checkpoint:
+
+1. wait for `56557.gaas` to become terminal and record its exact exit/stageout
+   status and resource use;
+2. require exactly 49 immutable checkpoints, one complete run manifest, and
+   one immutable 49-row result with no unknown files;
+3. strictly reopen and independently validate every checkpoint/result byte,
+   model-call hash chain, identity, prompt/render binding, restricted function
+   scope, sanitization boundary, context retirement, and atomic replay;
+4. commit the complete-run freeze before invoking the preregistered CPU-only
+   `analyze` stage; and
+5. apply the 0.90 validity point floor and 0.80 bootstrap lower-bound floor
+   without using utility as a progression gate. Keep development and test
+   closed.
