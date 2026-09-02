@@ -5844,3 +5844,64 @@ Immediate next checkpoint:
 5. validate identities and boundaries only, then resume the same directory
    without the task cap. Do not select continuation based on utility direction
    and do not open development or test.
+
+## Scientific-v6 clean-repair authoritative input freeze on 2026-09-02
+
+The protocol checkpoint was committed cleanly at
+`ac45c4caa092341e49c7fb754ecb45a4ba4f8cca` (`Add train-only clean repair
+component study`). From exactly that revision, the model-free production
+freezer materialized the immutable input artifact at
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/evidence/clean-repair-train-inputs-v1.jsonl`.
+
+The file is mode `0444`, contains 148,697 bytes, and has SHA-256
+`cf7874832b8bc1d460cc5238319ca62b89a5903a97fb18893ee4a89f42bb0768`.
+Its metadata self-hash is
+`3fb34d5bf37b07d1c65a5ec863f0822da71da2872e50c3fe302ae8d72e674228`.
+The protocol self-hash remains
+`a60a17202654f8cc59d4f3662c911c5c709cf0dc785cd71299173703ae0f9b9f`.
+
+The retained execution identities are:
+
+- code revision
+  `ac45c4caa092341e49c7fb754ecb45a4ba4f8cca`;
+- source-tree hash
+  `aff68088951ae596ab9931a601633669d118c28e5efefca67bd9e16f4f478bd1`;
+- learned-runtime fingerprint
+  `sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`
+  over 108 installed distributions; and
+- task-record hash
+  `fd0d03aa437cc2b61d142bd8d5144e000e8384795d8a1f37ee0b9791407ef87b`.
+
+Independent reopening recomputed the same task-record hash and exact cohort:
+49 tasks, 245 jobs, and 147 learned episodes, split as 20 workspace, 10
+travel, 8 banking, and 11 slack. Oracle strict utility is exactly 1.0 with
+zero oracle tool errors. The metadata records zero model inference calls,
+zero external API calls, no private/adversarial task fields, and no
+development or test outcome access.
+
+An executable detached checkout was preserved at
+`outputs/scientific-v6-clean-repair-execution/source-ac45c4c`. It is clean and
+detached at the exact input-bound revision above. Recomputing provenance from
+that checkout reproduces source-tree hash
+`aff68088951ae596ab9931a601633669d118c28e5efefca67bd9e16f4f478bd1`.
+All model execution must use this checkout even after handoff-only commits on
+the main branch.
+
+No model call or PBS job was submitted during the freeze. A second freezer
+invocation was rejected as intended because immutable input overwrite is
+forbidden; it did not change the artifact.
+
+Immediate next checkpoint:
+
+1. review and commit this handoff-only authoritative-freeze record;
+2. verify the detached checkout, immutable input SHA, active runtime, Qwen
+   checkpoint, absent run output, `gpu_free` queue, and empty scheduler-log
+   destination;
+3. submit one scalar H200 job from the detached launcher with
+   `CLEAN_REPAIR_MAX_NEW_TASKS=1` into the final resumable `run-v1` directory;
+4. after termination, inspect identities, five-row task coverage, prompt and
+   sanitization boundaries, replay integrity, and failure accounting only;
+   do not condition continuation on utility direction; and
+5. if and only if those integrity checks pass, resume the same directory
+   without the task cap. Development and test remain closed.
