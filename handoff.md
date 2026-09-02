@@ -6558,3 +6558,96 @@ Immediate next checkpoint:
 5. apply the 0.90 validity point floor and 0.80 bootstrap lower-bound floor
    without using utility as a progression gate. Keep development and test
    closed.
+
+## Scientific-v6 native tool-interface complete run freeze on 2026-09-02
+
+PBS job `56557.gaas` reached terminal state `F` with `Exit_status = 0`,
+`Stageout_status = 1`, and run count one. The terminal record was captured
+before scheduler expiry. It ran on `hpc-gaas-g25` with 12 CPUs, one H200, one
+MPI process, and 250 GB requested memory. Wall time was `00:03:08`, CPU time
+was `00:03:05`, CPU utilization was 100%, peak resident memory was 1,247,716
+kb, peak virtual memory was 39,039,180 kb, and maximum GPU memory was 17,222
+MB. Persistent publication was validated independently of PBS stageout.
+
+Stdout is 501 bytes with SHA-256
+`5f371216c8f7692d22c4899b64ae2afa079bc07520e2a7243eb4c1bb5210b108`.
+It reports status `complete`, all 49 tasks, 123 model calls, 35
+model-protocol-valid tasks, 31 run-valid tasks, 16 strict-utility successes,
+and result SHA
+`d2f323fa6256908b07db50361b168c6209a50cc043b5e4c57616ff9aee2dba66`.
+Stderr is 213 bytes with SHA-256
+`1ffa963ca05de2fc89cbe0c75be822c818ac773768b46a17d76452cef855cad4`;
+it contains only the Transformers `torch_dtype` deprecation notice and a
+successful 339/339 local-weight loading record.
+
+The complete run manifest is 3,073 bytes with mode `0600`, file SHA-256
+`aac601ff0e329af6156c32969939c8eda7e25e53e20a44ee5c9bb00e9351675c`,
+and reproduced self-hash
+`8159962e455abbdc93f41de2e59786beac9dec400d0358a8794d7ecbc1d275d9`.
+It binds the immutable protocol and input, all expected job IDs, detached
+revision `74f60ee`, source-tree hash
+`73ffc585fe0739dd054d722e28237ea42db660ac0046495416a92f2dd7797f5a`,
+the 108-distribution learned runtime, pinned Qwen checkpoint and native
+template, PBS job, and published result. It records zero external API calls
+and no development or test inspection.
+
+The immutable `result.jsonl` is 3,865,831 bytes with mode `0444` and SHA-256
+`d2f323fa6256908b07db50361b168c6209a50cc043b5e4c57616ff9aee2dba66`,
+exactly matching the manifest. There are exactly 49 mode-`0444` checkpoints
+totalling 4,652,702 bytes. Their sorted filename/size/SHA binding digest is
+`16b7c00249bfba13edc906ac7e2a0306d8928586594505602ed2eafc1f3ed696`.
+The original pilot checkpoint remains byte-identical. The run directory has
+no unknown file.
+
+A strict reopening from the clean detached run source validated the protocol,
+input, manifest self-hash, result SHA, expected task/job identities, and every
+checkpoint self-hash. All 49 result rows are in frozen task order and are
+byte-for-byte equal to their corresponding checkpoint objects. Independent
+recomputation found zero checkpoint/result mismatches, scoring mismatches,
+unknown or out-of-scope function attempts, sanitization-boundary failures,
+atomic-replay failures, or development/test accesses. Stored speculative and
+atomic audit chains are internally consistent. Fresh semantic re-execution
+reproduced success/error outcomes and strict scoring; state-changing simulator
+tools can assign fresh object IDs across processes, so their independently
+regenerated post-state hashes are not treated as cross-run byte identities.
+
+The 49 rows contain the expected 8 banking, 11 slack, 10 travel, and 20
+workspace structural groups. Their 123 authentic local-H200 Qwen calls include
+122 parser-valid individual responses. Thirty-five complete episodes satisfy
+the native model protocol: 6/8 banking, 8/11 slack, 9/10 travel, and 12/20
+workspace. Fourteen episodes terminate with fail-closed native tool-loop
+errors. All 49 episodes retain exact model provenance; all contexts are
+retired before final replay; and all final replays are atomic and successful.
+
+The stored strict prompt-binding flag is true for 45 tasks and false for four
+Travel tasks (`user_task_5`, `user_task_9`, `user_task_11`, and
+`user_task_17`). This is a localized instrumentation mismatch: the model
+client hashes native messages with non-ASCII UTF-8 characters preserved,
+whereas the gate recomputes with ASCII escapes. Across the affected eight
+calls, the characters are `£`, `é`, `ë`, and `ô`. Independent checks find zero
+structured message/tool equality failures, zero client-serializer hash
+failures, and zero rendered-template hash failures. Thus no model-visible
+prompt drift occurred, but the four preregistered formal flags must remain
+false; no frozen artifact is repaired or reinterpreted. These four account for
+the difference between 35 protocol-valid and 31 run-valid tasks.
+
+This checkpoint freezes run completeness and integrity, not the formal gate
+decision. The observed 35/49 episode-valid count is below the preregistered
+0.90 point floor even before confidence-interval calculation, so qualification
+cannot pass. The exact equal-suite estimate, bootstrap interval, error
+taxonomy, conjunctive criteria, and disposition must nevertheless come only
+from the preregistered analysis. Utility direction is not used for progression,
+and development/test remain closed.
+
+Immediate next checkpoint:
+
+1. commit this complete-run freeze without changing source or any run byte;
+2. execute the CPU-only `analyze` stage once from the same detached revision
+   into a new immutable production analysis artifact;
+3. independently validate its self-hash, run/input bindings, suite weighting,
+   bootstrap interval, criteria, and permission flags;
+4. freeze the train-only conclusion and the non-ASCII serializer limitation;
+   and
+5. do not open development/test unless a separately preregistered future
+   design supplies a scientifically justified route. Utility remains
+   diagnostic only.
