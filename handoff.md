@@ -6748,3 +6748,62 @@ Immediate next checkpoint:
    protocol/checkpoint study with an explicit grounding-error policy and a
    corrected single canonical serializer. It must not reinterpret this run or
    automatically open development/test.
+
+## Scientific-v6 manuscript consolidation freeze on 2026-09-02
+
+The native tool-interface analysis above was committed as `d19a5be` (`Freeze
+native tool-interface train analysis`) before manuscript interpretation. The
+proposal was then updated without changing a protocol, analysis, result, or
+model artifact and without submitting another GPU job. The only scientific
+source edited at this checkpoint is
+`docs/silenttwin_feedback_recipient_separation_proposal.tex`.
+
+The revised abstract, contributions, results, claim ledger, metrics,
+limitations, execution plan, feasibility statement, and conclusion now use one
+consistent scope. The feasible paper is a controlled train-only mechanism and
+measurement study. E1 establishes source-aligned transcript information; E2
+shows that feedback changes state-matched action selection while the released
+effect is suite-heterogeneous; and the clean-repair studies prospectively
+localize a downstream interface failure. The manuscript does not claim full
+empirical closure, learned repair efficacy, held-out generalization,
+deployment safety, or model-family prevalence.
+
+A new `Prospective Clean-Repair Feasibility Gates` subsection records both
+repair interfaces. The strict flattened-JSON study has 0/147 contract-valid
+learned episodes while the released oracle succeeds on 49/49 tasks. Native
+tool chat parses 122/123 turns, but equal-suite episode validity is only
+0.7443 with 95% CI `[0.6216, 0.8585]`, and run validity is 0.6443 with 95% CI
+`[0.5068, 0.7773]`. The text explicitly separates syntactic realization from
+grounded tool execution, retains the four Travel serializer flags as frozen
+failures, and treats the 14-episode error taxonomy as descriptive. Utility is
+not used to authorize progression.
+
+The claim ledger now states that native chat improves syntax but does not
+qualify the checkpoint/interface pair, and that clean work is feasible only
+for the oracle. The paper therefore remains scientifically producible without
+a further learned-repair experiment: the negative prospective gate is itself
+methodological evidence against selecting only valid or favorable repair
+episodes. Any stronger checkpoint or corrected serializer belongs to a new,
+separately preregistered study and is not required for the current paper.
+
+The final TeX source is 946 lines and 94,801 bytes with SHA-256
+`598e7c4e636b8af2f92f254e77f1c5ec1e188036b68d065aafd61fc4cb30a952`.
+`git diff --check` passes. Two clean `pdflatex` passes in a fresh temporary
+directory produce a 20-page, 588,842-byte PDF with all citations and
+cross-references resolved. The log has no overfull or underfull boxes, package
+warnings, undefined controls, or unresolved references; the only LaTeX warning
+is the existing conversion of float placement `h` to `ht`. Raster inspection
+of pages 14--16 confirms that the repair table, failure discussion, claim
+ledger, and metrics are legible and remain within the page bounds. A
+`FloatBarrier` keeps the repair table from interrupting the diagnostic
+paragraph.
+
+Immediate next checkpoint:
+
+1. commit this proposal and handoff freeze together;
+2. submit no additional scientific-v6 GPU job;
+3. treat the empirical phase as complete for the scoped train-only paper; and
+4. next perform a model-free submission audit: map every abstract/conclusion
+   statement to the frozen claim ledger, verify all displayed numbers against
+   immutable E1/E2/repair analyses, and prepare the final artifact/result table
+   without widening the claims.
