@@ -6178,3 +6178,87 @@ Immediate next checkpoint:
    suite/task accounting, and feasibility decision; and
 4. use only train findings to decide whether a separately preregistered repair
    interface study is warranted. Keep development and test closed.
+
+## Scientific-v6 clean-repair train analysis freeze on 2026-09-02
+
+The complete-run freeze above was committed as `369f160` (`Freeze complete
+clean repair train run`) before outcome analysis. The preregistered `analyze`
+stage then ran once from the same clean detached source revision
+`ac45c4caa092341e49c7fb754ecb45a4ba4f8cca`, over the immutable protocol,
+train inputs, run manifest, checkpoints, and result. This stage was CPU-only
+and model-free; it made no external API call and inspected no development or
+test outcome.
+
+The resulting immutable `analysis-v1.json` is 92,945 bytes with mode `0444`
+and file SHA-256
+`42fc7908ef04dd83ec15bfd9bbd5750012f619f2401401d05a45258f786f5574`.
+Its canonical self-hash is
+`9ce39304cf5d16f24ceda7add55b97437f7bc11025fe499e96a96d218b94a38c`,
+independently reproduced after removing only the self-hash field. It binds the
+same protocol hash, task-record hash, result SHA, run-manifest self-hash, run
+revision, source-tree hash, and analysis revision/source-tree hash. It contains
+245 rows, 147 model episodes, and 49 independent structural groups: 8 banking,
+11 slack, 10 travel, and 20 workspace. Suite weighting is equal-suite and the
+task-weighted analysis is retained as sensitivity analysis.
+
+The cell estimates are:
+
+- all three learned arms have utility 0.0 with 95% CI `[0.0, 0.0]`, valid-run
+  rate 0.0, model-protocol-valid rate 0.0, 49 invalid runs, and 49 tool-loop
+  errors each;
+- `no_repair` has equal-suite utility 0.0625 with 95% CI `[0.0, 0.15625]`,
+  arising from banking utility 0.25 and zero in slack, travel, and workspace;
+  its task-weighted sensitivity estimate is 2/49, or approximately 0.040816;
+  and
+- `oracle_ground_truth` has strict utility 1.0 with 95% CI `[1.0, 1.0]` in
+  every suite and exact oracle-call-sequence rate 1.0.
+
+The 147 learned failures further decompose into 81 valid JSON objects that
+omit the required `content` key, 50 non-JSON outputs (all observed as fenced
+responses), and 16 objects that include both tool calls and disallowed final
+content. By arm, the exact-key/non-JSON/mixed-content counts are 20/17/12 for
+clean start, 45/2/2 for full-tool repair, and 16/31/2 for restricted repair.
+Every learned response has null parsed output and therefore no committed tool
+call under the frozen one-attempt/no-repair rule. All learned calls retain
+exact model and prompt provenance; there are no out-of-scope functions or
+sanitization-boundary failures.
+
+The primary restricted-repair-minus-clean-start contrast is 0.0 with 95% CI
+`[0.0, 0.0]`. It mechanically satisfies the preregistered -0.1
+noninferiority margin because both arms fail at the interface; it is not
+positive evidence of semantic repair quality. The secondary
+restricted-repair-minus-no-repair contrast is -0.0625 with 95% CI
+`[-0.15625, 0.0]` and paired sign-flip p-value approximately 0.490851. Its
+task-weighted sensitivity estimate is approximately -0.040816 with 95% CI
+`[-0.081633, 0.0]`. Thus it does not meet the preregistered requirement for a
+strictly positive lower confidence bound.
+
+Six integrity/negative-control criteria pass: perfect oracle utility, no
+restricted out-of-scope functions, exact learned-model provenance, exact
+prompt binding, no sanitization-boundary failure, and formal noninferiority to
+the equally invalid clean-start arm. Two decisive feasibility criteria fail:
+restricted repair does not improve over no repair, and its valid-run rate 0.0
+is below the preregistered 0.9 floor. Consequently
+`train_component_feasibility_supported` is false. The artifact explicitly
+sets `development_submission_permitted`, `held_out_evaluation_permitted`,
+`confirmatory_claim_permitted`, `dependency_or_atomicity_claim_permitted`, and
+`generic_e4_authored_effect_salvage_opened` to false.
+
+The supported train-only conclusion is narrow: the current strict free-form
+JSON realization with Qwen2.5-7B-Instruct is not a feasible learned-agent
+interface for this component experiment. The perfect oracle and exact replay
+checks show that this is not a task, environment, atomicity, or scoring
+failure. Because no learned response reached execution, this run cannot answer
+whether clean repair or restricted tools improve semantic task completion.
+Development/test and generic E4 must remain closed.
+
+Immediate next checkpoint:
+
+1. review and commit this immutable analysis freeze;
+2. preregister a new train-only interface-realization gate that treats the
+   adapter as an experimental factor and never reinterprets this frozen run;
+3. compare the failed strict serializer against a standards-aligned native or
+   schema-constrained tool-call interface using new model calls, with protocol
+   validity as the gate before any utility claim; and
+4. permit a new clean-repair component run only if the new interface meets its
+   prespecified validity floor. Do not open development or test.
