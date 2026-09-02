@@ -6651,3 +6651,100 @@ Immediate next checkpoint:
 5. do not open development/test unless a separately preregistered future
    design supplies a scientifically justified route. Utility remains
    diagnostic only.
+
+## Scientific-v6 native tool-interface train analysis freeze on 2026-09-02
+
+The complete native-interface run freeze above was committed as `4d4d579`
+(`Freeze complete native tool-interface train run`) before outcome analysis.
+The preregistered `analyze` stage then ran once from the same clean detached
+source revision `74f60eebefaa447a0623c5570a1e35978a2c12bf`. It was CPU-only
+and model-free and read only the frozen train protocol, inputs, manifest,
+checkpoints, and result. It made no external API call and inspected no
+development or test outcome.
+
+The immutable analysis artifact is
+
+`/home/suaq0001/projects/silenttwin-results/silenttwin-agentdojo-production/scientific-v6-native-tool-interface-train/analysis-v1.json`.
+
+It is 7,678 bytes, mode `0444`, and has file SHA-256
+`1b677b8fa3ef75ec1a44829a4a9d53909be9fc7f95d98ab041e0ebcd8292f5e4`
+and reproduced canonical self-hash
+`fe918e85fcfac3d88b00c6987e5781ee3db1ea2c977ee03b64e0cc7543d79eb1`.
+It binds the exact protocol, frozen input/metadata/task hashes, run-manifest
+self-hash, result SHA, run revision/source tree, and identical analysis
+revision/source tree. A second isolated analysis reproduced the production
+artifact byte-for-byte. A separate standard-library implementation reproduced
+all seven metric objects, suite strata, equal-suite estimates, task-weighted
+sensitivities, and all 5,000-resample confidence intervals exactly.
+
+The preregistered primary endpoint, equal-suite task-level native episode
+validity, is 0.744318 with 95% suite-stratified bootstrap CI
+`[0.621591, 0.858523]`. Its task-weighted sensitivity is exactly 35/49, or
+0.714286. Suite estimates are 0.75 banking, 0.727273 slack, 0.90 travel, and
+0.60 workspace. The point estimate is below the required 0.90 floor, and the
+CI lower bound is below the required 0.80 floor. Both primary validity
+criteria therefore fail.
+
+Turn-level syntax realization is much stronger: 122/123 calls parse, for a
+turn parse rate of 0.991870. The only call-record parser error is one strict
+JSON failure. This does not rescue the task-level gate because an episode is
+invalid when any turn or tool execution fails. The run-valid equal-suite
+estimate is 0.644318 with 95% CI `[0.506818, 0.777273]` and task-weighted
+sensitivity 31/49, or 0.632653. Its suite estimates are 0.75 banking, 0.727273
+slack, 0.50 travel, and 0.60 workspace.
+
+Five integrity/negative-control criteria pass: exact model provenance, no
+unknown/out-of-scope function, no sanitization-boundary failure, no atomic
+final-replay failure, and a perfect upstream oracle. Three criteria fail: the
+episode-validity point floor, its CI-lower floor, and the formal native-prompt
+binding requirement. The latter is exactly the frozen four-Travel-task
+non-ASCII serializer mismatch documented above; structured inputs and rendered
+bytes remain exact, but it cannot be post-hoc recoded as a pass.
+
+Consequently `interface_qualification_supported` and
+`new_clean_repair_protocol_permitted` are false. The artifact also fixes
+`development_submission_permitted`, `held_out_evaluation_permitted`, and
+`confirmatory_claim_permitted` to false and records
+`utility_used_as_progression_gate=false`. Development and test remain closed.
+
+Utility is retained only as a diagnostic. Its equal-suite estimate is
+0.307386 with 95% CI `[0.182955, 0.438068]`, task-weighted sensitivity
+16/49 or 0.326531, and suite estimates 0.375 banking, 0.454545 slack, 0.0
+travel, and 0.40 workspace. Exact oracle call-sequence rate is 0.060227 with
+95% CI `[0.0125, 0.120455]`. Neither endpoint was used in the qualification
+decision.
+
+A descriptive, non-preregistered decomposition of the 14 task-level protocol
+failures finds only one malformed native JSON payload. The other 13 are
+well-formed calls that fail during tool use: eight invalid entity references
+(invented file, event, transaction, or channel identifiers), three unsuccessful
+search queries, one invalid email argument, and one missing required schema
+argument. Failures occur in 8/20 workspace, 3/11 slack, 2/8 banking, and 1/10
+travel tasks. This is exploratory failure localization, not a new progression
+criterion. It supports the narrow interpretation that native tool chat largely
+solves serialization but does not make Qwen2.5-7B reliably ground multi-turn
+tool arguments and identifiers.
+
+The scientific disposition is negative but informative. The frozen Qwen
+checkpoint/native-interface pair is not qualified for a new clean-repair
+efficacy experiment under the prospective gate. Repeated prompt/parser patches
+would now be post-selection and are not an acceptable route to development or
+test. The supported methodological observation is a layered failure shift:
+strict flattened JSON produced zero valid learned episodes, native chat
+produced near-perfect per-turn parsing but only approximately 74% task-level
+protocol validity, with remaining failures dominated by semantic grounding and
+tool-execution errors.
+
+Immediate next checkpoint:
+
+1. commit this immutable analysis freeze;
+2. do not submit another clean-repair or held-out GPU job under scientific-v6;
+3. integrate this gate as train-only feasibility/measurement evidence rather
+   than an efficacy result;
+4. return to the already feasible E1/E2 core and define the paper's final
+   claims, tables, limitations, and any model-free robustness analyses that are
+   still preregistration-compatible; and
+5. if another learned-agent study is ever pursued, preregister it as a new
+   protocol/checkpoint study with an explicit grounding-error policy and a
+   corrected single canonical serializer. It must not reinterpret this run or
+   automatically open development/test.
