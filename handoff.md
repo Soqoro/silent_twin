@@ -6807,3 +6807,132 @@ Immediate next checkpoint:
    statement to the frozen claim ledger, verify all displayed numbers against
    immutable E1/E2/repair analyses, and prepare the final artifact/result table
    without widening the claims.
+
+## Scientific-v6 model-free submission-audit freeze on 2026-09-02
+
+The manuscript consolidation above was committed as `142f321` (`Integrate
+repair feasibility into scientific-v6 proposal`) before this audit began. The
+worktree was clean at that checkpoint. No protocol, grid, model artifact,
+frozen analysis, external result, or access permission was changed. No model
+was invoked, no PBS job was submitted, and no development or test result path
+was read.
+
+The deterministic audit implementation and its focused tests are:
+
+- `src/silenttwin/agentdojo/submission_audit.py`, 2,080 lines and 83,631 bytes,
+  SHA-256
+  `5f31593861d1025110695a0b517aab1fb072fbdec15b5a1e1758c800fed07dc6`;
+  and
+- `tests/unit/test_agentdojo_submission_audit.py`, 203 lines and 7,021 bytes,
+  SHA-256
+  `c195fd62f6d1178933558e06fdbf47db462d00bb64399e9c46e9f0b1fefca72d`.
+
+The audit binds 13 exact external evidence files. These comprise the E1 and E2
+analysis manifests, summaries, and validated run indexes; the adaptive
+interface analysis; the forced-choice analysis and raw result; and both repair
+analyses and raw results. It independently verifies every file SHA-256 and all
+six available analysis self-hashes. Its deep mode streams every indexed E1/E2
+raw result, checks each file against its run-manifest SHA-256 and row count,
+counts the top-level error ledger without deserializing unrelated large model
+provenance, and freezes an ordered whole-corpus digest. The exact raw corpus
+digests are:
+
+- E1:
+  `4eabcc5342f0ab4c9a9d74874f7b95345d14ca89fac987650837ec4cfc187c80`;
+  and
+- E2:
+  `6d275ed9cb77a6254b4d8de55e54d735134e081be97694d6d60b8a0f8ec880e6`.
+
+The raw scan reproduces E1's 288 shards, 8,928 rows, 3,815 error rows, and
+3,837 error-ledger entries (3,740 invalid hidden-state predictions and 97
+invalid probe selections). It reproduces E2's 104 shards, 4,836 rows, 1,986
+error rows, and 1,994 entries (1,935 invalid hidden-state predictions, 31
+invalid probe selections, and 28 invalid final plans). The differences between
+error rows and entries are respectively the 22 and eight rows carrying two
+errors.
+
+The audit also rederives the manuscript's explicitly descriptive raw-result
+claims. E1's generic genuine Q=16 rows contain candidate-namespace
+substitutions in 52/52 Travel and 33/56 Workspace responses, exact numeric
+two-state posteriors in all 186 responses, and a first-event deterministic
+decoder that recovers all 48 Banking, 30 Slack, 52 Travel, and 56 Workspace
+states. The schema counts, mean prediction-input lengths, and detailed-refusal
+validity counts reproduce exactly. The post-hoc AUC calculation is now fully
+specified: average scenario repetitions within structural group/state, use
+equal-suite weighting, sort canonical score rows, and run the frozen 5,000-
+resample structural-group bootstrap. Its rounded intervals are overall genuine
+target AUC 0.898 `[0.853, 0.952]`, Travel 0.720 `[0.570, 0.910]`, Workspace
+0.870 `[0.760, 0.968]`, shuffled donor AUC 0.901 `[0.860, 0.954]`, and
+SilentTwin target AUC 0.510 `[0.485, 0.540]`.
+
+The paired forced-choice raw result reproduces 2,976 rows, 1,488 collapsed
+surface pairs, strict minimal-context rank separation, largest target-negative
+score `2.269942092725241e-05`, and smallest target-positive score
+`5.4621770061658026e-05`. The strict-repair raw taxonomy reproduces 81
+missing/exact-key failures, 50 non-JSON fenced responses, and 16 mixed
+tool-call/final-content responses. The native raw taxonomy reproduces one
+malformed JSON episode, eight invalid entity identifiers, three unsuccessful
+searches, one invalid email, one missing argument, the 8/3/2/1 suite split, and
+four otherwise protocol-valid Travel prompt-binding failures.
+
+The final machine-readable artifact is
+`docs/scientific_v6_submission_audit_v1.json`. It is 129,346 bytes with file
+SHA-256
+`9eb1e67afd5478ea51d2482342797fa9596f67161bc4fbdbbba1c43dbdc2592a`
+and internal self-hash
+`aa3802a1ff96dd1a04be171b562fa52865b73cfaad347370686d8efdfaa47a39`.
+All 451 checks pass. Six claim records each require a matching statement in
+the abstract, conclusion, and frozen claim ledger. They cover source-aligned
+information, action selection, released-effect heterogeneity, partial
+recipient separation, failed learned-repair qualification, and the train-only
+generalization boundary. All access checks preserve
+`confirmatory_claim_permitted=false`; adaptive analyses record no development
+or test outcome access, and both repair gates continue to forbid development
+submission and held-out evaluation.
+
+The human-readable companion is
+`docs/scientific_v6_submission_audit.md`, 139 lines and 10,025 bytes with
+SHA-256
+`d695b1a838585fc34c56817365f3a10f92dd74cb5ae70b5dfb92e33fa99f55e3`.
+It records the exact reproduction command, complete 13-file evidence table,
+six-row final result index, claim map, raw accounting, and claim boundary.
+
+The audit found and corrected two reporting-only issues. First, the manuscript
+SilentTwin table values 0.6022 and 0.0780 are pooled raw-row error rates
+(224/372 and 29/372), while its old caption called the entire table
+equal-suite. The column and caption now state the weighting explicitly.
+Second, the exploratory posterior intervals were regenerated after canonical
+sorting under the documented bootstrap. Only their endpoints changed
+slightly; every point estimate, frozen primary analysis, and scientific
+interpretation is unchanged.
+
+The manuscript now contains a compact six-stage evidence index with 12-digit
+file-hash prefixes and explicit scientific dispositions. Its exact source is
+971 lines and 97,201 bytes with SHA-256
+`7b8c01f2bd6e63fea4bfa3b883e9db425f2e0badc44ba124a16f96c833908089`;
+that identity is bound inside the passing audit. Two final `pdflatex` passes
+produce a 21-page, 593,280-byte PDF with resolved citations and references,
+no overfull or underfull boxes, and no LaTeX error. The only diagnostics are
+the pre-existing Latin Modern bold-small-caps substitution and the conversion
+of float placement `h` to `ht`. Raster inspection of pages 15--17 confirms
+that the repair table, new evidence index, claim ledger, and following metrics
+remain legible and within page bounds.
+
+Verification at this checkpoint:
+
+- focused submission-audit tests: 22 passed;
+- complete unit suite: 488 tests and 65 subtests passed in 62.60 seconds;
+- final deep audit: 451/451 checks passed;
+- final two-pass TeX build: passed; and
+- `git diff --check`: passed after the final handoff append.
+
+Immediate next checkpoint:
+
+1. run the final repository diff/static checks and commit this audit freeze;
+2. submit no further scientific-v6 model or GPU job: the scoped empirical
+   phase is complete;
+3. use the evidence index and claim ledger as the ceiling for submission
+   editing, figure preparation, and external review; and
+4. treat any stronger checkpoint, corrected repair serializer, development or
+   held-out evaluation, or cross-model replication as a new prospectively
+   frozen study rather than an extension of this evidence set.
