@@ -21,6 +21,8 @@ ENTRYPOINTS = (
     "run_agentdojo_recipient_separation_train_tier2.sh",
     "run_agentdojo_interface_realization_train_tier2.sh",
     "run_agentdojo_forced_choice_readout_train_tier2.sh",
+    "run_agentdojo_clean_repair_train_tier2.sh",
+    "run_agentdojo_native_tool_interface_train_tier2.sh",
     "run_agentdojo_checkpoint_conformance_tier2.sh",
 )
 SCHEDULER_ENVIRONMENT_VARIABLES = (
@@ -145,7 +147,7 @@ def _run_pair_observe(**environment: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def test_exactly_twelve_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
+def test_explicit_agentdojo_entrypoints_are_shell_valid() -> None:
     discovered = {
         path.name
         for path in EXPERIMENT_DIR.glob("*agentdojo*.sh")
@@ -237,6 +239,41 @@ def test_interface_realization_authorized_preflight_has_python_pin(tmp_path: Pat
     assert result.returncode == 2
     assert "missing frozen interface-realization protocol" in result.stderr
     assert "unbound variable" not in result.stderr
+
+
+def test_native_tool_interface_entrypoint_rejects_nontrain_split() -> None:
+    values = _clean_scheduler_environment()
+    values.update(
+        {
+            "PYTHON_BIN": "/definitely/not/a/python",
+            "NATIVE_TOOL_PROTOCOL": "/frozen/protocol.json",
+            "NATIVE_TOOL_INPUTS": "/frozen/inputs.jsonl",
+            "NATIVE_TOOL_OUTPUT": "/persistent/output",
+            "AGENTDOJO_DEPENDENCY_LOCK": "/frozen/lock",
+            "AGENTDOJO_MODEL_CACHE": "/persistent/cache",
+            "AGENTDOJO_VICTIM_CHECKPOINT": "/persistent/checkpoint",
+            "AGENTDOJO_DATASET_SPLIT": "development",
+        }
+    )
+
+    result = subprocess.run(
+        [
+            "bash",
+            str(
+                EXPERIMENT_DIR
+                / "run_agentdojo_native_tool_interface_train_tier2.sh"
+            ),
+        ],
+        cwd=REPO_ROOT,
+        env=values,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "native tool-interface qualification is train-only" in result.stderr
 
 
 def test_forced_choice_entrypoint_rejects_nontrain_split() -> None:

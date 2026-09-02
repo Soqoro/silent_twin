@@ -6262,3 +6262,92 @@ Immediate next checkpoint:
    validity as the gate before any utility claim; and
 4. permit a new clean-repair component run only if the new interface meets its
    prespecified validity floor. Do not open development or test.
+
+## Scientific-v6 native tool-interface gate implementation on 2026-09-02
+
+The clean-repair analysis freeze above was committed as `d6b2c0d` (`Freeze
+clean repair train analysis`) before designing another model interface. The
+new study is explicitly adaptive, train-only, and limited to qualifying one
+checkpoint/interface pair. It never reparses or changes the 147 failed
+responses and does not treat their utilities as missing data.
+
+The machine protocol is
+`configs/silenttwin/agentdojo/scientific-v6-native-tool-interface-train-v1.json`
+with reproducible self-hash
+`eacb04ce3501fada590a9107d3d9eabf14b53a7b1cd8b883ced4924333660cea`.
+It binds the immutable 49-task clean-repair input bytes and metadata, task
+records, failed result SHA, failed analysis bytes, and failed analysis
+self-hash. It keeps the same Qwen2.5-7B-Instruct revision, full-tree checkpoint
+fingerprint, bfloat16 greedy decoding, 512-token turn bound, and 108-package
+learned runtime.
+
+There is one new arm,
+`fresh_repair_restricted_native_tool_chat`. Each of the same 49 train
+structural groups receives a fresh sanitized repair context and only the
+benchmark-oracle function schemas required by its released clean-task ground
+truth. Instead of flattening messages and schemas into one user prompt, the
+local adapter passes structured messages and OpenAI-style function definitions
+through the exact native tool template embedded in the pinned Qwen tokenizer.
+That template has independently reproduced SHA-256
+`cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f`
+and specifies strict JSON payloads inside `<tool_call>...</tool_call>` blocks.
+
+The new parser accepts that documented native syntax and ordinary nonempty
+terminal text. It retains an optional assistant preamble but performs no
+Markdown stripping, JSON normalization, missing-key insertion, schema repair,
+or retry. Duplicate JSON keys, malformed/unmatched tags, invalid arguments,
+excess calls, and unknown functions fail closed. Parsed unknown-function
+attempts remain counted explicitly even though they are never executed.
+
+The native loop is bounded at 12 turns and 8 calls per turn. It retains the
+canonical structured request, exact tokenizer-rendered input, raw response,
+parse result, seed, token usage, model identity, and local/offline provenance
+for every turn. Calls execute first in a disposable environment. The message
+context and callback capability are retired before the locked trace is
+atomically replayed against a fresh target environment; a replay failure
+commits nothing. Checkpoints are immutable, task-addressed, and resumable.
+
+Progression is deliberately independent of utility. At all 49 independent
+train groups, equal-suite task-level native episode validity must be at least
+0.90 and its suite-stratified 95% bootstrap lower bound must be at least 0.80.
+Exact model provenance, exact native prompt/render binding, zero unknown or
+out-of-scope functions, zero sanitization or atomic final-replay failures, and
+the upstream perfect oracle are conjunctive requirements. Strict utility,
+exact oracle sequence,
+turn parse rate, run validity, and resource counts are diagnostics only. A
+pass permits only a newly preregistered train clean-repair comparison; it does
+not open development/test or support an efficacy claim.
+
+Implementation adds the native structured-tool method to the local
+Transformers client, the fail-closed parser/loop and freeze/run/analyze
+workflow in `native_tool_interface.py`, a scalar resumable Tier-2 launcher,
+the machine protocol, a human-readable protocol, and unit/integration tests.
+The launcher rejects non-train splits, scheduler arrays, missing immutable
+artifacts, nonpositive pilot limits, non-Python-3.11 runtimes, absent GPUs,
+ephemeral paths, API fallback, and mock fallback.
+
+The actual pinned tokenizer was loaded locally without model inference and
+successfully rendered representative structured messages and tools. Its live
+template hash matched the protocol; the rendering contained the tool schema
+and ended at the expected assistant generation marker. Protocol self-hashing,
+native parsing, multi-turn tool-result reconstruction, unknown-function
+rejection, local-client metadata, old clean-repair behavior, and shell
+preflight all pass 57 focused tests. The complete unit suite passes 466 tests
+and 65 subtests in 138.34 seconds. A broader repository diagnostic was stopped
+without a failure while inside an existing long-running pinned-catalog
+integration test; no required native-interface verification depends on that
+unfinished diagnostic. `git diff --check`, Python compilation, and shell
+syntax validation pass.
+
+Immediate next checkpoint:
+
+1. review and commit the protocol, implementation, documentation, launcher,
+   tests, and this design record as one executable scientific checkpoint;
+2. construct a detached clean checkout at that exact revision and build a
+   clean wheel/source-tree identity;
+3. from the detached checkout, run the CPU-only input freeze into a new
+   immutable production evidence artifact and validate every binding;
+4. submit one scalar `gpu_free` H200 pilot with
+   `NATIVE_TOOL_MAX_NEW_TASKS=1`; and
+5. continue independently of utility only if identity, boundary, parser,
+   checkpoint, and replay integrity pass. Keep development and test closed.

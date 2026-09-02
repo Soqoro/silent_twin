@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import hashlib
+import json
 import os
 from pathlib import Path
 import time
@@ -808,6 +809,193 @@ class LocalTransformersModelClient:
                 "input_messages": [dict(message) for message in normalized],
                 "input_messages_hash": hashlib.sha256(
                     canonical_messages.encode("utf-8")
+                ).hexdigest(),
+            },
+        )
+
+    @staticmethod
+    def _normalize_tool_chat_messages(
+        messages: Sequence[Mapping[str, Any]],
+    ) -> tuple[dict[str, Any], ...]:
+        """Validate the exact message subset accepted by the native tool template."""
+
+        if isinstance(messages, (str, bytes, bytearray)) or not isinstance(
+            messages, Sequence
+        ):
+            raise TypeError("tool-chat messages must be a sequence")
+        normalized: list[dict[str, Any]] = []
+        for index, message in enumerate(messages):
+            if not isinstance(message, Mapping):
+                raise TypeError(f"tool-chat message {index} must be a mapping")
+            role = message.get("role")
+            if role in {"system", "user", "tool"}:
+                if set(message) != {"role", "content"} or not isinstance(
+                    message.get("content"), str
+                ):
+                    raise TypeError(
+                        f"tool-chat {role} message {index} must contain exactly "
+                        "role and string content"
+                    )
+                normalized.append({"role": str(role), "content": message["content"]})
+                continue
+            if role != "assistant" or set(message) != {
+                "role",
+                "content",
+                "tool_calls",
+            }:
+                raise TypeError(
+                    f"tool-chat assistant message {index} has an ambiguous schema"
+                )
+            content = message.get("content")
+            calls = message.get("tool_calls")
+            if not isinstance(content, str) or isinstance(
+                calls, (str, bytes, bytearray)
+            ) or not isinstance(calls, Sequence) or not calls:
+                raise TypeError(
+                    f"tool-chat assistant message {index} requires content and tool calls"
+                )
+            normalized_calls: list[dict[str, Any]] = []
+            for call_index, call in enumerate(calls):
+                if (
+                    not isinstance(call, Mapping)
+                    or set(call) != {"type", "function"}
+                    or call.get("type") != "function"
+                ):
+                    raise TypeError(
+                        f"tool-chat call {index}:{call_index} has an invalid envelope"
+                    )
+                function = call.get("function")
+                if (
+                    not isinstance(function, Mapping)
+                    or set(function) != {"name", "arguments"}
+                    or not isinstance(function.get("name"), str)
+                    or not function.get("name")
+                    or not isinstance(function.get("arguments"), Mapping)
+                ):
+                    raise TypeError(
+                        f"tool-chat call {index}:{call_index} has an invalid function"
+                    )
+                normalized_calls.append(
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": str(function["name"]),
+                            "arguments": json.loads(
+                                canonical_json(dict(function["arguments"]))
+                            ),
+                        },
+                    }
+                )
+            normalized.append(
+                {
+                    "role": "assistant",
+                    "content": content,
+                    "tool_calls": normalized_calls,
+                }
+            )
+        if not normalized:
+            raise ValueError("tool-chat messages must not be empty")
+        return tuple(normalized)
+
+    @staticmethod
+    def _normalize_tool_definitions(
+        tools: Sequence[Mapping[str, Any]],
+    ) -> tuple[dict[str, Any], ...]:
+        if isinstance(tools, (str, bytes, bytearray)) or not isinstance(
+            tools, Sequence
+        ):
+            raise TypeError("tool definitions must be a sequence")
+        normalized: list[dict[str, Any]] = []
+        names: set[str] = set()
+        for index, tool in enumerate(tools):
+            if (
+                not isinstance(tool, Mapping)
+                or set(tool) != {"type", "function"}
+                or tool.get("type") != "function"
+            ):
+                raise TypeError(f"tool definition {index} has an invalid envelope")
+            function = tool.get("function")
+            if (
+                not isinstance(function, Mapping)
+                or set(function) != {"name", "description", "parameters"}
+                or not isinstance(function.get("name"), str)
+                or not function.get("name")
+                or not isinstance(function.get("description"), str)
+                or not isinstance(function.get("parameters"), Mapping)
+            ):
+                raise TypeError(f"tool definition {index} has an invalid function")
+            name = str(function["name"])
+            if name in names:
+                raise ValueError(f"duplicate native tool definition {name!r}")
+            names.add(name)
+            normalized.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": name,
+                        "description": str(function["description"]),
+                        "parameters": json.loads(
+                            canonical_json(dict(function["parameters"]))
+                        ),
+                    },
+                }
+            )
+        if not normalized:
+            raise ValueError("native tool chat requires at least one tool")
+        return tuple(normalized)
+
+    def complete_tool_chat(
+        self,
+        messages: Sequence[Mapping[str, Any]],
+        tools: Sequence[Mapping[str, Any]],
+        *,
+        seed: int = 0,
+        max_tokens: int = 128,
+    ) -> ModelResponse:
+        """Complete Qwen's pinned native tool-chat template without flattening it."""
+
+        normalized_messages = self._normalize_tool_chat_messages(messages)
+        normalized_tools = self._normalize_tool_definitions(tools)
+        self._load()
+        tokenizer = self._tokenizer
+        assert tokenizer is not None
+        if not getattr(tokenizer, "chat_template", None):
+            raise LocalModelUnavailableError(
+                "native tool chat requires a tokenizer chat template"
+            )
+        rendered = tokenizer.apply_chat_template(
+            list(normalized_messages),
+            tools=list(normalized_tools),
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        if not isinstance(rendered, str):
+            raise LocalModelUnavailableError(
+                "tokenizer native tool template did not render text"
+            )
+        canonical_input = canonical_json(
+            {
+                "messages": list(normalized_messages),
+                "tools": list(normalized_tools),
+            }
+        )
+        return self._complete_rendered(
+            rendered,
+            input_prompt=canonical_input,
+            seed=seed,
+            max_tokens=max_tokens,
+            input_metadata={
+                "input_mode": "native_tool_chat",
+                "input_messages": [dict(message) for message in normalized_messages],
+                "input_messages_hash": hashlib.sha256(
+                    canonical_json(list(normalized_messages)).encode("utf-8")
+                ).hexdigest(),
+                "input_tools": [dict(tool) for tool in normalized_tools],
+                "input_tools_hash": hashlib.sha256(
+                    canonical_json(list(normalized_tools)).encode("utf-8")
+                ).hexdigest(),
+                "native_tool_chat_input_hash": hashlib.sha256(
+                    canonical_input.encode("utf-8")
                 ).hexdigest(),
             },
         )
