@@ -6426,3 +6426,91 @@ Immediate next checkpoint:
 5. decide whether to resume the other 48 tasks using only the preregistered
    integrity criteria, never the pilot's utility direction. Keep development
    and test closed.
+
+## Scientific-v6 native tool-interface one-task pilot freeze on 2026-09-02
+
+The executable/input freeze above was committed as `96ed8c7` (`Freeze native
+tool-interface train inputs`) before any new model inference. Immediately
+before submission, both main and detached checkouts were clean; the frozen
+input retained SHA-256
+`8b71b77a9dfb19a3d595a57dfabb93c0d33d8c4a6c305de39ccff3f719640611`;
+the learned environment passed `pip check`; and a fresh full-byte model audit
+reproduced Qwen checkpoint fingerprint
+`sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+The run destination was absent and the newly created scheduler-log directory
+was empty. No job was listed for `suaq0001`; `gpu_free` was enabled and
+started, required and allowed exactly one GPU, capped walltime at four hours,
+and retained its one-running-job-per-user limit.
+
+The submitted `-v` allowlist contains exactly 12 unique variables and 1,210
+UTF-8 bytes. Its literal SHA-256 is
+`5fa11a70c964145ec0b09b1f2633850cebb57ac15f48c61097afa5bcbe22b362`.
+It binds only the detached source, learned Python, bytecode suppression,
+immutable protocol/input, resumable train output, dependency lock, local model
+cache and Qwen snapshot, train split, `NATIVE_TOOL_MAX_NEW_TASKS=1`, and
+`cuda:0`. It does not use `-V`, an array index, a development/test path, or an
+API/mock fallback.
+
+PBS accepted scalar job `56552.gaas` with project `fs_ccds_asysong`, queue
+`gpu_free`, name `st-v6-nt-pilot`, 12 CPUs, one GPU, one MPI process, 250 GB
+memory, and walltime `04:00:00`. The machine-readable scheduler record exactly
+reproduces those resources and all 12 submitted variables. The job ran once on
+`hpc-gaas-g25` and terminated with state `F`, `Exit_status = 0`, and
+`Stageout_status = 1`. It used 34 seconds walltime, 29 seconds CPU time,
+525,416 kb peak resident memory, 35,903,808 kb peak virtual memory, and 15,648
+MB maximum H200 memory.
+
+Stdout is 150 bytes with SHA-256
+`88aaa89605f01cc0dd6bcd78e9df98a111c560ddca7517143de7cccf36f45271`
+and reports exactly one of 49 tasks completed, three model calls, null result,
+and status `partial_integrity_pilot`. Stderr is 213 bytes with SHA-256
+`09df38c89c6799e6efdf9093ddc1ce0c7c242356a674d05e2f2bb652c160bad7`;
+it contains only a Transformers deprecation warning and successful local
+weight-loading progress.
+
+The resumable run manifest is 2,917 bytes with file SHA-256
+`f22f36d02de43799c6480e18e0193cfa62a0bf0fef85adead61f92bb1aea4c50`
+and reproduced self-hash
+`f96ec249e8eaf3be9faf5d5ef383783d25e16049f57bd99e063fd18a6303aacc`.
+It binds job `56552.gaas`, source revision `74f60ee`, source-tree hash
+`73ffc585fe0739dd054d722e28237ea42db660ac0046495416a92f2dd7797f5a`,
+runtime fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`,
+the exact input/protocol/task identities, Qwen identity, and native chat
+template. No result file has been published.
+
+Exactly one read-only checkpoint exists. Its job ID is
+`f2d3be9b14b5a482650f5371c5b6bd9b2d6f75859aabf3c40179d9cc41e2e2bb`,
+its 86,225-byte file SHA-256 is
+`7baaf36006441501b6b6f72293941efefcffcb85747c264a0b69a7410588df76`,
+and its reproduced checkpoint self-hash is
+`7cb2eb695624cae9b0567ed2dda9ed93e1ea929f39ef8079222b05767e2c3b12`.
+Strict reopening and the independent checkpoint/call-record validators pass.
+All three native responses parse under the preregistered no-repair parser;
+model-protocol validity, run validity, model provenance, and exact prompt
+binding are true. The model attempted only the single visible authorized
+function, with zero unauthorized functions. The fresh-message/KV-cache,
+sanitized-handoff, context-retirement, speculative-execution, locked-trace,
+and atomic final-replay checks all pass; both locked calls were replayed and
+committed without error. There is no tool-loop error, external API call,
+development/test inspection, or confirmatory permission.
+
+The pilot therefore passes its prospective
+`identity_boundary_and_replay_integrity_only` continuation rule. Its utility
+direction is not a continuation criterion and was not used in this decision.
+This authorizes a scalar resume of the same immutable run for the remaining 48
+train tasks; it does not yet establish the 49-task validity gate and does not
+open development or test.
+
+Immediate next checkpoint:
+
+1. commit this pilot integrity freeze;
+2. recheck the unchanged source/input/checkpoint identities, the single valid
+   checkpoint, absent result, empty dedicated resume-log directory, account,
+   and live queue;
+3. submit one scalar resume to the same `run-v1` output without
+   `NATIVE_TOOL_MAX_NEW_TASKS`;
+4. after completion, validate all 49 checkpoints and the immutable result
+   before running the preregistered model-free validity analysis; and
+5. do not use utility direction to decide progression. Keep development and
+   test closed.
