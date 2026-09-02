@@ -5753,3 +5753,94 @@ Immediate next checkpoint:
    a new train-only protocol; and
 4. do not open development, held-out data, or a stronger-model phase without a
    separately frozen design and permission-bearing gate.
+
+## Scientific-v6 clean-repair component protocol checkpoint on 2026-09-02
+
+The next empirical phase is now specified and implemented as a new adaptive,
+train-only clean-repair component study. It does not reuse the generic E4
+engineering-smoke settlement path as scientific repair evidence. That path
+still has benchmark-authored dependency and atomicity semantics and remains
+closed until those semantics and a scenario-specific repair interface receive
+independent review.
+
+The new immutable protocol is
+`configs/silenttwin/agentdojo/scientific-v6-clean-repair-train-v1.json`, with
+self-hash
+`a60a17202654f8cc59d4f3662c911c5c709cf0dc785cd71299173703ae0f9b9f`.
+The implementation and operational artifacts are:
+
+- `src/silenttwin/agentdojo/clean_repair.py`;
+- `tests/unit/test_agentdojo_clean_repair.py`;
+- `experiments/silenttwin/run_agentdojo_clean_repair_train_tier2.sh`; and
+- `docs/scientific_v6_clean_repair_train_protocol.md`.
+
+The frozen design collapses the 93 scientific-v6 train scenarios to one
+lexicographically selected scenario for each of 49 structural user-task
+groups: 20 workspace, 10 travel, 8 banking, and 11 slack. No model outcome is
+used for selection. Each task is crossed with five arms: no repair, released
+ground-truth oracle, clean-start Qwen with full tools, fresh sanitized repair
+with full tools, and fresh sanitized repair with the benchmark-oracle function
+scope. This yields 245 result rows and 147 learned episodes. The primary
+paired contrast is restricted repair minus clean-start full tools; its frozen
+train-only noninferiority margin is -0.10. Development and test remain closed.
+
+The repair context receives only the clean task, released schemas, and a typed
+state-independent handoff saying that the prior context was retired and no
+prior work was committed. It receives no injection, monitor verdict or reason,
+private state, prior transcript, or draft. Learned calls execute on a
+disposable clean environment. The context is retired before its locked trace
+is replayed atomically on a fresh clean target. Invalid model output, replay
+failure, runtime/provenance drift, or prompt-binding drift is retained once
+with utility zero; there is no retry or schema repair.
+
+A full model-free audit exercised the real input-freeze path against the
+frozen scientific-v6 catalog, splits, action-eligibility artifact,
+recipient-separation strategy and pair artifacts, and the final E1/E2 analysis
+manifests. It reproduced exactly 49 tasks, 245 jobs, 147 learned episodes, and
+the four prespecified suite counts. All 49 released ground-truth plans executed
+without a tool error and achieved strict utility 1. The diagnostic task-record
+hash was
+`39eec3979491c2bbbc809bb0d8ddd1c6e90c1cf749efc0200a971d9d52cd49e7`.
+The active learned environment contained 108 distributions and produced
+diagnostic runtime fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`.
+These are audit observations, not the authoritative freeze: the temporary
+audit substituted a clean provenance stub solely because the new files are not
+yet committed. The production freezer itself rejects a dirty checkout and will
+derive and retain the real clean revision and source-tree hash.
+
+Verification completed at this checkpoint:
+
+- the new focused tests pass, 6/6, including fail-closed prompt and H200
+  provenance drift checks and an end-to-end 245-row analysis gate;
+- the complete unit suite passes, 454 tests plus 65 subtests;
+- the neighboring ecological and recipient-separation tests pass, 22/22;
+- the module CLI imports under the Python 3.11 AgentDojo environment;
+- the scheduled launcher passes `bash -n`;
+- Python compilation succeeds; and
+- `git diff --check` succeeds.
+
+No GPU/model call, PBS submission, development access, or test access occurred
+in this checkpoint. The input freezer initially exposed and then fixed a
+preflight defect: a runtime-provenance API had been called without its required
+binding argument. The corrected freezer now derives a complete active learned
+runtime manifest at the clean input freeze; every resume must reproduce that
+fingerprint exactly. Per-call validation also now fails closed on model,
+checkpoint, tokenizer, local/offline execution, H200 identity, decoding, or
+exact prompt-binding drift.
+
+Immediate next checkpoint:
+
+1. review and commit these five new artifacts plus this handoff record;
+2. from that clean commit, materialize the immutable 49-task train input file
+   using the command in
+   `docs/scientific_v6_clean_repair_train_protocol.md`;
+3. record the exact clean revision, source-tree hash, runtime fingerprint,
+   task-record hash, input-file SHA-256, and metadata hash without inspecting
+   any model outcome;
+4. submit one scalar H200 integrity pilot with
+   `CLEAN_REPAIR_MAX_NEW_TASKS=1`, producing all five arms for the first task
+   in the final resumable checkpoint directory; and
+5. validate identities and boundaries only, then resume the same directory
+   without the task cap. Do not select continuation based on utility direction
+   and do not open development or test.
