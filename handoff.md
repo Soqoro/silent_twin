@@ -6058,3 +6058,51 @@ Immediate next checkpoint:
    retain every contract-invalid output without repair; and
 5. after the run is complete, validate all 245 checkpoints and only then run
    the preregistered train-only analysis. Keep development and test closed.
+
+## Scientific-v6 clean-repair full resume submission on 2026-09-02
+
+The one-task pilot integrity freeze was committed as `28e27f2` (`Freeze clean
+repair H200 pilot integrity`) without changing executable source, protocol,
+inputs, checkpoints, or the learned environment. Immediately before resume,
+the main worktree was clean; the detached execution checkout remained clean at
+`ac45c4caa092341e49c7fb754ecb45a4ba4f8cca`; input SHA-256 remained
+`cf7874832b8bc1d460cc5238319ca62b89a5903a97fb18893ee4a89f42bb0768`;
+and the partial manifest SHA-256 remained
+`3b61e0f358cefa76f712b871e00ed7c59f6b625a360546bfb269ab72c7e6d83e`.
+Exactly five checkpoint files remained, no `result.jsonl` existed, and the
+active 108-distribution runtime again reproduced fingerprint
+`sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`.
+
+No job was listed for `suaq0001`. Live `gpu_free` remained enabled and started
+with a four-hour limit and eight queued jobs. The new scheduler-log directory
+`logs/scientific-v6-clean-repair-full` was absent and then created empty.
+
+The resume `-v` allowlist contains exactly 11 unique variables and 1,131 UTF-8
+bytes, with literal SHA-256
+`3acd98a412db45d0eba59353ebc4a728cf48c8e908967d77f21f99b93f951613`.
+It is identical in scientific paths and identities to the pilot allowlist,
+except that `CLEAN_REPAIR_MAX_NEW_TASKS` is absent. It uses neither `-V` nor an
+array index and contains no development/test path.
+
+PBS accepted scalar resume job `56460.gaas` at 13:35 local time under project
+`fs_ccds_asysong`, queue `gpu_free`, and name `st-v6-cr-full`. Immediate
+`qstat -fx` inspection showed state `R`, run count one, and allocation on
+`hpc-gaas-g25` with 12 CPUs, one GPU, 250 GB memory, and wall time `04:00:00`.
+The job uses the same detached launcher, immutable inputs, Qwen snapshot, and
+final `run-v1` directory. It will validate and preserve the five existing
+checkpoints before appending any remaining row.
+
+No post-resume model outcome was inspected in this checkpoint.
+
+Immediate next checkpoint:
+
+1. wait for `56460.gaas` to become terminal and record its exact scheduler
+   status, resource use, and persistent log hashes;
+2. require a complete self-hashed run manifest, exactly 245 unique immutable
+   checkpoints in frozen order, all 49 task IDs with all five arms, and a
+   published result whose SHA matches the manifest;
+3. independently validate every checkpoint identity, source/runtime/model and
+   prompt binding, train-only boundary, atomic replay, and failure scoring;
+4. freeze the complete run before interpreting aggregate utility; and
+5. only then execute the preregistered CPU analysis. Development and test
+   remain closed.
