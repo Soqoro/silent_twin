@@ -5905,3 +5905,65 @@ Immediate next checkpoint:
    do not condition continuation on utility direction; and
 5. if and only if those integrity checks pass, resume the same directory
    without the task cap. Development and test remain closed.
+
+## Scientific-v6 clean-repair one-task H200 pilot submission on 2026-09-02
+
+The authoritative input-freeze record above was committed as
+`1c5372e` (`Freeze clean repair train inputs`) before submission. The main
+worktree and the input-bound detached checkout were clean. A fresh preflight
+reproduced all of the following:
+
+- immutable input SHA-256
+  `cf7874832b8bc1d460cc5238319ca62b89a5903a97fb18893ee4a89f42bb0768`;
+- detached revision
+  `ac45c4caa092341e49c7fb754ecb45a4ba4f8cca` and source-tree hash
+  `aff68088951ae596ab9931a601633669d118c28e5efefca67bd9e16f4f478bd1`;
+- learned-runtime fingerprint
+  `sha256:75aab14cb46e74baf8c16308069f99e1d4df497915450f47fc4a1846889f965c`
+  over 108 distributions; and
+- a fresh full-byte Qwen checkpoint audit equal to
+  `sha256:bfb9ad97ebbceae4eb4b54fc85334d0a71f5e157176323712a7b3ed6e0d05e8e`.
+
+The final run destination did not exist, the scheduler-log destination was
+absent and then created empty, the checkpoint/cache paths were present, and
+`/home` had 661,042,233,344 bytes available. Live PBS inspection showed
+`gpu_free` enabled and started, exactly one GPU required/permitted, a four-hour
+maximum wall time, project group `hpc_fs_asysong_group` admitted, and user
+limit `max_run=[u:PBS_GENERIC=1]`. No existing job was listed for `suaq0001`.
+
+The submitted `-v` allowlist contains exactly 12 unique variables and 1,160
+UTF-8 bytes. Its literal SHA-256 is
+`a8498172261ddfd3b4b703773463b4df63342bfc88bce1222d4de00adb14bba8`.
+It does not use `-V`, an array index, a development/test path, or an API/mock
+fallback. It binds the detached source, learned Python, immutable train input,
+final resumable output directory, core dependency lock, local model cache,
+Qwen snapshot, `CLEAN_REPAIR_MAX_NEW_TASKS=1`, and `cuda:0`.
+
+PBS accepted scalar job `56459.gaas` at 13:29 local time with project
+`fs_ccds_asysong`, queue `gpu_free`, name `st-v6-cr-pilot`, 12 CPUs, one GPU,
+250 GB memory, and wall time `04:00:00`. Immediate `qstat -fx` inspection
+showed state `R`, `run_count=1`, and allocation
+`hpc-gaas-g25:ncpus=12:ngpus=1:mem=262144000kb`. Its launcher is the detached
+`run_agentdojo_clean_repair_train_tier2.sh`; its persistent output is
+`scientific-v6-clean-repair-train/run-v1`; and stdout/stderr are directed to
+`logs/scientific-v6-clean-repair-pilot`.
+
+The first immediate filesystem check found no log, manifest, checkpoint, or
+result file yet, consistent with the job entering its full checkpoint/runtime
+preflight. No model outcome was inspected and no continuation decision was
+made.
+
+Immediate next checkpoint:
+
+1. wait for `56459.gaas` to become terminal and record exact exit status and
+   resource use;
+2. require a `partial_integrity_pilot` run manifest with exactly five immutable
+   checkpoints for one task and no published result file;
+3. validate source/runtime/model/prompt identities, train-only access,
+   sanitization flags, context retirement, atomic replay, and failure scoring
+   across all five rows without using utility direction as a continuation
+   criterion;
+4. if the integrity gate passes, commit the pilot observation and submit a
+   scalar resume without `CLEAN_REPAIR_MAX_NEW_TASKS`; and
+5. otherwise diagnose and freeze any repair before another model call. Keep
+   development and test closed.
